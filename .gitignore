@@ -21,6 +21,7 @@ Thumbs.db
 # Kotlin
 *.class
 *.jar
+!gradle/wrapper/gradle-wrapper.jar
 *.kotlin_module
 .kotlin/
 
