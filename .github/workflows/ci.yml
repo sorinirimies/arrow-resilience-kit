@@ -29,23 +29,23 @@ jobs:
       - name: Validate Gradle wrapper
         uses: gradle/wrapper-validation-action@v1
 
-      # Build and test steps disabled until compilation errors are fixed
-      # See KNOWN_ISSUES.md for details
-      # - name: Build project
-      #   run: ./gradlew build --no-daemon --stacktrace
+      - name: Build project
+        run: ./gradlew build --no-daemon --stacktrace
+        continue-on-error: true
 
-      # - name: Run tests
-      #   run: ./gradlew allTests --no-daemon --stacktrace
+      - name: Run tests
+        run: ./gradlew allTests --no-daemon --stacktrace
+        continue-on-error: true
 
-      # - name: Upload test results
-      #   uses: actions/upload-artifact@v4
-      #   if: always()
-      #   with:
-      #     name: test-results
-      #     path: |
-      #       **/build/test-results/
-      #       **/build/reports/
-      #     retention-days: 7 # Keep artifacts for one week
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: |
+            **/build/test-results/
+            **/build/reports/
+          retention-days: 7
 
   lint:
     runs-on: ubuntu-latest
@@ -62,10 +62,9 @@ jobs:
       - name: Setup Gradle
         uses: gradle/gradle-build-action@v2
 
-      # Lint disabled until compilation errors are fixed
-      # - name: Run detekt
-      #   run: ./gradlew check --no-daemon
-      #   continue-on-error: true
+      - name: Run detekt
+        run: ./gradlew check --no-daemon
+        continue-on-error: true
 
   documentation:
     runs-on: ubuntu-latest
@@ -82,13 +81,14 @@ jobs:
       - name: Setup Gradle
         uses: gradle/gradle-build-action@v2
 
-      # Documentation generation disabled until compilation errors are fixed
-      # - name: Generate documentation
-      #   run: ./gradlew dokkaHtml --no-daemon
+      - name: Generate documentation
+        run: ./gradlew dokkaHtml --no-daemon
+        continue-on-error: true
 
-      # - name: Upload documentation
-      #   uses: actions/upload-artifact@v4
-      #   with:
-      #     name: documentation
-      #     path: build/documentation/
-      #     retention-days: 7
+      - name: Upload documentation
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: documentation
+          path: build/documentation/
+          retention-days: 7
