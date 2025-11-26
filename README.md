@@ -1,5 +1,12 @@
 # Arrow Resilience Kit
 
+[![GitHub Release](https://img.shields.io/github/v/release/sorinirimies/arrow-resilience-kit)](https://github.com/sorinirimies/arrow-resilience-kit/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![CI](https://github.com/sorinirimies/arrow-resilience-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/sorinirimies/arrow-resilience-kit/actions/workflows/ci.yml)
+[![Publish](https://github.com/sorinirimies/arrow-resilience-kit/actions/workflows/publish.yml/badge.svg)](https://github.com/sorinirimies/arrow-resilience-kit/actions/workflows/publish.yml)
+[![Kotlin](https://img.shields.io/badge/Kotlin-1.9.22-blue.svg?logo=kotlin)](https://kotlinlang.org)
+[![Arrow](https://img.shields.io/badge/Arrow-1.2.1-blue.svg)](https://arrow-kt.io)
+
 Comprehensive resilience patterns library for Kotlin Multiplatform using Arrow-kt.
 
 ## Features
