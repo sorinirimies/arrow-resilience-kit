@@ -4,6 +4,7 @@
 
 import arrow.fx.stm.TVar
 import arrow.fx.stm.atomically
+import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import mu.KotlinLogging
@@ -51,12 +52,11 @@ private val logger = KotlinLogging.logger {}
 class RateLimiter(
     private val config: RateLimiterConfig = RateLimiterConfig(),
 ) {
-    private val tokensVar = TVar(config.burstCapacity.toDouble())
-    private val lastRefillTimeVar = TVar(Clock.System.now())
-    private val totalRequestsVar = TVar(0L)
-    private val acceptedRequestsVar = TVar(0L)
-    private val rejectedRequestsVar = TVar(0L)
-    private val listeners = mutableListOf<RateLimiterListener>()
+    private val tokensVar: TVar<Double> = runBlocking { TVar.new(config.burstCapacity.toDouble()) }
+    private val lastRefillTimeVar: TVar<Instant> = runBlocking { TVar.new(Clock.System.now()) }
+    private val totalRequestsVar: TVar<Long> = runBlocking { TVar.new(0L) }
+    private val acceptedRequestsVar: TVar<Long> = runBlocking { TVar.new(0L) }
+    private val rejectedRequestsVar: TVar<Long> = runBlocking { TVar.new(0L) }
 
     /**
      * Gets the current number of available tokens.
@@ -403,11 +403,10 @@ class RateLimiterConfigBuilder {
 class SlidingWindowRateLimiter(
     private val config: SlidingWindowConfig = SlidingWindowConfig(),
 ) {
-    private val requestTimestampsVar = TVar(emptyList<Instant>())
-    private val totalRequestsVar = TVar(0L)
-    private val acceptedRequestsVar = TVar(0L)
-    private val rejectedRequestsVar = TVar(0L)
-
+    private val requestTimestampsVar: TVar<List<Instant>> = runBlocking { TVar.new(emptyList()) }
+    private val totalRequestsVar: TVar<Long> = runBlocking { TVar.new(0L) }
+    private val acceptedRequestsVar: TVar<Long> = runBlocking { TVar.new(0L) }
+    private val rejectedRequestsVar: TVar<Long> = runBlocking { TVar.new(0L) }
     /**
      * Gets the current number of requests in the window.
      */
@@ -594,7 +593,6 @@ class RateLimiterRegistry {
     /**
      * Gets an existing rate limiter or creates a new one.
      */
-    @Synchronized
     fun getOrCreate(
         name: String,
         configure: (RateLimiterConfigBuilder.() -> Unit)? = null,
@@ -618,7 +616,6 @@ class RateLimiterRegistry {
     /**
      * Removes a rate limiter from the registry.
      */
-    @Synchronized
     fun remove(name: String): RateLimiter? {
         return limiters.remove(name)
     }

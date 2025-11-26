@@ -4,6 +4,7 @@
 
 import arrow.fx.stm.TVar
 import arrow.fx.stm.atomically
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.delay
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
@@ -52,11 +53,10 @@ private val logger = KotlinLogging.logger {}
 class CircuitBreaker(
     private val config: CircuitBreakerConfig = CircuitBreakerConfig(),
 ) {
-    private val stateVar = TVar(CircuitBreakerState.Closed)
-    private val failureCountVar = TVar(0)
-    private val successCountVar = TVar(0)
-    private val lastFailureTimeVar = TVar<Instant?>(null)
-    private val listeners = mutableListOf<CircuitBreakerListener>()
+    private val stateVar: TVar<CircuitBreakerState> = runBlocking { TVar.new(CircuitBreakerState.Closed) }
+    private val failureCountVar: TVar<Int> = runBlocking { TVar.new(0) }
+    private val successCountVar: TVar<Int> = runBlocking { TVar.new(0) }
+    private val lastFailureTimeVar: TVar<Instant?> = runBlocking { TVar.new(null) }
 
     /**
      * Gets the current state of the circuit breaker.
@@ -452,7 +452,6 @@ class CircuitBreakerRegistry {
      * @param configure Optional configuration block
      * @return The circuit breaker instance
      */
-    @Synchronized
     fun getOrCreate(
         name: String,
         configure: (CircuitBreakerConfigBuilder.() -> Unit)? = null,
@@ -482,7 +481,6 @@ class CircuitBreakerRegistry {
      * @param name The name of the circuit breaker to remove
      * @return The removed circuit breaker or null if not found
      */
-    @Synchronized
     fun remove(name: String): CircuitBreaker? {
         return breakers.remove(name)
     }

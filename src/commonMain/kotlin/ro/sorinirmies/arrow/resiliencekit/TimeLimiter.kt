@@ -4,6 +4,7 @@
 
 import arrow.fx.stm.TVar
 import arrow.fx.stm.atomically
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
@@ -45,12 +46,11 @@ private val logger = KotlinLogging.logger {}
 class TimeLimiter(
     private val config: TimeLimiterConfig = TimeLimiterConfig(),
 ) {
-    private val totalCallsVar = TVar(0L)
-    private val successfulCallsVar = TVar(0L)
-    private val timedOutCallsVar = TVar(0L)
-    private val failedCallsVar = TVar(0L)
-    private val totalTimeoutDurationVar = TVar(0L) // in milliseconds
-    private val listeners = mutableListOf<TimeLimiterListener>()
+    private val totalCallsVar: TVar<Long> = runBlocking { TVar.new(0L) }
+    private val successfulCallsVar: TVar<Long> = runBlocking { TVar.new(0L) }
+    private val timedOutCallsVar: TVar<Long> = runBlocking { TVar.new(0L) }
+    private val failedCallsVar: TVar<Long> = runBlocking { TVar.new(0L) }
+    private val totalTimeoutDurationVar: TVar<Long> = runBlocking { TVar.new(0L) } // in milliseconds
 
     /**
      * Gets the current statistics.
@@ -501,7 +501,6 @@ class TimeLimiterRegistry {
     /**
      * Gets an existing time limiter or creates a new one.
      */
-    @Synchronized
     fun getOrCreate(
         name: String,
         configure: (TimeLimiterConfigBuilder.() -> Unit)? = null,
@@ -525,7 +524,6 @@ class TimeLimiterRegistry {
     /**
      * Removes a time limiter from the registry.
      */
-    @Synchronized
     fun remove(name: String): TimeLimiter? {
         return limiters.remove(name)
     }
