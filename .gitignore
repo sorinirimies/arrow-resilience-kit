@@ -1,0 +1,48 @@
+# Gradle
+.gradle/
+build/
+gradle.properties.local
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+*.swp
+*.swo
+*~
+.vscode/
+.fleet/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Kotlin
+*.class
+*.jar
+*.kotlin_module
+.kotlin/
+
+# Logs
+*.log
+
+# Local configuration
+local.properties
+
+# Publishing secrets (never commit these!)
+signing.properties
+publish.properties
+
+# Node.js (for JS target)
+node_modules/
+package-lock.json
+yarn.lock
+
+# Documentation
+docs/api/
+build/documentation/
+
+# Test results
+**/build/test-results/
+**/build/reports/
