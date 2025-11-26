@@ -43,7 +43,7 @@ jobs:
           path: |
             **/build/test-results/
             **/build/reports/
-          retention-days: 7
+          retention-days: 7 # Keep artifacts for one week
 
   lint:
     runs-on: ubuntu-latest
