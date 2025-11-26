@@ -4,6 +4,7 @@
 
 import arrow.fx.stm.TVar
 import arrow.fx.stm.atomically
+import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import mu.KotlinLogging
@@ -53,12 +54,11 @@ private val logger = KotlinLogging.logger {}
 class Cache<K, V>(
     private val config: CacheConfig = CacheConfig(),
 ) {
-    private val entriesVar = TVar(emptyMap<K, CacheEntry<V>>())
-    private val accessOrderVar = TVar(emptyList<K>()) // For LRU
-    private val hitsVar = TVar(0L)
-    private val missesVar = TVar(0L)
-    private val evictionsVar = TVar(0L)
-    private val listeners = mutableListOf<CacheListener<K, V>>()
+    private val entriesVar: TVar<Map<K, CacheEntry<V>>> = runBlocking { TVar.new(emptyMap()) }
+    private val accessOrderVar: TVar<List<K>> = runBlocking { TVar.new(emptyList()) } // For LRU
+    private val hitsVar: TVar<Long> = runBlocking { TVar.new(0L) }
+    private val missesVar: TVar<Long> = runBlocking { TVar.new(0L) }
+    private val evictionsVar: TVar<Long> = runBlocking { TVar.new(0L) }
 
     /**
      * Gets a value from the cache.
@@ -629,7 +629,6 @@ class CacheRegistry {
     /**
      * Gets an existing cache or creates a new one.
      */
-    @Synchronized
     fun <K, V> getOrCreate(
         name: String,
         configure: (CacheConfigBuilder.() -> Unit)? = null,
@@ -655,8 +654,7 @@ class CacheRegistry {
     /**
      * Removes a cache from the registry.
      */
-    @Synchronized
-    fun remove(name: String): Cache<*, *)? {
+    fun remove(name: String): Cache<*, *>? {
         return caches.remove(name)
     }
 
