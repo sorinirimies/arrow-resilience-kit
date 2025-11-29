@@ -9,7 +9,12 @@ plugins {
 apply(from = "gradle/publishing.gradle.kts")
 
 group = "ro.sorinirmies.arrow"
-version = "0.1.0-SNAPSHOT"
+version = "0.1.0"
+
+// Dokka configuration
+subprojects {
+    apply(plugin = "org.jetbrains.dokka")
+}
 
 repositories {
     mavenCentral()
@@ -67,6 +72,66 @@ kotlin {
     // explicitApi()
 }
 
+// Configure Dokka for better documentation
 tasks.dokkaHtml.configure {
-    outputDirectory.set(layout.buildDirectory.dir("documentation/html"))
+    outputDirectory.set(layout.buildDirectory.dir("docs"))
+    
+    dokkaSourceSets {
+        named("commonMain") {
+            moduleName.set("Arrow Resilience Kit")
+            
+            includes.from("README.md")
+            
+            sourceLink {
+                localDirectory.set(file("src/commonMain/kotlin"))
+                remoteUrl.set(uri("https://github.com/sorinirimies/arrow-resilience-kit/tree/main/src/commonMain/kotlin").toURL())
+                remoteLineSuffix.set("#L")
+            }
+            
+            // Package documentation
+            perPackageOption {
+                matchingRegex.set(".*")
+                suppress.set(false)
+                reportUndocumented.set(true)
+                skipDeprecated.set(false)
+            }
+            
+            // External documentation links
+            externalDocumentationLink {
+                url.set(uri("https://arrow-kt.io/docs/").toURL())
+            }
+            
+            externalDocumentationLink {
+                url.set(uri("https://kotlinlang.org/api/kotlinx.coroutines/").toURL())
+            }
+        }
+    }
+    
+    pluginsMapConfiguration.set(
+        mapOf(
+            "org.jetbrains.dokka.base.DokkaBase" to """
+                {
+                    "customStyleSheets": [],
+                    "customAssets": [],
+                    "separateInheritedMembers": false,
+                    "footerMessage": "© 2024 Arrow Resilience Kit"
+                }
+            """
+        )
+    )
+}
+
+// Task to prepare docs for GitHub Pages
+tasks.register<Copy>("prepareDocs") {
+    dependsOn(tasks.dokkaHtml)
+    from(layout.buildDirectory.dir("docs"))
+    into(file("docs"))
+    
+    doLast {
+        // Create .nojekyll to bypass Jekyll processing
+        file("docs/.nojekyll").writeText("")
+        
+        println("Documentation prepared in docs/ directory")
+        println("Commit and push docs/ to publish to GitHub Pages")
+    }
 }

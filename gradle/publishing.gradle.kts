@@ -43,7 +43,7 @@ configure<PublishingExtension> {
             url = uri("https://maven.pkg.github.com/sorinirimies/arrow-resilience-kit")
             credentials {
                 username = project.findProperty("gpr.user") as String? ?: System.getenv("GITHUB_ACTOR")
-                password = project.findProperty("gpr.token") as String? ?: System.getenv("GITHUB_TOKEN")
+                password = project.findProperty("gpr.token") as String? ?: System.getenv("PACKAGES_PUBLISH")
             }
         }
     }
