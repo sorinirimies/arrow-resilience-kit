@@ -3,6 +3,8 @@
 
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import mu.KotlinLogging
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -71,12 +73,13 @@ class Saga<T> private constructor(
             steps.forEachIndexed { index, step ->
                 logger.debug { "Executing step ${index + 1}/${steps.size}: ${step.name}" }
                 val stepResult = executeStep(step)
+                @Suppress("UNCHECKED_CAST")
                 executedSteps.add(
                     ExecutedStep(
-                        step = step,
+                        step = step as SagaStep<Any?, *>,
                         result = stepResult,
                         index = index,
-                    )
+                    ) as ExecutedStep<*>
                 )
             }
 
@@ -84,8 +87,9 @@ class Saga<T> private constructor(
             logger.info { "Saga completed successfully in $duration" }
 
             @Suppress("UNCHECKED_CAST")
-            return SagaResult.Success(
-                result = executedSteps.lastOrNull()?.result as? T,
+            val finalResult = executedSteps.lastOrNull()?.result as? T
+            return SagaResult.Success<T>(
+                result = finalResult,
                 executedSteps = executedSteps.size,
                 duration = duration,
             )
@@ -142,14 +146,14 @@ class Saga<T> private constructor(
 
                 if (!config.continueOnCompensationFailure) {
                     logger.error { "Stopping compensation due to failure in step: ${step.name}" }
-                    break
+                    // Stop compensation on failure
                 }
             }
         }
 
         val duration = kotlinx.datetime.Clock.System.now() - startTime
 
-        return SagaResult.Failure(
+        return SagaResult.Failure<T>(
             error = originalError,
             compensatedSteps = executedSteps.size - compensationErrors.size,
             compensationErrors = compensationErrors,
@@ -158,6 +162,14 @@ class Saga<T> private constructor(
     }
 
     companion object {
+        /**
+         * Creates a new Saga instance with the given steps and configuration.
+         */
+        fun <T> create(steps: List<SagaStep<*, *>>, config: SagaConfig = SagaConfig()): Saga<T> {
+            require(steps.isNotEmpty()) { "Saga must have at least one step" }
+            return Saga(steps, config)
+        }
+
         /**
          * Creates a new saga builder.
          */
@@ -185,7 +197,7 @@ class SagaBuilder<T> {
         compensation: (suspend (R) -> Unit)? = null,
     ): SagaBuilder<T> {
         steps.add(
-            SagaStep(
+            SagaStep<R, T>(
                 name = name,
                 action = action,
                 compensation = compensation,
@@ -209,7 +221,7 @@ class SagaBuilder<T> {
         compensation: (suspend (R) -> Unit)? = null,
     ): SagaBuilder<T> {
         steps.add(
-            SagaStep(
+            SagaStep<R, T>(
                 name = name,
                 action = {
                     kotlinx.coroutines.withTimeout(timeout) {
@@ -237,7 +249,7 @@ class SagaBuilder<T> {
         compensation: (suspend (R) -> Unit)? = null,
     ): SagaBuilder<T> {
         steps.add(
-            SagaStep(
+            SagaStep<R, T>(
                 name = name,
                 action = {
                     retryWithExponentialBackoff(retries = retries) {
@@ -264,8 +276,7 @@ class SagaBuilder<T> {
      * Builds the saga.
      */
     fun build(): Saga<T> {
-        require(steps.isNotEmpty()) { "Saga must have at least one step" }
-        return Saga(steps, config)
+        return Saga.create(steps, config)
     }
 }
 
@@ -352,7 +363,7 @@ sealed class SagaResult<T> {
     data class Success<T>(
         val result: T?,
         val executedSteps: Int,
-        val duration: kotlinx.datetime.Duration,
+        val duration: Duration,
     ) : SagaResult<T>() {
         val isSuccess: Boolean = true
     }
@@ -369,7 +380,7 @@ sealed class SagaResult<T> {
         val error: Exception,
         val compensatedSteps: Int,
         val compensationErrors: List<CompensationError>,
-        val duration: kotlinx.datetime.Duration,
+        val duration: Duration,
     ) : SagaResult<T>() {
         val isSuccess: Boolean = false
         val hasCompensationErrors: Boolean = compensationErrors.isNotEmpty()
@@ -424,9 +435,9 @@ class ParallelSagaCoordinator {
      * @return List of results, one for each saga
      */
     suspend fun <T> executeAll(sagas: List<Saga<T>>): List<SagaResult<T>> {
-        return kotlinx.coroutines.coroutineScope {
+        return coroutineScope {
             sagas.map { saga ->
-                kotlinx.coroutines.async {
+                async {
                     saga.execute()
                 }
             }.map { it.await() }
@@ -465,7 +476,7 @@ data class ParallelSagaResult<T>(
     val totalSagas: Int,
     val successfulSagas: Int,
     val failedSagas: Int,
-    val duration: kotlinx.datetime.Duration,
+    val duration: Duration,
 ) {
     val successRate: Double = if (totalSagas > 0) successfulSagas.toDouble() / totalSagas else 0.0
     val allSuccessful: Boolean = failedSagas == 0

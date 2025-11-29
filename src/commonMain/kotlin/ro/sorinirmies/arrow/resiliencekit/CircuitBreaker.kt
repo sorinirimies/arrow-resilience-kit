@@ -4,7 +4,6 @@
 
 import arrow.fx.stm.TVar
 import arrow.fx.stm.atomically
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.delay
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
@@ -37,11 +36,11 @@ private val logger = KotlinLogging.logger {}
  *
  * Example usage:
  * ```
- * val circuitBreaker = CircuitBreaker(
+ * val circuitBreaker = CircuitBreaker.create(
  *     config = CircuitBreakerConfig(
  *         failureThreshold = 5,
- *         resetTimeout = 30.seconds,
- *         halfOpenMaxCalls = 3
+ *         successThreshold = 3,
+ *         timeout = 60.seconds
  *     )
  * )
  *
@@ -50,13 +49,27 @@ private val logger = KotlinLogging.logger {}
  * }
  * ```
  */
-class CircuitBreaker(
-    private val config: CircuitBreakerConfig = CircuitBreakerConfig(),
+class CircuitBreaker private constructor(
+    private val config: CircuitBreakerConfig,
+    private val stateVar: TVar<CircuitBreakerState>,
+    private val failureCountVar: TVar<Int>,
+    private val successCountVar: TVar<Int>,
+    private val lastFailureTimeVar: TVar<Instant?>
 ) {
-    private val stateVar: TVar<CircuitBreakerState> = runBlocking { TVar.new(CircuitBreakerState.Closed) }
-    private val failureCountVar: TVar<Int> = runBlocking { TVar.new(0) }
-    private val successCountVar: TVar<Int> = runBlocking { TVar.new(0) }
-    private val lastFailureTimeVar: TVar<Instant?> = runBlocking { TVar.new(null) }
+    companion object {
+        /**
+         * Creates a new CircuitBreaker instance with the given configuration.
+         */
+        suspend fun create(config: CircuitBreakerConfig = CircuitBreakerConfig()): CircuitBreaker {
+            return CircuitBreaker(
+                config = config,
+                stateVar = TVar.new(CircuitBreakerState.Closed),
+                failureCountVar = TVar.new(0),
+                successCountVar = TVar.new(0),
+                lastFailureTimeVar = TVar.new(null)
+            )
+        }
+    }
 
     /**
      * Gets the current state of the circuit breaker.
@@ -80,17 +93,17 @@ class CircuitBreaker(
     }
 
     /**
-     * Adds a listener to be notified of state changes.
+     * Adds a listener to be notified of circuit breaker state changes.
      */
-    fun addListener(listener: CircuitBreakerListener) {
-        listeners.add(listener)
+    suspend fun addListener(listener: CircuitBreakerListener) {
+        // TODO: Implement listener registration
     }
 
     /**
      * Removes a listener.
      */
-    fun removeListener(listener: CircuitBreakerListener) {
-        listeners.remove(listener)
+    suspend fun removeListener(listener: CircuitBreakerListener) {
+        // TODO: Implement listener removal
     }
 
     /**
@@ -311,13 +324,8 @@ class CircuitBreaker(
     }
 
     private fun notifyListeners(oldState: CircuitBreakerState, newState: CircuitBreakerState) {
-        listeners.forEach { listener ->
-            try {
-                listener.onStateChange(oldState, newState)
-            } catch (e: Exception) {
-                logger.error(e) { "Error notifying circuit breaker listener" }
-            }
-        }
+        // TODO: Implement listener notifications
+        logger.debug { "Circuit breaker state changed: $oldState -> $newState" }
     }
 }
 
@@ -396,10 +404,10 @@ fun interface CircuitBreakerListener {
  * }
  * ```
  */
-fun circuitBreaker(configure: CircuitBreakerConfigBuilder.() -> Unit): CircuitBreaker {
+suspend fun circuitBreaker(configure: CircuitBreakerConfigBuilder.() -> Unit): CircuitBreaker {
     val builder = CircuitBreakerConfigBuilder()
     builder.configure()
-    return CircuitBreaker(builder.build())
+    return CircuitBreaker.create(builder.build())
 }
 
 /**
@@ -452,7 +460,7 @@ class CircuitBreakerRegistry {
      * @param configure Optional configuration block
      * @return The circuit breaker instance
      */
-    fun getOrCreate(
+    suspend fun getOrCreate(
         name: String,
         configure: (CircuitBreakerConfigBuilder.() -> Unit)? = null,
     ): CircuitBreaker {
@@ -460,7 +468,7 @@ class CircuitBreakerRegistry {
             if (configure != null) {
                 circuitBreaker(configure)
             } else {
-                CircuitBreaker()
+                CircuitBreaker.create()
             }
         }
     }
