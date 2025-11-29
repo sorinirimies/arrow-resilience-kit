@@ -74,13 +74,23 @@ clean-all:
 # Generate API documentation
 doc:
     ./gradlew dokkaHtml
-    @echo "📚 Documentation generated at: build/documentation/html/index.html"
+    @echo "📚 Documentation generated at: build/docs/index.html"
 
 # Open generated documentation in browser
 doc-open: doc
-    @command -v xdg-open >/dev/null 2>&1 && xdg-open build/documentation/html/index.html || \
-     command -v open >/dev/null 2>&1 && open build/documentation/html/index.html || \
-     echo "Please open build/documentation/html/index.html manually"
+    @command -v xdg-open >/dev/null 2>&1 && xdg-open build/docs/index.html || \
+     command -v open >/dev/null 2>&1 && open build/docs/index.html || \
+     echo "Please open build/docs/index.html manually"
+
+# Prepare documentation for GitHub Pages
+doc-prepare:
+    ./gradlew prepareDocs
+    @echo "📚 Documentation prepared in docs/ directory"
+    @echo "Commit and push docs/ to publish to GitHub Pages"
+
+# Deploy documentation (generate + prepare)
+doc-deploy: doc doc-prepare
+    @echo "✅ Documentation ready for deployment!"
 
 # Publish to Maven Local for testing
 publish-local:
@@ -284,7 +294,7 @@ setup:
     @echo ""
     @echo "  2. Or set environment variables:"
     @echo "     export GITHUB_ACTOR=your-github-username"
-    @echo "     export GITHUB_TOKEN=your-github-token"
+    @echo "     export GITHUB_PACKAGES_TOKEN=your-github-token"
 
 # Show Gradle tasks
 tasks:
