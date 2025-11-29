@@ -2,9 +2,9 @@
 // Copyright (c) 2025 Sorin Albu-Irimies
 
 
+import arrow.fx.stm.STM
 import arrow.fx.stm.TVar
 import arrow.fx.stm.atomically
-import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import mu.KotlinLogging
@@ -36,7 +36,7 @@ private val logger = KotlinLogging.logger {}
  *
  * Example usage:
  * ```
- * val rateLimiter = RateLimiter(
+ * val rateLimiter = RateLimiter.create(
  *     config = RateLimiterConfig(
  *         permitsPerSecond = 10.0,
  *         burstCapacity = 20
@@ -49,20 +49,35 @@ private val logger = KotlinLogging.logger {}
  * }
  * ```
  */
-class RateLimiter(
-    private val config: RateLimiterConfig = RateLimiterConfig(),
+class RateLimiter private constructor(
+    private val config: RateLimiterConfig,
+    private val tokensVar: TVar<Double>,
+    private val lastRefillTimeVar: TVar<Instant>,
+    private val totalRequestsVar: TVar<Long>,
+    private val acceptedRequestsVar: TVar<Long>,
+    private val rejectedRequestsVar: TVar<Long>
 ) {
-    private val tokensVar: TVar<Double> = runBlocking { TVar.new(config.burstCapacity.toDouble()) }
-    private val lastRefillTimeVar: TVar<Instant> = runBlocking { TVar.new(Clock.System.now()) }
-    private val totalRequestsVar: TVar<Long> = runBlocking { TVar.new(0L) }
-    private val acceptedRequestsVar: TVar<Long> = runBlocking { TVar.new(0L) }
-    private val rejectedRequestsVar: TVar<Long> = runBlocking { TVar.new(0L) }
+    companion object {
+        /**
+         * Creates a new RateLimiter instance with the given configuration.
+         */
+        suspend fun create(config: RateLimiterConfig = RateLimiterConfig()): RateLimiter {
+            return RateLimiter(
+                config = config,
+                tokensVar = TVar.new(config.burstCapacity.toDouble()),
+                lastRefillTimeVar = TVar.new(Clock.System.now()),
+                totalRequestsVar = TVar.new(0L),
+                acceptedRequestsVar = TVar.new(0L),
+                rejectedRequestsVar = TVar.new(0L)
+            )
+        }
+    }
 
     /**
      * Gets the current number of available tokens.
      */
     suspend fun availableTokens(): Double = atomically {
-        refillTokens()
+        doRefillTokens()
         tokensVar.read()
     }
 
@@ -81,15 +96,15 @@ class RateLimiter(
     /**
      * Adds a listener to be notified of rate limiter events.
      */
-    fun addListener(listener: RateLimiterListener) {
-        listeners.add(listener)
+    suspend fun addListener(listener: RateLimiterListener) {
+        // TODO: Implement listener registration
     }
 
     /**
      * Removes a listener.
      */
-    fun removeListener(listener: RateLimiterListener) {
-        listeners.remove(listener)
+    suspend fun removeListener(listener: RateLimiterListener) {
+        // TODO: Implement listener removal
     }
 
     /**
@@ -185,7 +200,7 @@ class RateLimiter(
         val acquired = atomically {
             val total = totalRequestsVar.read()
             totalRequestsVar.write(total + 1)
-            refillTokens()
+            doRefillTokens()
 
             val currentTokens = tokensVar.read()
             if (currentTokens >= permits) {
@@ -237,22 +252,20 @@ class RateLimiter(
      * Refills tokens based on elapsed time.
      * Must be called within an STM transaction.
      */
-    private suspend fun refillTokens() {
-        atomically {
-            val now = Clock.System.now()
-            val lastRefillTime = lastRefillTimeVar.read()
-            val elapsed = now - lastRefillTime
+    private fun STM.doRefillTokens() {
+        val now = Clock.System.now()
+        val lastRefillTime = lastRefillTimeVar.read()
+        val elapsed = now - lastRefillTime
 
-            if (elapsed > Duration.ZERO) {
-                val tokensToAdd = elapsed.inWholeMilliseconds * config.permitsPerSecond / 1000.0
-                val currentTokens = tokensVar.read()
-                val newTokens = minOf(
-                    currentTokens + tokensToAdd,
-                    config.burstCapacity.toDouble()
-                )
-                tokensVar.write(newTokens)
-                lastRefillTimeVar.write(now)
-            }
+        if (elapsed > Duration.ZERO) {
+            val tokensToAdd = elapsed.inWholeMilliseconds * config.permitsPerSecond / 1000.0
+            val currentTokens = tokensVar.read()
+            val newTokens = minOf(
+                currentTokens + tokensToAdd,
+                config.burstCapacity.toDouble()
+            )
+            tokensVar.write(newTokens)
+            lastRefillTimeVar.write(now)
         }
     }
 
@@ -266,13 +279,7 @@ class RateLimiter(
     }
 
     private fun notifyListeners(notify: (RateLimiterListener) -> Unit) {
-        listeners.forEach { listener ->
-            try {
-                notify(listener)
-            } catch (e: Exception) {
-                logger.error(e) { "Error notifying rate limiter listener" }
-            }
-        }
+        // TODO: Implement listener notifications
     }
 }
 
@@ -356,10 +363,10 @@ interface RateLimiterListener {
  * }
  * ```
  */
-fun rateLimiter(configure: RateLimiterConfigBuilder.() -> Unit): RateLimiter {
+suspend fun rateLimiter(configure: RateLimiterConfigBuilder.() -> Unit): RateLimiter {
     val builder = RateLimiterConfigBuilder()
     builder.configure()
-    return RateLimiter(builder.build())
+    return RateLimiter.create(builder.build())
 }
 
 /**
@@ -400,18 +407,33 @@ class RateLimiterConfigBuilder {
  * )
  * ```
  */
-class SlidingWindowRateLimiter(
-    private val config: SlidingWindowConfig = SlidingWindowConfig(),
+class SlidingWindowRateLimiter private constructor(
+    private val config: SlidingWindowConfig,
+    private val requestTimestampsVar: TVar<List<Instant>>,
+    private val totalRequestsVar: TVar<Long>,
+    private val acceptedRequestsVar: TVar<Long>,
+    private val rejectedRequestsVar: TVar<Long>
 ) {
-    private val requestTimestampsVar: TVar<List<Instant>> = runBlocking { TVar.new(emptyList()) }
-    private val totalRequestsVar: TVar<Long> = runBlocking { TVar.new(0L) }
-    private val acceptedRequestsVar: TVar<Long> = runBlocking { TVar.new(0L) }
-    private val rejectedRequestsVar: TVar<Long> = runBlocking { TVar.new(0L) }
+    companion object {
+        /**
+         * Creates a new SlidingWindowRateLimiter instance.
+         */
+        suspend fun create(config: SlidingWindowConfig = SlidingWindowConfig()): SlidingWindowRateLimiter {
+            return SlidingWindowRateLimiter(
+                config = config,
+                requestTimestampsVar = TVar.new(emptyList()),
+                totalRequestsVar = TVar.new(0L),
+                acceptedRequestsVar = TVar.new(0L),
+                rejectedRequestsVar = TVar.new(0L)
+            )
+        }
+    }
+
     /**
      * Gets the current number of requests in the window.
      */
     suspend fun currentRequests(): Int = atomically {
-        cleanupOldRequests()
+        doCleanupOldRequests()
         requestTimestampsVar.read().size
     }
 
@@ -419,7 +441,7 @@ class SlidingWindowRateLimiter(
      * Gets the current statistics.
      */
     suspend fun statistics(): SlidingWindowStatistics = atomically {
-        cleanupOldRequests()
+        doCleanupOldRequests()
         SlidingWindowStatistics(
             currentRequests = requestTimestampsVar.read().size,
             totalRequests = totalRequestsVar.read(),
@@ -471,7 +493,7 @@ class SlidingWindowRateLimiter(
         return atomically {
             val total = totalRequestsVar.read()
             totalRequestsVar.write(total + 1)
-            cleanupOldRequests()
+            doCleanupOldRequests()
 
             val currentRequests = requestTimestampsVar.read()
             if (currentRequests.size < config.maxRequests) {
@@ -504,16 +526,12 @@ class SlidingWindowRateLimiter(
      * Removes requests older than the window duration.
      * Must be called within an STM transaction.
      */
-    private suspend fun cleanupOldRequests() {
-        atomically {
-            val now = Clock.System.now()
-            val cutoffTime = now - config.windowDuration
-            val currentRequests = requestTimestampsVar.read()
-            val validRequests = currentRequests.filter { it > cutoffTime }
-            if (validRequests.size != currentRequests.size) {
-                requestTimestampsVar.write(validRequests)
-            }
-        }
+    private fun STM.doCleanupOldRequests() {
+        val now = Clock.System.now()
+        val cutoffTime = now - config.windowDuration
+        val currentRequests = requestTimestampsVar.read()
+        val validRequests = currentRequests.filter { it >= cutoffTime }
+        requestTimestampsVar.write(validRequests)
     }
 }
 
@@ -593,7 +611,7 @@ class RateLimiterRegistry {
     /**
      * Gets an existing rate limiter or creates a new one.
      */
-    fun getOrCreate(
+    suspend fun getOrCreate(
         name: String,
         configure: (RateLimiterConfigBuilder.() -> Unit)? = null,
     ): RateLimiter {
@@ -601,7 +619,7 @@ class RateLimiterRegistry {
             if (configure != null) {
                 rateLimiter(configure)
             } else {
-                RateLimiter()
+                RateLimiter.create()
             }
         }
     }

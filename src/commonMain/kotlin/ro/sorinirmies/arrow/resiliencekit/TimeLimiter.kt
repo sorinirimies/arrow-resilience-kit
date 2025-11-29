@@ -4,8 +4,10 @@
 
 import arrow.fx.stm.TVar
 import arrow.fx.stm.atomically
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 import mu.KotlinLogging
@@ -31,10 +33,9 @@ private val logger = KotlinLogging.logger {}
  *
  * Example usage:
  * ```
- * val timeLimiter = TimeLimiter(
+ * val timeLimiter = TimeLimiter.create(
  *     config = TimeLimiterConfig(
- *         timeout = 5.seconds,
- *         onTimeout = TimeoutStrategy.THROW
+ *         timeout = 5.seconds
  *     )
  * )
  *
@@ -43,14 +44,29 @@ private val logger = KotlinLogging.logger {}
  * }
  * ```
  */
-class TimeLimiter(
-    private val config: TimeLimiterConfig = TimeLimiterConfig(),
+class TimeLimiter private constructor(
+    private val config: TimeLimiterConfig,
+    private val totalCallsVar: TVar<Long>,
+    private val successfulCallsVar: TVar<Long>,
+    private val timedOutCallsVar: TVar<Long>,
+    private val failedCallsVar: TVar<Long>,
+    private val totalTimeoutDurationVar: TVar<Long>
 ) {
-    private val totalCallsVar: TVar<Long> = runBlocking { TVar.new(0L) }
-    private val successfulCallsVar: TVar<Long> = runBlocking { TVar.new(0L) }
-    private val timedOutCallsVar: TVar<Long> = runBlocking { TVar.new(0L) }
-    private val failedCallsVar: TVar<Long> = runBlocking { TVar.new(0L) }
-    private val totalTimeoutDurationVar: TVar<Long> = runBlocking { TVar.new(0L) } // in milliseconds
+    companion object {
+        /**
+         * Creates a new TimeLimiter instance with the given configuration.
+         */
+        suspend fun create(config: TimeLimiterConfig = TimeLimiterConfig()): TimeLimiter {
+            return TimeLimiter(
+                config = config,
+                totalCallsVar = TVar.new(0L),
+                successfulCallsVar = TVar.new(0L),
+                timedOutCallsVar = TVar.new(0L),
+                failedCallsVar = TVar.new(0L),
+                totalTimeoutDurationVar = TVar.new(0L)
+            )
+        }
+    }
 
     /**
      * Gets the current statistics.
@@ -75,15 +91,15 @@ class TimeLimiter(
     /**
      * Adds a listener to be notified of time limiter events.
      */
-    fun addListener(listener: TimeLimiterListener) {
-        listeners.add(listener)
+    suspend fun addListener(listener: TimeLimiterListener) {
+        // TODO: Implement listener registration
     }
 
     /**
      * Removes a listener.
      */
-    fun removeListener(listener: TimeLimiterListener) {
-        listeners.remove(listener)
+    suspend fun removeListener(listener: TimeLimiterListener) {
+        // TODO: Implement listener removal
     }
 
     /**
@@ -284,9 +300,9 @@ class TimeLimiter(
         timeout: Duration? = null,
         blocks: List<suspend () -> T>,
     ): List<T?> {
-        return kotlinx.coroutines.coroutineScope {
+        return coroutineScope {
             blocks.map { block ->
-                kotlinx.coroutines.async {
+                async {
                     executeOrNull(timeout, block)
                 }
             }.map { it.await() }
@@ -310,10 +326,10 @@ class TimeLimiter(
         val effectiveTimeout = timeout ?: config.timeout
 
         return withTimeout(effectiveTimeout) {
-            kotlinx.coroutines.coroutineScope {
-                kotlinx.coroutines.selects.select<T> {
+            coroutineScope {
+                select<T> {
                     blocks.forEach { block ->
-                        kotlinx.coroutines.async {
+                        async {
                             block()
                         }.onAwait { it }
                     }
@@ -336,13 +352,7 @@ class TimeLimiter(
     }
 
     private fun notifyListeners(notify: (TimeLimiterListener) -> Unit) {
-        listeners.forEach { listener ->
-            try {
-                notify(listener)
-            } catch (e: Exception) {
-                logger.error(e) { "Error notifying time limiter listener" }
-            }
-        }
+        // TODO: Implement listener notifications
     }
 }
 
@@ -458,10 +468,10 @@ interface TimeLimiterListener {
  * }
  * ```
  */
-fun timeLimiter(configure: TimeLimiterConfigBuilder.() -> Unit): TimeLimiter {
+suspend fun timeLimiter(configure: TimeLimiterConfigBuilder.() -> Unit): TimeLimiter {
     val builder = TimeLimiterConfigBuilder()
     builder.configure()
-    return TimeLimiter(builder.build())
+    return TimeLimiter.create(builder.build())
 }
 
 /**
@@ -501,7 +511,7 @@ class TimeLimiterRegistry {
     /**
      * Gets an existing time limiter or creates a new one.
      */
-    fun getOrCreate(
+    suspend fun getOrCreate(
         name: String,
         configure: (TimeLimiterConfigBuilder.() -> Unit)? = null,
     ): TimeLimiter {
@@ -509,7 +519,7 @@ class TimeLimiterRegistry {
             if (configure != null) {
                 timeLimiter(configure)
             } else {
-                TimeLimiter()
+                TimeLimiter.create()
             }
         }
     }
@@ -566,7 +576,7 @@ suspend fun <T> withTimeLimit(
     timeout: Duration,
     block: suspend () -> T,
 ): T {
-    return TimeLimiter(TimeLimiterConfig(timeout = timeout)).execute(block = block)
+    return TimeLimiter.create(TimeLimiterConfig(timeout = timeout)).execute(block = block)
 }
 
 /**
@@ -584,6 +594,6 @@ suspend fun <T> withTimeLimitOrDefault(
     default: T,
     block: suspend () -> T,
 ): T {
-    return TimeLimiter(TimeLimiterConfig(timeout = timeout))
+    return TimeLimiter.create(TimeLimiterConfig(timeout = timeout))
         .executeOrDefault(default = default, block = block)
 }
