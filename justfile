@@ -243,12 +243,14 @@ bump version: check-git-cliff
 
 # Full release workflow: bump version, push, and create GitHub Release
 release version: (bump version)
-    @echo "Pushing release to both GitHub and Gitea..."
-    git push origin main
+    @echo "Pushing release to GitHub (source of truth)..."
     git push github main
-    git push origin v{{version}}
     git push github v{{version}}
-    @echo "✅ Release v{{version}} pushed to both remotes!"
+    @echo "✅ Release v{{version}} pushed to GitHub!"
+    @echo ""
+    @echo "Syncing to Gitea..."
+    -git push origin main 2>/dev/null || echo "⚠️  Gitea push failed (non-critical)"
+    -git push origin v{{version}} 2>/dev/null || echo "⚠️  Gitea tag push failed (non-critical)"
     @echo ""
     @echo "Creating GitHub Release..."
     @command -v gh >/dev/null 2>&1 || { echo "❌ GitHub CLI (gh) not found. Install from: https://cli.github.com/"; exit 1; }
@@ -268,12 +270,14 @@ release version: (bump version)
 
 # Push release to both remotes (without bumping) and create GitHub Release
 push-release:
-    @echo "Pushing release to both remotes..."
-    git push origin main
+    @echo "Pushing release to GitHub (source of truth)..."
     git push github main
-    git push origin --tags
     git push github --tags
-    @echo "✅ Release pushed to both remotes!"
+    @echo "✅ Release pushed to GitHub!"
+    @echo ""
+    @echo "Syncing to Gitea..."
+    -git push origin main 2>/dev/null || echo "⚠️  Gitea push failed (non-critical)"
+    -git push origin --tags 2>/dev/null || echo "⚠️  Gitea tags push failed (non-critical)"
     @echo ""
     @echo "Creating GitHub Release for latest tag..."
     @command -v gh >/dev/null 2>&1 || { echo "❌ GitHub CLI (gh) not found. Install from: https://cli.github.com/"; exit 1; }
@@ -305,12 +309,29 @@ create-release tag:
     @echo "Monitor progress at:"
     @echo "  https://github.com/sorinirimies/arrow-resilience-kit/actions"
 
-# Sync GitHub with Gitea (force)
-sync-github:
-    @echo "Syncing GitHub with Gitea..."
-    git push github main --force
-    git push github --tags --force
-    @echo "✅ GitHub synced!"
+# Sync Gitea with GitHub (force - GitHub is source of truth)
+sync-gitea:
+    @echo "Syncing Gitea with GitHub (force)..."
+    git fetch github
+    git reset --hard github/main
+    git push origin main --force
+    git push origin --tags --force
+    @echo "✅ Gitea synced with GitHub!"
+
+# Sync both remotes (GitHub is source of truth)
+sync-all:
+    @echo "Synchronizing all remotes..."
+    @echo "1. Fetching from GitHub..."
+    git fetch github
+    @echo "2. Resetting to GitHub main..."
+    git reset --hard github/main
+    @echo "3. Force pushing to Gitea..."
+    git push origin main --force
+    git push origin --tags --force
+    @echo "✅ All remotes synchronized!"
+    @echo ""
+    @echo "Current status:"
+    @git log --oneline -3
 
 # Quick pre-commit check
 pre-commit: check-all

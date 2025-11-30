@@ -9,6 +9,8 @@
 
 A comprehensive resilience patterns library for Kotlin Multiplatform using Arrow-kt. Provides production-ready implementations of common resilience patterns including retry, circuit breaker, bulkhead, rate limiter, time limiter, cache, and saga patterns.
 
+**Live Documentation**: https://sorinirimies.github.io/arrow-resilience-kit/
+
 ## Features
 
 - **Retry & Repeat** - Automatic retry with exponential backoff, linear backoff, and custom strategies
