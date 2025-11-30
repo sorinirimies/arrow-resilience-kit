@@ -92,19 +92,7 @@ class CircuitBreaker private constructor(
         successCountVar.read()
     }
 
-    /**
-     * Adds a listener to be notified of circuit breaker state changes.
-     */
-    suspend fun addListener(listener: CircuitBreakerListener) {
-        // TODO: Implement listener registration
-    }
 
-    /**
-     * Removes a listener.
-     */
-    suspend fun removeListener(listener: CircuitBreakerListener) {
-        // TODO: Implement listener removal
-    }
 
     /**
      * Executes an operation through the circuit breaker.
@@ -167,8 +155,7 @@ class CircuitBreaker private constructor(
             oldState
         }.also { oldState ->
             if (oldState != CircuitBreakerState.Closed) {
-                logger.info { "Manually resetting circuit breaker" }
-                notifyListeners(oldState, CircuitBreakerState.Closed)
+                logger.info { "Manually resetting circuit breaker from $oldState to Closed" }
             }
         }
     }
@@ -184,8 +171,7 @@ class CircuitBreaker private constructor(
             oldState
         }.also { oldState ->
             if (oldState != CircuitBreakerState.Open) {
-                logger.warn { "Manually tripping circuit breaker" }
-                notifyListeners(oldState, CircuitBreakerState.Open)
+                logger.warn { "Manually tripping circuit breaker from $oldState to Open" }
             }
         }
     }
@@ -232,8 +218,7 @@ class CircuitBreaker private constructor(
                         null
                     }
                 }?.also { oldState ->
-                    logger.info { "Reset timeout expired, transitioning to HALF_OPEN" }
-                    notifyListeners(oldState, CircuitBreakerState.HalfOpen)
+                    logger.info { "Reset timeout expired, transitioning from $oldState to HALF_OPEN" }
                 }
             }
         }
@@ -273,8 +258,7 @@ class CircuitBreaker private constructor(
                     null
                 }
             }?.also { oldState ->
-                logger.error { "Failure threshold reached ($newFailures), opening circuit breaker" }
-                notifyListeners(oldState, CircuitBreakerState.Open)
+                logger.error { "Failure threshold reached ($newFailures), opening circuit breaker from $oldState" }
             }
         }
     }
@@ -300,8 +284,7 @@ class CircuitBreaker private constructor(
                     null
                 }
             }?.also { oldState ->
-                logger.info { "Success threshold reached, closing circuit breaker" }
-                notifyListeners(oldState, CircuitBreakerState.Closed)
+                logger.info { "Success threshold reached, closing circuit breaker from $oldState" }
             }
         }
     }
@@ -318,15 +301,11 @@ class CircuitBreaker private constructor(
                 null
             }
         }?.also { oldState ->
-            logger.error(exception) { "Failure in HALF_OPEN state, re-opening circuit breaker" }
-            notifyListeners(oldState, CircuitBreakerState.Open)
+            logger.error(exception) { "Failure in HALF_OPEN state, re-opening circuit breaker from $oldState" }
         }
     }
 
-    private fun notifyListeners(oldState: CircuitBreakerState, newState: CircuitBreakerState) {
-        // TODO: Implement listener notifications
-        logger.debug { "Circuit breaker state changed: $oldState -> $newState" }
-    }
+
 }
 
 /**

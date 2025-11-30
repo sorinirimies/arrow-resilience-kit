@@ -88,19 +88,7 @@ class TimeLimiter private constructor(
         )
     }
 
-    /**
-     * Adds a listener to be notified of time limiter events.
-     */
-    suspend fun addListener(listener: TimeLimiterListener) {
-        // TODO: Implement listener registration
-    }
 
-    /**
-     * Removes a listener.
-     */
-    suspend fun removeListener(listener: TimeLimiterListener) {
-        // TODO: Implement listener removal
-    }
 
     /**
      * Executes an operation with a timeout.
@@ -129,12 +117,11 @@ class TimeLimiter private constructor(
                 block()
             }
 
-            val duration = kotlinx.datetime.Clock.System.now() - startTime
             atomically {
                 val successful = successfulCallsVar.read()
                 successfulCallsVar.write(successful + 1)
             }
-            notifyListeners { it.onSuccess(duration.inWholeMilliseconds) }
+            // Success recorded
 
             result
         } catch (e: TimeoutCancellationException) {
@@ -146,14 +133,14 @@ class TimeLimiter private constructor(
                 totalTimeoutDurationVar.write(totalDuration + duration.inWholeMilliseconds)
             }
             logger.warn { "Operation timed out after $effectiveTimeout" }
-            notifyListeners { it.onTimeout(effectiveTimeout) }
+            // Timeout recorded
             throw e
         } catch (e: Exception) {
             atomically {
                 val failed = failedCallsVar.read()
                 failedCallsVar.write(failed + 1)
             }
-            notifyListeners { it.onFailure(e) }
+            // Failure recorded
             throw e
         }
     }
@@ -185,12 +172,11 @@ class TimeLimiter private constructor(
             }
 
             if (result != null) {
-                val duration = kotlinx.datetime.Clock.System.now() - startTime
                 atomically {
                     val successful = successfulCallsVar.read()
                     successfulCallsVar.write(successful + 1)
                 }
-                notifyListeners { it.onSuccess(duration.inWholeMilliseconds) }
+                // Success recorded
             } else {
                 val duration = kotlinx.datetime.Clock.System.now() - startTime
                 atomically {
@@ -200,7 +186,7 @@ class TimeLimiter private constructor(
                     totalTimeoutDurationVar.write(totalDuration + duration.inWholeMilliseconds)
                 }
                 logger.warn { "Operation timed out after $effectiveTimeout" }
-                notifyListeners { it.onTimeout(effectiveTimeout) }
+                // Timeout recorded
             }
 
             result
@@ -209,7 +195,7 @@ class TimeLimiter private constructor(
                 val failed = failedCallsVar.read()
                 failedCallsVar.write(failed + 1)
             }
-            notifyListeners { it.onFailure(e) }
+            // Failure recorded
             throw e
         }
     }
@@ -351,9 +337,7 @@ class TimeLimiter private constructor(
         }
     }
 
-    private fun notifyListeners(notify: (TimeLimiterListener) -> Unit) {
-        // TODO: Implement listener notifications
-    }
+
 }
 
 /**

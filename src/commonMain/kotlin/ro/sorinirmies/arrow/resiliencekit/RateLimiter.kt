@@ -93,19 +93,7 @@ class RateLimiter private constructor(
         )
     }
 
-    /**
-     * Adds a listener to be notified of rate limiter events.
-     */
-    suspend fun addListener(listener: RateLimiterListener) {
-        // TODO: Implement listener registration
-    }
 
-    /**
-     * Removes a listener.
-     */
-    suspend fun removeListener(listener: RateLimiterListener) {
-        // TODO: Implement listener removal
-    }
 
     /**
      * Executes an operation with rate limiting.
@@ -160,14 +148,12 @@ class RateLimiter private constructor(
         val acquired = tryAcquire(permits)
         if (!acquired) {
             logger.debug { "Rate limit reached, rejecting request" }
-            notifyListeners { it.onRequestRejected() }
             return null
         }
 
         return try {
             block()
         } catch (e: Exception) {
-            notifyListeners { it.onRequestFailed(e) }
             throw e
         }
     }
@@ -215,11 +201,7 @@ class RateLimiter private constructor(
             }
         }
 
-        if (acquired) {
-            notifyListeners { it.onRequestAccepted() }
-        } else {
-            notifyListeners { it.onRequestRejected() }
-        }
+        // Token acquisition handled
 
         return acquired
     }
@@ -278,9 +260,7 @@ class RateLimiter private constructor(
         return kotlin.time.Duration.parse("${millisecondsToWait}ms")
     }
 
-    private fun notifyListeners(notify: (RateLimiterListener) -> Unit) {
-        // TODO: Implement listener notifications
-    }
+
 }
 
 /**
