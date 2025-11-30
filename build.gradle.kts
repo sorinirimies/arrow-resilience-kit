@@ -9,7 +9,7 @@ plugins {
 apply(from = "gradle/publishing.gradle.kts")
 
 group = "ro.sorinirmies.arrow"
-version = "0.1.1"
+version = "0.1.2"
 
 // Dokka configuration
 subprojects {
