@@ -5,6 +5,11 @@ plugins {
     signing
 }
 
+// Note: Dokka optimization warnings are expected and harmless
+// These are informational warnings from Gradle about Dokka's internal URL usage
+// They don't affect documentation generation or build success
+// See: https://github.com/Kotlin/dokka/issues/1933
+
 // Apply publishing configuration
 apply(from = "gradle/publishing.gradle.kts")
 
