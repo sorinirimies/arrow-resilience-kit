@@ -8,12 +8,18 @@
 default:
     @just --list
 
-# Install required tools (just, git-cliff)
+# Install required tools (just, git-cliff, gh)
 install-tools:
     @echo "Installing required tools..."
     @command -v just >/dev/null 2>&1 || cargo install just
     @command -v git-cliff >/dev/null 2>&1 || cargo install git-cliff
-    @echo "✅ All tools installed!"
+    @command -v gh >/dev/null 2>&1 || echo "⚠️  GitHub CLI (gh) not found. Install from: https://cli.github.com/"
+    @echo "✅ Core tools checked!"
+    @echo ""
+    @echo "Required tools:"
+    @echo "  just:      $$(command -v just >/dev/null 2>&1 && echo '✅' || echo '❌')"
+    @echo "  git-cliff: $$(command -v git-cliff >/dev/null 2>&1 && echo '✅' || echo '❌')"
+    @echo "  gh:        $$(command -v gh >/dev/null 2>&1 && echo '✅' || echo '❌ (required for automated releases)')"
 
 # Build the project
 build:
@@ -235,21 +241,32 @@ bump version: check-git-cliff
     @echo "Bumping version to {{version}}..."
     @./scripts/bump_version.sh {{version}}
 
-# Full release workflow: bump version and push to both remotes
+# Full release workflow: bump version, push, and create GitHub Release
 release version: (bump version)
     @echo "Pushing release to both GitHub and Gitea..."
     git push origin main
     git push github main
     git push origin v{{version}}
     git push github v{{version}}
-    @echo "✅ Release v{{version}} complete on both remotes!"
+    @echo "✅ Release v{{version}} pushed to both remotes!"
     @echo ""
-    @echo "Next steps:"
-    @echo "  1. Create GitHub Release at:"
-    @echo "     https://github.com/sorinirimies/arrow-resilience-kit/releases/new?tag=v{{version}}"
-    @echo "  2. GitHub Actions will automatically publish to GitHub Packages"
+    @echo "Creating GitHub Release..."
+    @command -v gh >/dev/null 2>&1 || { echo "❌ GitHub CLI (gh) not found. Install from: https://cli.github.com/"; exit 1; }
+    @gh release create v{{version}} \
+        --title "v{{version}}" \
+        --notes-file CHANGELOG.md \
+        --repo sorinirimies/arrow-resilience-kit
+    @echo "✅ GitHub Release v{{version}} created!"
+    @echo ""
+    @echo "GitHub Actions will now automatically:"
+    @echo "  1. Build the project"
+    @echo "  2. Publish to GitHub Packages"
+    @echo "  3. Deploy documentation to GitHub Pages"
+    @echo ""
+    @echo "Monitor progress at:"
+    @echo "  https://github.com/sorinirimies/arrow-resilience-kit/actions"
 
-# Push release to both remotes (without bumping)
+# Push release to both remotes (without bumping) and create GitHub Release
 push-release:
     @echo "Pushing release to both remotes..."
     git push origin main
@@ -257,6 +274,36 @@ push-release:
     git push origin --tags
     git push github --tags
     @echo "✅ Release pushed to both remotes!"
+    @echo ""
+    @echo "Creating GitHub Release for latest tag..."
+    @command -v gh >/dev/null 2>&1 || { echo "❌ GitHub CLI (gh) not found. Install from: https://cli.github.com/"; exit 1; }
+    @latest_tag=$$(git describe --tags --abbrev=0); \
+    echo "Latest tag: $$latest_tag"; \
+    gh release create $$latest_tag \
+        --title "$$latest_tag" \
+        --notes-file CHANGELOG.md \
+        --repo sorinirimies/arrow-resilience-kit
+    @echo "✅ GitHub Release created!"
+    @echo ""
+    @echo "Monitor CI/CD at: https://github.com/sorinirimies/arrow-resilience-kit/actions"
+
+# Create GitHub Release for existing tag (without pushing)
+create-release tag:
+    @echo "Creating GitHub Release for tag {{tag}}..."
+    @command -v gh >/dev/null 2>&1 || { echo "❌ GitHub CLI (gh) not found. Install from: https://cli.github.com/"; exit 1; }
+    @gh release create {{tag}} \
+        --title "{{tag}}" \
+        --notes-file CHANGELOG.md \
+        --repo sorinirimies/arrow-resilience-kit
+    @echo "✅ GitHub Release {{tag}} created!"
+    @echo ""
+    @echo "GitHub Actions will now automatically:"
+    @echo "  1. Build the project"
+    @echo "  2. Publish to GitHub Packages"
+    @echo "  3. Deploy documentation to GitHub Pages"
+    @echo ""
+    @echo "Monitor progress at:"
+    @echo "  https://github.com/sorinirimies/arrow-resilience-kit/actions"
 
 # Sync GitHub with Gitea (force)
 sync-github:
