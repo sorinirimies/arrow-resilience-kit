@@ -82,12 +82,10 @@ $dokka.location:/CacheStatistics/size/#/PointingToDeclaration/-arrow -resilienc
 $dokka.location:/CircuitBreaker.Companion///PointingToDeclaration/-arrow -resilience -kit/[root]/-circuit-breaker/-companion/index.html
 $dokka.location:/CircuitBreaker.Companion/create/#CircuitBreakerConfig/PointingToDeclaration/-arrow -resilience -kit/[root]/-circuit-breaker/-companion/create.html
 $dokka.location:/CircuitBreaker///PointingToDeclaration/-arrow -resilience -kit/[root]/-circuit-breaker/index.html
-$dokka.location:/CircuitBreaker/addListener/#CircuitBreakerListener/PointingToDeclaration/-arrow -resilience -kit/[root]/-circuit-breaker/add-listener.html
 $dokka.location:/CircuitBreaker/currentState/#/PointingToDeclaration/-arrow -resilience -kit/[root]/-circuit-breaker/current-state.html
 $dokka.location:/CircuitBreaker/execute/#kotlin.coroutines.SuspendFunction0[TypeParam(bounds=[kotlin.Any?])]/PointingToDeclaration/-arrow -resilience -kit/[root]/-circuit-breaker/execute.html
 $dokka.location:/CircuitBreaker/executeOrFallback/#kotlin.coroutines.SuspendFunction1[CircuitBreakerOpenException,TypeParam(bounds=[kotlin.Any?])]#kotlin.coroutines.SuspendFunction0[TypeParam(bounds=[kotlin.Any?])]/PointingToDeclaration/-arrow -resilience -kit/[root]/-circuit-breaker/execute-or-fallback.html
 $dokka.location:/CircuitBreaker/failures/#/PointingToDeclaration/-arrow -resilience -kit/[root]/-circuit-breaker/failures.html
-$dokka.location:/CircuitBreaker/removeListener/#CircuitBreakerListener/PointingToDeclaration/-arrow -resilience -kit/[root]/-circuit-breaker/remove-listener.html
 $dokka.location:/CircuitBreaker/reset/#/PointingToDeclaration/-arrow -resilience -kit/[root]/-circuit-breaker/reset.html
 $dokka.location:/CircuitBreaker/successes/#/PointingToDeclaration/-arrow -resilience -kit/[root]/-circuit-breaker/successes.html
 $dokka.location:/CircuitBreaker/trip/#/PointingToDeclaration/-arrow -resilience -kit/[root]/-circuit-breaker/trip.html
@@ -158,11 +156,9 @@ $dokka.location:/RateLimitExceededException/RateLimitExceededException/#kotlin.S
 $dokka.location:/RateLimiter.Companion///PointingToDeclaration/-arrow -resilience -kit/[root]/-rate-limiter/-companion/index.html
 $dokka.location:/RateLimiter.Companion/create/#RateLimiterConfig/PointingToDeclaration/-arrow -resilience -kit/[root]/-rate-limiter/-companion/create.html
 $dokka.location:/RateLimiter///PointingToDeclaration/-arrow -resilience -kit/[root]/-rate-limiter/index.html
-$dokka.location:/RateLimiter/addListener/#RateLimiterListener/PointingToDeclaration/-arrow -resilience -kit/[root]/-rate-limiter/add-listener.html
 $dokka.location:/RateLimiter/availableTokens/#/PointingToDeclaration/-arrow -resilience -kit/[root]/-rate-limiter/available-tokens.html
 $dokka.location:/RateLimiter/execute/#kotlin.Int#kotlin.coroutines.SuspendFunction0[TypeParam(bounds=[kotlin.Any?])]/PointingToDeclaration/-arrow -resilience -kit/[root]/-rate-limiter/execute.html
 $dokka.location:/RateLimiter/executeOrFallback/#kotlin.Int#kotlin.coroutines.SuspendFunction0[TypeParam(bounds=[kotlin.Any?])]#kotlin.coroutines.SuspendFunction0[TypeParam(bounds=[kotlin.Any?])]/PointingToDeclaration/-arrow -resilience -kit/[root]/-rate-limiter/execute-or-fallback.html
-$dokka.location:/RateLimiter/removeListener/#RateLimiterListener/PointingToDeclaration/-arrow -resilience -kit/[root]/-rate-limiter/remove-listener.html
 $dokka.location:/RateLimiter/reset/#/PointingToDeclaration/-arrow -resilience -kit/[root]/-rate-limiter/reset.html
 $dokka.location:/RateLimiter/resetStatistics/#/PointingToDeclaration/-arrow -resilience -kit/[root]/-rate-limiter/reset-statistics.html
 $dokka.location:/RateLimiter/statistics/#/PointingToDeclaration/-arrow -resilience -kit/[root]/-rate-limiter/statistics.html
@@ -271,7 +267,6 @@ $dokka.location:/SlidingWindowStatistics/totalRequests/#/PointingToDeclaration/
 $dokka.location:/TimeLimiter.Companion///PointingToDeclaration/-arrow -resilience -kit/[root]/-time-limiter/-companion/index.html
 $dokka.location:/TimeLimiter.Companion/create/#TimeLimiterConfig/PointingToDeclaration/-arrow -resilience -kit/[root]/-time-limiter/-companion/create.html
 $dokka.location:/TimeLimiter///PointingToDeclaration/-arrow -resilience -kit/[root]/-time-limiter/index.html
-$dokka.location:/TimeLimiter/addListener/#TimeLimiterListener/PointingToDeclaration/-arrow -resilience -kit/[root]/-time-limiter/add-listener.html
 $dokka.location:/TimeLimiter/execute/#kotlin.time.Duration?#kotlin.coroutines.SuspendFunction0[TypeParam(bounds=[kotlin.Any?])]/PointingToDeclaration/-arrow -resilience -kit/[root]/-time-limiter/execute.html
 $dokka.location:/TimeLimiter/executeAll/#kotlin.time.Duration?#kotlin.collections.List[kotlin.coroutines.SuspendFunction0[TypeParam(bounds=[kotlin.Any?])]]/PointingToDeclaration/-arrow -resilience -kit/[root]/-time-limiter/execute-all.html
 $dokka.location:/TimeLimiter/executeOrDefault/#kotlin.time.Duration?#TypeParam(bounds=[kotlin.Any?])#kotlin.coroutines.SuspendFunction0[TypeParam(bounds=[kotlin.Any?])]/PointingToDeclaration/-arrow -resilience -kit/[root]/-time-limiter/execute-or-default.html
@@ -279,7 +274,6 @@ $dokka.location:/TimeLimiter/executeOrFallback/#kotlin.time.Duration?#kotlin.cor
 $dokka.location:/TimeLimiter/executeOrNull/#kotlin.time.Duration?#kotlin.coroutines.SuspendFunction0[TypeParam(bounds=[kotlin.Any?])]/PointingToDeclaration/-arrow -resilience -kit/[root]/-time-limiter/execute-or-null.html
 $dokka.location:/TimeLimiter/executeRace/#kotlin.time.Duration?#kotlin.collections.List[kotlin.coroutines.SuspendFunction0[TypeParam(bounds=[kotlin.Any?])]]/PointingToDeclaration/-arrow -resilience -kit/[root]/-time-limiter/execute-race.html
 $dokka.location:/TimeLimiter/executeWithRetry/#kotlin.time.Duration?#kotlin.Int#kotlin.coroutines.SuspendFunction0[TypeParam(bounds=[kotlin.Any?])]/PointingToDeclaration/-arrow -resilience -kit/[root]/-time-limiter/execute-with-retry.html
-$dokka.location:/TimeLimiter/removeListener/#TimeLimiterListener/PointingToDeclaration/-arrow -resilience -kit/[root]/-time-limiter/remove-listener.html
 $dokka.location:/TimeLimiter/resetStatistics/#/PointingToDeclaration/-arrow -resilience -kit/[root]/-time-limiter/reset-statistics.html
 $dokka.location:/TimeLimiter/statistics/#/PointingToDeclaration/-arrow -resilience -kit/[root]/-time-limiter/statistics.html
 $dokka.location:/TimeLimiterConfig///PointingToDeclaration/-arrow -resilience -kit/[root]/-time-limiter-config/index.html
