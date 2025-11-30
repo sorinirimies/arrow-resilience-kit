@@ -9,7 +9,7 @@ plugins {
 apply(from = "gradle/publishing.gradle.kts")
 
 group = "ro.sorinirmies.arrow"
-version = "0.1.0"
+version = "0.1.1"
 
 // Dokka configuration
 subprojects {
@@ -80,7 +80,7 @@ tasks.dokkaHtml.configure {
         named("commonMain") {
             moduleName.set("Arrow Resilience Kit")
             
-            includes.from("README.md")
+            includes.from("Module.md")
             
             sourceLink {
                 localDirectory.set(file("src/commonMain/kotlin"))

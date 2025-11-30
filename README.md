@@ -49,7 +49,7 @@ repositories {
 
 ```kotlin
 dependencies {
-    implementation("ro.sorinirmies.arrow:arrow-resilience-kit:0.1.0")
+    implementation("ro.sorinirmies.arrow:arrow-resilience-kit:0.1.1")
 }
 ```
 

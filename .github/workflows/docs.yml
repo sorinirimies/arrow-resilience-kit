@@ -6,6 +6,7 @@ on:
     paths:
       - "src/**"
       - "README.md"
+      - "Module.md"
       - "build.gradle.kts"
       - ".github/workflows/docs.yml"
   workflow_dispatch:
