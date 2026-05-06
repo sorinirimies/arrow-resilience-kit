@@ -1,357 +1,400 @@
-# arrow-resilience-kit - Resilience patterns for Kotlin Multiplatform using Arrow
+# arrow-resilience-kit — Resilience patterns for Kotlin Multiplatform using Arrow
 #
-# Setup: Run 'just install-tools' for required tools
-# Or install manually: cargo install just
-# Usage: just <task> or just --list
+# Install just:      cargo install just
+# Install git-cliff: cargo install git-cliff
+# Usage: just <task>
+# ── Default ───────────────────────────────────────────────────────────────────
 
-# Default task - show available commands
 default:
     @just --list
 
-# Install required tools (just, git-cliff, gh)
+# ── Tool checks ───────────────────────────────────────────────────────────────
+
+_check-git-cliff:
+    @command -v git-cliff >/dev/null 2>&1 || { \
+        echo "❌ git-cliff not found. Install with: cargo install git-cliff"; exit 1; \
+    }
+
+# Install all recommended development tools
 install-tools:
-    @echo "Installing required tools..."
-    @command -v just >/dev/null 2>&1 || cargo install just
-    @command -v git-cliff >/dev/null 2>&1 || cargo install git-cliff
+    @echo "Installing development tools…"
+    @command -v git-cliff >/dev/null 2>&1 || cargo install git-cliff --locked
     @command -v gh >/dev/null 2>&1 || echo "⚠️  GitHub CLI (gh) not found. Install from: https://cli.github.com/"
-    @echo "✅ Core tools checked!"
+    @echo "✅ All tools checked!"
     @echo ""
     @echo "Required tools:"
     @echo "  just:      $$(command -v just >/dev/null 2>&1 && echo '✅' || echo '❌')"
     @echo "  git-cliff: $$(command -v git-cliff >/dev/null 2>&1 && echo '✅' || echo '❌')"
-    @echo "  gh:        $$(command -v gh >/dev/null 2>&1 && echo '✅' || echo '❌ (required for automated releases)')"
+    @echo "  gh:        $$(command -v gh >/dev/null 2>&1 && echo '✅' || echo '❌ (required for GitHub releases)')"
 
-# Build the project
+# ── Build ─────────────────────────────────────────────────────────────────────
+
+# Build the project (all targets)
 build:
-    ./gradlew build
+    ./gradlew build --no-daemon
 
 # Build without running tests
 assemble:
-    ./gradlew assemble
+    ./gradlew assemble --no-daemon
 
-# Build release version (remove -SNAPSHOT)
+# Build release version (skip tests)
 build-release:
-    ./gradlew clean build -x test
+    ./gradlew clean assemble --no-daemon -x test
+
+# ── Run / Test ────────────────────────────────────────────────────────────────
 
 # Run all tests
 test:
-    ./gradlew test
-
-# Run tests for all platforms
-test-all:
-    ./gradlew allTests
+    ./gradlew allTests --no-daemon
 
 # Run JVM tests only
 test-jvm:
-    ./gradlew jvmTest
+    ./gradlew jvmTest --no-daemon
 
 # Run JS tests only
 test-js:
-    ./gradlew jsTest
+    ./gradlew jsTest --no-daemon
 
 # Run Linux native tests
 test-linux:
-    ./gradlew linuxX64Test
+    ./gradlew linuxX64Test --no-daemon
 
-# Check code without building
+# ── Code quality ──────────────────────────────────────────────────────────────
+
+# Run all checks (build + test)
 check:
-    ./gradlew check
+    ./gradlew check --no-daemon
 
-# Format code (if ktlint is configured)
-fmt:
-    @echo "Note: Add ktlint or spotless plugin to build.gradle.kts for formatting"
-    @echo "For now, use your IDE's format feature"
+# Run detekt linting
+lint:
+    ./gradlew check --no-daemon
 
-# Run all checks (build and test)
+# Run all quality checks — must pass before a release.
 check-all: build test
     @echo "✅ All checks passed!"
 
-# Clean build artifacts
-clean:
-    ./gradlew clean
+# Full pre-release quality gate — everything in check-all plus documentation.
+check-release: check-all doc
+    @echo "✅ Release quality gate passed (build + test + doc)!"
 
-# Deep clean (includes .gradle cache)
-clean-all:
-    ./gradlew clean
-    rm -rf .gradle
-    rm -rf build
-    @echo "✅ Deep clean complete!"
+# ── Documentation ─────────────────────────────────────────────────────────────
 
-# Generate API documentation
+# Generate API documentation (Dokka)
 doc:
-    ./gradlew dokkaHtml
+    ./gradlew dokkaHtml --no-daemon
     @echo "📚 Documentation generated at: build/docs/index.html"
 
-# Open generated documentation in browser
+# Generate and open docs in browser
 doc-open: doc
     @command -v xdg-open >/dev/null 2>&1 && xdg-open build/docs/index.html || \
      command -v open >/dev/null 2>&1 && open build/docs/index.html || \
      echo "Please open build/docs/index.html manually"
 
-# Prepare documentation for GitHub Pages
+# Generate docs for the full workspace (no browser)
 doc-prepare:
-    ./gradlew prepareDocs
+    ./gradlew prepareDocs --no-daemon
     @echo "📚 Documentation prepared in docs/ directory"
-    @echo "Commit and push docs/ to publish to GitHub Pages"
 
-# Deploy documentation (generate + prepare)
-doc-deploy: doc doc-prepare
-    @echo "✅ Documentation ready for deployment!"
+# ── Changelog ─────────────────────────────────────────────────────────────────
+
+# Regenerate the full CHANGELOG.md from all tags
+changelog: _check-git-cliff
+    @echo "Generating full changelog…"
+    git-cliff --output CHANGELOG.md
+    @echo "✅ CHANGELOG.md updated."
+
+# Prepend only unreleased commits to CHANGELOG.md
+changelog-unreleased: _check-git-cliff
+    git-cliff --unreleased --prepend CHANGELOG.md
+    @echo "✅ Unreleased changes prepended."
+
+# Preview changelog for the next release without writing the file
+changelog-preview: _check-git-cliff
+    @git-cliff --unreleased
+
+# ── Version bump ─────────────────────────────────────────────────────────────
+
+# Show the current version from build.gradle.kts
+version:
+    @grep '^version = ' build.gradle.kts | sed 's/version = "\(.*\)"/\1/' | tr -d '"'
+
+# Validate that a version string will produce a valid vX.Y.Z tag.
+validate-tag version:
+    #!/usr/bin/env sh
+    TAG="v{{ version }}"
+    if echo "$TAG" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$'; then
+        echo "✅ Tag $TAG is valid."
+    else
+        echo "❌ Tag '$TAG' does not match vX.Y.Z — aborting."
+        exit 1
+    fi
+
+# Fail fast if the requested version is the same as the current one.
+_check-version-changed version:
+    #!/usr/bin/env sh
+    current=$(grep '^version = ' build.gradle.kts | sed 's/version = "\(.*\)"/\1/' | tr -d '"')
+    if [ "$current" = "{{ version }}" ]; then
+        echo "❌ Version {{ version }} is already the current version. Nothing to bump."
+        exit 1
+    fi
+    echo "✅ Version will change: $current → {{ version }}"
+
+# Bump the version, regenerate CHANGELOG.md, commit and tag.
+bump version: (validate-tag version) (_check-version-changed version) check-all _check-git-cliff
+    @./scripts/bump_version.sh {{ version }}
+
+# ── Publish ───────────────────────────────────────────────────────────────────
 
 # Publish to Maven Local for testing
 publish-local:
-    ./gradlew publishToMavenLocal
+    ./gradlew publishToMavenLocal --no-daemon
     @echo "✅ Published to ~/.m2/repository"
 
 # Publish to GitHub Packages (requires credentials)
 publish:
-    ./gradlew publish
+    ./gradlew publish --no-daemon
 
 # Dry run of publishing
 publish-dry:
-    ./gradlew publish --dry-run
+    ./gradlew publish --dry-run --no-daemon
 
 # Show publishing tasks
 publish-tasks:
     ./gradlew tasks --group=publishing
 
-# Check dependencies for updates
+# ── Housekeeping ──────────────────────────────────────────────────────────────
+
+# Remove build artifacts
+clean:
+    ./gradlew clean --no-daemon
+
+# Deep clean (includes .gradle cache)
+clean-all:
+    ./gradlew clean --no-daemon
+    rm -rf .gradle build
+    @echo "✅ Deep clean complete!"
+
+# Check dependencies
 dependencies:
     ./gradlew dependencies
 
-# Show outdated dependencies (requires dependency-updates plugin)
-outdated:
-    @echo "Note: Add 'com.github.ben-manes.versions' plugin for outdated check"
-    @echo "For now, check manually in gradle/libs.versions.toml"
-
 # Update Gradle wrapper
 update-gradle version:
-    ./gradlew wrapper --gradle-version {{version}}
-    @echo "✅ Gradle wrapper updated to {{version}}"
+    ./gradlew wrapper --gradle-version {{ version }}
+    @echo "✅ Gradle wrapper updated to {{ version }}"
+
+# Refresh dependencies
+refresh-deps:
+    ./gradlew build --refresh-dependencies --no-daemon
+
+# Stop Gradle daemon
+daemon-stop:
+    ./gradlew --stop
+    @echo "✅ Gradle daemon stopped"
+
+# Show all configured remotes
+remotes:
+    @git remote -v
 
 # Show project info
 info:
     @echo "Project: arrow-resilience-kit"
-    @echo "Group: ro.sorinirmies.arrow"
+    @echo "Group:   ro.sorinirmies.arrow"
     @echo "Version: $(just version)"
-    @echo "Package: ro.sorinirmies.arrow.resiliencekit"
     @echo "Platforms: JVM, JS, Linux x64, macOS x64, macOS ARM64"
     @echo ""
-    @echo "GitHub: https://github.com/sorinirimies/arrow-resilience-kit"
-    @echo "Gitea: ssh://git@192.168.1.204:30009/sorin/arrow-resilience-kit.git"
+    @echo "GitHub:           git@github.com:sorinirimies/arrow-resilience-kit.git"
+    @echo "Gitea:            ssh://git@192.168.1.204:30009/sorin/arrow-resilience-kit.git"
+    @echo "Gitea Starscream: gitea@192.168.1.44:sorin/arrow-resilience-kit.git"
 
-# Show current version from build.gradle.kts
-version:
-    @grep '^version = ' build.gradle.kts | sed 's/version = "\(.*\)"/\1/' | tr -d '"'
+# ── Git remotes & pushing ────────────────────────────────────────────────────
 
-# Git: commit current changes
-commit message:
-    git add .
-    git commit -m "{{message}}"
-
-# Git: pull from GitHub (origin)
-pull:
-    git pull origin main
-
-# Git: pull from Gitea
-pull-gitea:
-    git pull origin main
-    @echo "✅ Pulled from Gitea (via origin fetch URL)"
-
-# Git: pull from both (GitHub and Gitea)
-pull-all:
-    git fetch --all
-    git pull origin main
-    @echo "✅ Pulled from both remotes!"
-
-# Git: push to both GitHub and Gitea (configured as origin push URLs)
+# Push the current branch to GitHub (origin)
 push:
-    git push origin main
-    @echo "✅ Pushed to both GitHub and Gitea!"
-
-# Git: push to GitHub only
-push-github:
     git push github main
-    @echo "✅ Pushed to GitHub!"
 
-# Git: push tags to both remotes
+# Push the current branch to Gitea
+push-gitea:
+    git push gitea main
+
+# Push the current branch to Gitea Starscream
+push-gitea-starscream:
+    git push gitea_starscream main
+
+# Push the current branch to all remotes (continues on failure)
+push-all:
+    #!/usr/bin/env sh
+    failed=""
+    git push github main             || failed="$failed github"
+    git push gitea main              || failed="$failed gitea"
+    git push gitea_starscream main   || failed="$failed gitea_starscream"
+    if [ -n "$failed" ]; then
+        echo "⚠️  Failed to push to:$failed"
+    else
+        echo "✅ Pushed to GitHub, Gitea, and Gitea Starscream!"
+    fi
+
+# Force-push the current branch to all remotes
+push-all-force:
+    #!/usr/bin/env sh
+    failed=""
+    git push --force github main             || failed="$failed github"
+    git push --force gitea main              || failed="$failed gitea"
+    git push --force gitea_starscream main   || failed="$failed gitea_starscream"
+    if [ -n "$failed" ]; then
+        echo "⚠️  Failed to force-push to:$failed"
+    else
+        echo "✅ Force-pushed to GitHub, Gitea, and Gitea Starscream!"
+    fi
+
+# Pull the current branch from GitHub
+pull:
+    git pull github main
+
+# Pull the current branch from Gitea
+pull-gitea:
+    git pull gitea main
+
+# Pull the current branch from Gitea Starscream
+pull-gitea-starscream:
+    git pull gitea_starscream main
+
+# Pull the current branch from all remotes (continues on failure)
+pull-all:
+    #!/usr/bin/env sh
+    failed=""
+    git pull github main             || failed="$failed github"
+    git pull gitea main              || failed="$failed gitea"
+    git pull gitea_starscream main   || failed="$failed gitea_starscream"
+    if [ -n "$failed" ]; then
+        echo "⚠️  Failed to pull from:$failed"
+    else
+        echo "✅ Pulled from GitHub, Gitea, and Gitea Starscream!"
+    fi
+
+# Push all tags to GitHub
 push-tags:
-    git push origin --tags
     git push github --tags
-    @echo "✅ Tags pushed to both remotes!"
 
-# Git: force push to both remotes (use with caution!)
-push-force:
-    git push --force origin main
-    git push --force github main
-    @echo "✅ Force pushed to both remotes!"
+# Push all tags to all remotes (continues on failure)
+push-tags-all:
+    #!/usr/bin/env sh
+    failed=""
+    git push github --tags             || failed="$failed github"
+    git push gitea --tags              || failed="$failed gitea"
+    git push gitea_starscream --tags   || failed="$failed gitea_starscream"
+    if [ -n "$failed" ]; then
+        echo "⚠️  Failed to push tags to:$failed"
+    else
+        echo "✅ Tags pushed to all remotes!"
+    fi
 
-# Show configured remotes
-remotes:
-    @echo "Configured git remotes:"
-    @git remote -v
+# ── Release workflows ─────────────────────────────────────────────────────────
 
-# Check if git-cliff is installed
-check-git-cliff:
-    @command -v git-cliff >/dev/null 2>&1 || { echo "❌ git-cliff not found. Install with: cargo install git-cliff"; exit 1; }
-
-# Generate full changelog from all tags
-changelog: check-git-cliff
-    @echo "Generating full changelog..."
-    git-cliff -o CHANGELOG.md
-    @echo "✅ Changelog generated!"
-
-# Generate changelog for unreleased commits only
-changelog-unreleased: check-git-cliff
-    @echo "Generating unreleased changelog..."
-    git-cliff --unreleased --prepend CHANGELOG.md
-    @echo "✅ Unreleased changelog generated!"
-
-# Generate changelog for specific version tag
-changelog-version version: check-git-cliff
-    @echo "Generating changelog for version {{version}}..."
-    git-cliff --tag v{{version}} -o CHANGELOG.md
-    @echo "✅ Changelog generated for version {{version}}!"
-
-# Preview changelog without writing to file
-changelog-preview: check-git-cliff
-    @git-cliff
-
-# Preview unreleased changes
-changelog-preview-unreleased: check-git-cliff
-    @git-cliff --unreleased
-
-# View current changelog
-view-changelog:
-    @cat CHANGELOG.md
-
-# Show git-cliff info
-cliff-info:
-    @echo "Git-cliff configuration:"
-    @echo "  Config file: cliff.toml (create one if needed)"
-    @echo "  Installed: $(command -v git-cliff >/dev/null 2>&1 && echo '✅ Yes' || echo '❌ No (run: just install-tools)')"
-    @command -v git-cliff >/dev/null 2>&1 && git-cliff --version || true
-
-# Bump version (usage: just bump 0.2.0)
-# Note: Skips check-all due to compilation errors (see KNOWN_ISSUES.md)
-bump version: check-git-cliff
-    @echo "⚠️  Note: Skipping build/test checks due to compilation errors"
-    @echo "    See KNOWN_ISSUES.md for details"
-    @echo ""
-    @echo "Bumping version to {{version}}..."
-    @./scripts/bump_version.sh {{version}}
-
-# Full release workflow: bump version, push, and create GitHub Release
+# Bump, commit, tag, then push to GitHub — triggers Release workflow.
 release version: (bump version)
-    @echo "Pushing release to GitHub (source of truth)..."
-    git push github main
-    git push github v{{version}}
-    @echo "✅ Release v{{version}} pushed to GitHub!"
-    @echo ""
-    @echo "Syncing to Gitea..."
-    -git push origin main 2>/dev/null || echo "⚠️  Gitea push failed (non-critical)"
-    -git push origin v{{version}} 2>/dev/null || echo "⚠️  Gitea tag push failed (non-critical)"
-    @echo ""
-    @echo "Creating GitHub Release..."
-    @command -v gh >/dev/null 2>&1 || { echo "❌ GitHub CLI (gh) not found. Install from: https://cli.github.com/"; exit 1; }
-    @gh release create v{{version}} \
-        --title "v{{version}}" \
-        --notes-file CHANGELOG.md \
-        --repo sorinirimies/arrow-resilience-kit
-    @echo "✅ GitHub Release v{{version}} created!"
-    @echo ""
-    @echo "GitHub Actions will now automatically:"
-    @echo "  1. Build the project"
-    @echo "  2. Publish to GitHub Packages"
-    @echo "  3. Deploy documentation to GitHub Pages"
-    @echo ""
-    @echo "Monitor progress at:"
-    @echo "  https://github.com/sorinirimies/arrow-resilience-kit/actions"
+    @echo "Pushing release v{{ version }} to GitHub…"
+    git push --follow-tags github main
+    @echo "✅ Release v{{ version }} pushed — Release workflow will trigger automatically."
+    @echo "   https://github.com/sorinirimies/arrow-resilience-kit/actions"
 
-# Push release to both remotes (without bumping) and create GitHub Release
-push-release:
-    @echo "Pushing release to GitHub (source of truth)..."
-    git push github main
-    git push github --tags
-    @echo "✅ Release pushed to GitHub!"
-    @echo ""
-    @echo "Syncing to Gitea..."
-    -git push origin main 2>/dev/null || echo "⚠️  Gitea push failed (non-critical)"
-    -git push origin --tags 2>/dev/null || echo "⚠️  Gitea tags push failed (non-critical)"
-    @echo ""
-    @echo "Creating GitHub Release for latest tag..."
-    @command -v gh >/dev/null 2>&1 || { echo "❌ GitHub CLI (gh) not found. Install from: https://cli.github.com/"; exit 1; }
-    @latest_tag=$$(git describe --tags --abbrev=0); \
-    echo "Latest tag: $$latest_tag"; \
-    gh release create $$latest_tag \
-        --title "$$latest_tag" \
-        --notes-file CHANGELOG.md \
-        --repo sorinirimies/arrow-resilience-kit
-    @echo "✅ GitHub Release created!"
-    @echo ""
-    @echo "Monitor CI/CD at: https://github.com/sorinirimies/arrow-resilience-kit/actions"
+# Bump, commit, tag, then push to Gitea only.
+release-gitea version: (bump version)
+    @echo "Pushing release v{{ version }} to Gitea…"
+    git push --follow-tags gitea main
+    @echo "✅ Release v{{ version }} live on Gitea."
 
-# Create GitHub Release for existing tag (without pushing)
-create-release tag:
-    @echo "Creating GitHub Release for tag {{tag}}..."
-    @command -v gh >/dev/null 2>&1 || { echo "❌ GitHub CLI (gh) not found. Install from: https://cli.github.com/"; exit 1; }
-    @gh release create {{tag}} \
-        --title "{{tag}}" \
-        --notes-file CHANGELOG.md \
-        --repo sorinirimies/arrow-resilience-kit
-    @echo "✅ GitHub Release {{tag}} created!"
-    @echo ""
-    @echo "GitHub Actions will now automatically:"
-    @echo "  1. Build the project"
-    @echo "  2. Publish to GitHub Packages"
-    @echo "  3. Deploy documentation to GitHub Pages"
-    @echo ""
-    @echo "Monitor progress at:"
-    @echo "  https://github.com/sorinirimies/arrow-resilience-kit/actions"
+# Bump, commit, tag, then push to Gitea Starscream only.
+release-gitea-starscream version: (bump version)
+    @echo "Pushing release v{{ version }} to Gitea Starscream…"
+    git push --follow-tags gitea_starscream main
+    @echo "✅ Release v{{ version }} live on Gitea Starscream."
 
-# Sync Gitea with GitHub (force - GitHub is source of truth)
+# Bump, commit, tag, then push to all remotes (continues on failure).
+release-all version: (bump version)
+    #!/usr/bin/env sh
+    echo "Pushing release v{{ version }} to all remotes…"
+    failed=""
+    git push --follow-tags github main             || failed="$failed github"
+    git push --follow-tags gitea main              || failed="$failed gitea"
+    git push --follow-tags gitea_starscream main   || failed="$failed gitea_starscream"
+    if [ -n "$failed" ]; then
+        echo "⚠️  Release v{{ version }} failed to push to:$failed"
+    else
+        echo "✅ Release v{{ version }} pushed to GitHub, Gitea, and Gitea Starscream!"
+    fi
+
+# Push the latest commit and all tags to every remote (no bump, continues on failure).
+push-release-all: check-all
+    #!/usr/bin/env sh
+    failed=""
+    git push --follow-tags github main             || failed="$failed github"
+    git push --follow-tags gitea main              || failed="$failed gitea"
+    git push --follow-tags gitea_starscream main   || failed="$failed gitea_starscream"
+    if [ -n "$failed" ]; then
+        echo "⚠️  Failed to push to:$failed"
+    else
+        echo "✅ Latest commit + tags pushed to all remotes."
+    fi
+
+# Manually re-trigger the Release workflow for an existing tag via the gh CLI.
+release-retrigger version:
+    @command -v gh >/dev/null 2>&1 || { \
+        echo "❌ GitHub CLI (gh) not found. Install from https://cli.github.com"; exit 1; \
+    }
+    @echo "Manually dispatching Release workflow for tag v{{ version }}…"
+    gh workflow run release.yml --field tag=v{{ version }}
+    @echo "✅ Dispatched — check progress at: https://github.com/sorinirimies/arrow-resilience-kit/actions"
+
+# Force-sync Gitea with GitHub
 sync-gitea:
-    @echo "Syncing Gitea with GitHub (force)..."
-    git fetch github
-    git reset --hard github/main
-    git push origin main --force
-    git push origin --tags --force
-    @echo "✅ Gitea synced with GitHub!"
+    git push gitea main --force
+    git push gitea --tags --force
+    @echo "✅ Gitea force-synced with GitHub."
 
-# Sync both remotes (GitHub is source of truth)
-sync-all:
-    @echo "Synchronizing all remotes..."
-    @echo "1. Fetching from GitHub..."
-    git fetch github
-    @echo "2. Resetting to GitHub main..."
-    git reset --hard github/main
-    @echo "3. Force pushing to Gitea..."
-    git push origin main --force
-    git push origin --tags --force
-    @echo "✅ All remotes synchronized!"
-    @echo ""
-    @echo "Current status:"
-    @git log --oneline -3
+# Force-sync Gitea Starscream with GitHub
+sync-gitea-starscream:
+    git push gitea_starscream main --force
+    git push gitea_starscream --tags --force
+    @echo "✅ Gitea Starscream force-synced with GitHub."
 
-# Quick pre-commit check
-pre-commit: check-all
-    @echo "✅ Ready to commit!"
+# Force-sync all Gitea instances with GitHub (continues on failure)
+sync-all-gitea:
+    #!/usr/bin/env sh
+    failed=""
+    git push gitea main --force                  || failed="$failed gitea"
+    git push gitea --tags --force                || failed="$failed gitea-tags"
+    git push gitea_starscream main --force       || failed="$failed gitea_starscream"
+    git push gitea_starscream --tags --force     || failed="$failed gitea_starscream-tags"
+    if [ -n "$failed" ]; then
+        echo "⚠️  Failed to sync:$failed"
+    else
+        echo "✅ All Gitea instances force-synced with GitHub."
+    fi
+
+# ── CI simulation ────────────────────────────────────────────────────────────
 
 # CI simulation - run what CI runs
 ci: clean build test doc
     @echo "✅ CI simulation complete!"
 
+# Quick pre-commit check
+pre-commit: check-all
+    @echo "✅ Ready to commit!"
+
+# ── Setup ─────────────────────────────────────────────────────────────────────
+
 # Setup project after clone
 setup:
-    @echo "Setting up project..."
-    @echo "1. Installing Gradle wrapper dependencies..."
+    @echo "Setting up project…"
+    @echo "1. Installing Gradle wrapper dependencies…"
     ./gradlew --version
     @echo ""
-    @echo "2. Downloading dependencies..."
-    ./gradlew dependencies --quiet
+    @echo "2. Downloading dependencies…"
+    ./gradlew dependencies --quiet --no-daemon
     @echo ""
-    @echo "3. Building project..."
-    ./gradlew build
+    @echo "3. Building project…"
+    ./gradlew build --no-daemon
     @echo ""
     @echo "✅ Setup complete!"
     @echo ""
@@ -364,56 +407,15 @@ setup:
     @echo "     export GITHUB_ACTOR=your-github-username"
     @echo "     export GITHUB_PACKAGES_TOKEN=your-github-token"
 
-# Show Gradle tasks
-tasks:
-    ./gradlew tasks
-
-# Show Gradle tasks for specific group
-tasks-group group:
-    ./gradlew tasks --group={{group}}
-
-# Run Gradle with specific task
-gradle task:
-    ./gradlew {{task}}
-
-# Daemon management - stop Gradle daemon
-daemon-stop:
-    ./gradlew --stop
-    @echo "✅ Gradle daemon stopped"
-
-# Daemon management - show daemon status
-daemon-status:
-    ./gradlew --status
-
-# Refresh dependencies
-refresh-deps:
-    ./gradlew build --refresh-dependencies
-
 # Verify project structure
 verify:
-    @echo "Verifying project structure..."
+    @echo "Verifying project structure…"
     @test -f build.gradle.kts && echo "✅ build.gradle.kts" || echo "❌ build.gradle.kts missing"
     @test -f settings.gradle.kts && echo "✅ settings.gradle.kts" || echo "❌ settings.gradle.kts missing"
     @test -f gradle.properties && echo "✅ gradle.properties" || echo "❌ gradle.properties missing"
-    @test -f gradle/libs.versions.toml && echo "✅ gradle/libs.versions.toml" || echo "❌ gradle/libs.versions.toml missing"
-    @test -f gradle/publishing.gradle.kts && echo "✅ gradle/publishing.gradle.kts" || echo "❌ gradle/publishing.gradle.kts missing"
     @test -d src/commonMain && echo "✅ src/commonMain" || echo "❌ src/commonMain missing"
     @test -d src/commonTest && echo "✅ src/commonTest" || echo "❌ src/commonTest missing"
     @test -d .github/workflows && echo "✅ .github/workflows" || echo "❌ .github/workflows missing"
+    @test -d .gitea/workflows && echo "✅ .gitea/workflows" || echo "❌ .gitea/workflows missing"
     @echo ""
     @echo "✅ Project structure verified!"
-
-# Show help for a specific topic
-help topic:
-    @just --list | grep {{topic}} || echo "No commands found for topic: {{topic}}"
-    @echo ""
-    @echo "Available documentation:"
-    @echo "  - README.md - Project overview"
-    @echo "  - QUICK_START.md - Quick reference"
-    @echo "  - PUBLISHING.md - Publishing guide"
-    @echo "  - CONTRIBUTING.md - Contributor guide"
-
-# Run security check (if configured)
-security:
-    @echo "Note: Add OWASP dependency check plugin for security scanning"
-    @echo "For now, check dependencies manually"
