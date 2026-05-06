@@ -1,0 +1,198 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  # Manual fallback — trigger from the Gitea Actions UI if the tag push
+  # ever silently skips or a re-run is needed without re-pushing the tag.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to release (e.g. v0.5.0) — must already exist on the repo"
+        required: true
+        default: ""
+
+permissions:
+  contents: write
+  packages: write
+
+# Only one release at a time.
+concurrency:
+  group: release
+  cancel-in-progress: true
+
+jobs:
+  # ── 0. Validate tag ──────────────────────────────────────────────────────────
+  validate:
+    name: Validate tag
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.resolve.outputs.tag }}
+      version: ${{ steps.resolve.outputs.version }}
+    steps:
+      - name: Resolve and validate tag
+        id: resolve
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ github.event.inputs.tag }}"
+          else
+            TAG="${{ github.ref_name }}"
+          fi
+
+          echo "Resolved tag: ${TAG}"
+
+          if [[ ! "${TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "❌ Tag '${TAG}' does not match vX.Y.Z — aborting."
+            exit 1
+          fi
+
+          VERSION="${TAG#v}"
+          echo "tag=${TAG}"         >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "✅ Tag ${TAG} (version ${VERSION}) is valid."
+
+  # ── 1. Quality gate ──────────────────────────────────────────────────────────
+  test:
+    name: Build & Test
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.validate.outputs.tag }}
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@v2
+        with:
+          cache-read-only: false
+
+      - name: Validate Gradle wrapper
+        uses: gradle/wrapper-validation-action@v1
+
+      - name: Build project
+        run: ./gradlew assemble --no-daemon --stacktrace
+
+      - name: Run all tests
+        run: ./gradlew allTests --no-daemon --stacktrace
+
+  # ── 2. Create Release ────────────────────────────────────────────────────────
+  release:
+    name: Create Gitea Release
+    needs: [validate, test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.validate.outputs.tag }}
+          fetch-depth: 0
+
+      - name: Install git-cliff
+        run: |
+          curl -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          . "$HOME/.cargo/env"
+          cargo install git-cliff --locked
+
+      - name: Generate release notes
+        run: |
+          git-cliff --current --strip header -o RELEASE_NOTES.md
+          echo ""
+          echo "── Release Notes ──"
+          cat RELEASE_NOTES.md
+
+      - name: Generate full changelog
+        run: git-cliff -o CHANGELOG.md
+
+      - name: Create Gitea Release
+        run: |
+          TAG="${{ needs.validate.outputs.tag }}"
+          GITEA_URL="${{ github.server_url }}"
+          REPO="${{ github.repository }}"
+          TOKEN="${{ secrets.GITHUB_TOKEN }}"
+
+          echo "🎉 Creating Gitea release for tag ${TAG}..."
+
+          RELEASE_BODY=$(cat RELEASE_NOTES.md | python3 -c 'import sys,json; print(json.dumps(sys.stdin.read()))')
+          RESPONSE=$(curl -s -X POST \
+            "${GITEA_URL}/api/v1/repos/${REPO}/releases" \
+            -H "Authorization: token ${TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"tag_name\": \"${TAG}\",
+              \"name\": \"${TAG}\",
+              \"body\": ${RELEASE_BODY},
+              \"draft\": false,
+              \"prerelease\": false
+            }")
+
+          RELEASE_ID=$(echo "$RESPONSE" | python3 -c 'import sys,json; print(json.load(sys.stdin)["id"])' 2>/dev/null)
+          if [ -z "$RELEASE_ID" ] || [ "$RELEASE_ID" = "None" ]; then
+            echo "❌ Failed to create release:"
+            echo "$RESPONSE"
+            exit 1
+          fi
+          echo "✅ Release created (id: ${RELEASE_ID})"
+
+          # Upload assets
+          for file in LICENSE README.md CHANGELOG.md; do
+            [ -f "$file" ] || continue
+            FILENAME=$(basename "$file")
+            echo "📦 Uploading ${FILENAME}..."
+            curl -s -X POST \
+              "${GITEA_URL}/api/v1/repos/${REPO}/releases/${RELEASE_ID}/assets?name=${FILENAME}" \
+              -H "Authorization: token ${TOKEN}" \
+              -H "Content-Type: application/octet-stream" \
+              --data-binary "@${file}" > /dev/null
+            echo "✅ Uploaded ${FILENAME}"
+          done
+
+          echo "🎉 Release ${TAG} published at ${GITEA_URL}/${REPO}/releases/tag/${TAG}"
+
+  # ── 3. Publish to GitHub Packages ───────────────────────────────────────────
+  publish:
+    name: Publish to GitHub Packages
+    needs: [validate, release]
+    runs-on: ubuntu-latest
+    env:
+      HAS_TOKEN: ${{ secrets.PACKAGES_PUBLISH != '' }}
+    steps:
+      - name: Skip notice (no token)
+        if: env.HAS_TOKEN != 'true'
+        run: echo "⏭️  PACKAGES_PUBLISH is not configured — skipping publish."
+
+      - uses: actions/checkout@v4
+        if: env.HAS_TOKEN == 'true'
+        with:
+          ref: ${{ needs.validate.outputs.tag }}
+
+      - name: Set up JDK 17
+        if: env.HAS_TOKEN == 'true'
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+
+      - name: Setup Gradle
+        if: env.HAS_TOKEN == 'true'
+        uses: gradle/gradle-build-action@v2
+        with:
+          cache-read-only: false
+
+      - name: Publish to GitHub Packages
+        if: env.HAS_TOKEN == 'true'
+        run: ./gradlew publish --no-daemon
+        env:
+          PACKAGES_PUBLISH: ${{ secrets.PACKAGES_PUBLISH }}
+          GITHUB_ACTOR: ${{ github.actor }}
+
+      - name: Publish complete
+        if: env.HAS_TOKEN == 'true'
+        run: echo "✅ Published ${{ needs.validate.outputs.tag }} to GitHub Packages."

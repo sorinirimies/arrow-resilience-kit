@@ -1,0 +1,85 @@
+name: Nightly Dependency Upgrade
+
+on:
+  schedule:
+    # Runs at 02:00 UTC every day (03:00 CET)
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: deps-update
+  cancel-in-progress: true
+
+jobs:
+  upgrade-deps:
+    name: Upgrade Dependencies
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@v2
+        with:
+          cache-read-only: false
+
+      # ── Upgrade dependencies via version catalog ─────────────────────────────
+      # Updates gradle/libs.versions.toml with latest versions using the
+      # version-catalog-update plugin (if configured) or manual sed replacements.
+      - name: Check for dependency updates
+        id: check
+        run: |
+          # Try to use the versionCatalogUpdate task if available
+          if ./gradlew tasks --all 2>/dev/null | grep -q "versionCatalogUpdate"; then
+            echo "Using versionCatalogUpdate plugin…"
+            ./gradlew versionCatalogUpdate --no-daemon
+          else
+            echo "No catalog update plugin — running dependency resolution refresh…"
+            ./gradlew dependencies --write-locks --no-daemon 2>/dev/null || true
+          fi
+
+          # Also update the Gradle wrapper if a newer version is available
+          ./gradlew wrapper --no-daemon 2>/dev/null || true
+
+          if git diff --quiet; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # ── Quality gate ───────────────────────────────────────────────────────
+      - name: Build project
+        if: steps.check.outputs.has_changes == 'true'
+        run: ./gradlew build --no-daemon --stacktrace
+
+      - name: Run tests
+        if: steps.check.outputs.has_changes == 'true'
+        run: ./gradlew allTests --no-daemon --stacktrace
+
+      # ── Commit and push directly to main ───────────────────────────────────────
+      - name: Commit and push dependency updates
+        if: steps.check.outputs.has_changes == 'true'
+        run: |
+          DATE=$(date -u '+%Y-%m-%d')
+
+          git config user.name  "gitea-actions[bot]"
+          git config user.email "gitea-actions[bot]@noreply.gitea"
+
+          git add -A
+          git commit -m "chore(deps): nightly dependency upgrade $DATE"
+          git push origin main
+
+          echo "✅ Dependency updates pushed to main."
+
+      - name: Nothing to update
+        if: steps.check.outputs.has_changes == 'false'
+        run: echo "✅ All dependencies already up to date — nothing to upgrade."

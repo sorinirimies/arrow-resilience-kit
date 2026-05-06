@@ -28,18 +28,22 @@ jobs:
           java-version: "17"
           distribution: "temurin"
 
-      - name: Setup Gradle
-        uses: gradle/gradle-build-action@v3
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v4
         with:
-          cache-read-only: false
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle.kts', 'gradle/libs.versions.toml') }}
+          restore-keys: gradle-${{ runner.os }}-
 
       - name: Validate Gradle wrapper
-        uses: gradle/actions/wrapper-validation@v3
+        uses: gradle/wrapper-validation-action@v1
 
       - name: Build project
         run: ./gradlew assemble --no-daemon --stacktrace
 
-  # ── 2. Tests ─────────────────────────────────────────────────────────────────
+  # ── 2. Test ──────────────────────────────────────────────────────────────────
   test:
     name: test
     runs-on: ubuntu-latest
@@ -52,16 +56,20 @@ jobs:
           java-version: "17"
           distribution: "temurin"
 
-      - name: Setup Gradle
-        uses: gradle/gradle-build-action@v3
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v4
         with:
-          cache-read-only: false
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle.kts', 'gradle/libs.versions.toml') }}
+          restore-keys: gradle-${{ runner.os }}-
 
       - name: Run all tests
         run: ./gradlew allTests --no-daemon --stacktrace
 
       - name: Upload test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         if: always()
         with:
           name: test-results
@@ -70,7 +78,7 @@ jobs:
             **/build/reports/
           retention-days: 7
 
-  # ── 3. Lint (Detekt) ─────────────────────────────────────────────────────────
+  # ── 3. Lint ──────────────────────────────────────────────────────────────────
   lint:
     name: lint
     runs-on: ubuntu-latest
@@ -83,13 +91,19 @@ jobs:
           java-version: "17"
           distribution: "temurin"
 
-      - name: Setup Gradle
-        uses: gradle/gradle-build-action@v3
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle.kts', 'gradle/libs.versions.toml') }}
+          restore-keys: gradle-${{ runner.os }}-
 
-      - name: Run detekt
+      - name: Run detekt / check
         run: ./gradlew check --no-daemon --stacktrace
 
-  # ── 4. Documentation ─────────────────────────────────────────────────────────
+  # ── 4. Documentation ────────────────────────────────────────────────────────
   doc:
     name: doc
     runs-on: ubuntu-latest
@@ -102,16 +116,14 @@ jobs:
           java-version: "17"
           distribution: "temurin"
 
-      - name: Setup Gradle
-        uses: gradle/gradle-build-action@v3
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle.kts', 'gradle/libs.versions.toml') }}
+          restore-keys: gradle-${{ runner.os }}-
 
       - name: Generate Dokka documentation
         run: ./gradlew dokkaHtml --no-daemon --stacktrace
-
-      - name: Upload documentation
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: documentation
-          path: build/docs/
-          retention-days: 7
