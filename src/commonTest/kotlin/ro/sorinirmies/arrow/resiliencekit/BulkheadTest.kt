@@ -1,19 +1,24 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Sorin Albu-Irimies
 
+package ro.sorinirmies.arrow.resiliencekit
 
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.ints.shouldBeGreaterThan
 import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.test.runTest
+import kotlin.js.JsName
 import kotlin.test.Test
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 class BulkheadTest {
 
+    @JsName("bulkheadAllowsCallsWithinCapacity")
     @Test
     fun `bulkhead allows calls within capacity`() = runTest {
         val bulkhead = Bulkhead(
@@ -33,6 +38,7 @@ class BulkheadTest {
         executed shouldBe true
     }
 
+    @JsName("bulkheadTracksActiveCalls")
     @Test
     fun `bulkhead tracks active calls`() = runTest {
         val bulkhead = Bulkhead(
@@ -58,6 +64,7 @@ class BulkheadTest {
         bulkhead.activeCalls() shouldBe 0
     }
 
+    @JsName("bulkheadRejectsCallsWhenFull")
     @Test
     fun `bulkhead rejects calls when full`() = runTest {
         val bulkhead = Bulkhead(
@@ -94,6 +101,7 @@ class BulkheadTest {
         job2.cancel()
     }
 
+    @JsName("bulkheadAllowsWaitingCallsUpToLimit")
     @Test
     fun `bulkhead allows waiting calls up to limit`() = runTest {
         val bulkhead = Bulkhead(
@@ -142,6 +150,7 @@ class BulkheadTest {
         results.size shouldBe 3
     }
 
+    @JsName("bulkheadWithTimeoutRejectsCallsAfterWaitTimeout")
     @Test
     fun `bulkhead with timeout rejects calls after wait timeout`() = runTest {
         val bulkhead = Bulkhead(
@@ -171,6 +180,7 @@ class BulkheadTest {
         job1.cancel()
     }
 
+    @JsName("executeOrFallbackUsesFallbackWhenFull")
     @Test
     fun `executeOrFallback uses fallback when full`() = runTest {
         val bulkhead = Bulkhead(
@@ -199,6 +209,7 @@ class BulkheadTest {
         job1.cancel()
     }
 
+    @JsName("tryExecuteReturnsNullWhenFull")
     @Test
     fun `tryExecute returns null when full`() = runTest {
         val bulkhead = Bulkhead(
@@ -225,6 +236,7 @@ class BulkheadTest {
         job1.cancel()
     }
 
+    @JsName("bulkheadTracksStatistics")
     @Test
     fun `bulkhead tracks statistics`() = runTest {
         val bulkhead = Bulkhead(
@@ -244,6 +256,7 @@ class BulkheadTest {
         stats.failedCalls shouldBe 0
     }
 
+    @JsName("bulkheadTracksFailedCalls")
     @Test
     fun `bulkhead tracks failed calls`() = runTest {
         val bulkhead = Bulkhead(
@@ -267,6 +280,7 @@ class BulkheadTest {
         stats.successfulCalls shouldBe 0
     }
 
+    @JsName("bulkheadTracksRejectedCalls")
     @Test
     fun `bulkhead tracks rejected calls`() = runTest {
         val bulkhead = Bulkhead(
@@ -297,6 +311,7 @@ class BulkheadTest {
         job1.cancel()
     }
 
+    @JsName("bulkheadListenerIsNotifiedOfEvents")
     @Test
     fun `bulkhead listener is notified of events`() = runTest {
         var callEntered = false
@@ -328,6 +343,7 @@ class BulkheadTest {
         callSucceeded shouldBe true
     }
 
+    @JsName("bulkheadListenerIsNotifiedOfRejection")
     @Test
     fun `bulkhead listener is notified of rejection`() = runTest {
         var callRejected = false
@@ -364,6 +380,7 @@ class BulkheadTest {
         job1.cancel()
     }
 
+    @JsName("bulkheadConfigValidatesParameters")
     @Test
     fun `bulkhead config validates parameters`() {
         shouldThrow<IllegalArgumentException> {
@@ -379,6 +396,7 @@ class BulkheadTest {
         }
     }
 
+    @JsName("bulkheadDSLCreatesConfiguredBulkhead")
     @Test
     fun `bulkhead DSL creates configured bulkhead`() = runTest {
         val bulkhead = bulkhead {
@@ -391,6 +409,7 @@ class BulkheadTest {
         result shouldBe "success"
     }
 
+    @JsName("bulkheadRegistryManagesMultipleBulkheads")
     @Test
     fun `BulkheadRegistry manages multiple bulkheads`() = runTest {
         val registry = BulkheadRegistry()
@@ -409,6 +428,7 @@ class BulkheadTest {
         registry.getNames() shouldBe setOf("service1", "service2")
     }
 
+    @JsName("bulkheadRegistryGetReturnsExistingBulkhead")
     @Test
     fun `BulkheadRegistry get returns existing bulkhead`() = runTest {
         val registry = BulkheadRegistry()
@@ -419,6 +439,7 @@ class BulkheadTest {
         registry.get("test") shouldBe bulkhead
     }
 
+    @JsName("bulkheadRegistryRemoveRemovesBulkhead")
     @Test
     fun `BulkheadRegistry remove removes bulkhead`() = runTest {
         val registry = BulkheadRegistry()
@@ -430,6 +451,7 @@ class BulkheadTest {
         registry.get("test") shouldBe null
     }
 
+    @JsName("bulkheadRegistryResetAllStatisticsResetsAllBulkheads")
     @Test
     fun `BulkheadRegistry resetAllStatistics resets all bulkheads`() = runTest {
         val registry = BulkheadRegistry()
@@ -446,6 +468,7 @@ class BulkheadTest {
         stats.totalCalls shouldBe 0
     }
 
+    @JsName("bulkheadRegistryGetAllStatisticsReturnsStatsForAllBulkheads")
     @Test
     fun `BulkheadRegistry getAllStatistics returns stats for all bulkheads`() = runTest {
         val registry = BulkheadRegistry()
@@ -463,6 +486,7 @@ class BulkheadTest {
         allStats["service2"]?.totalCalls shouldBe 1
     }
 
+    @JsName("bulkheadStatisticsCalculatesUtilizationRate")
     @Test
     fun `bulkhead statistics calculates utilization rate`() = runTest {
         val bulkhead = Bulkhead(
@@ -478,6 +502,7 @@ class BulkheadTest {
         stats.utilizationRate shouldBe 0.0 // No active calls after execution completes
     }
 
+    @JsName("bulkheadHandlesConcurrentAccessCorrectly")
     @Test
     fun `bulkhead handles concurrent access correctly`() = runTest {
         val bulkhead = Bulkhead(
@@ -488,12 +513,13 @@ class BulkheadTest {
         )
 
         val results = mutableListOf<Int>()
+        val mutex = Mutex()
 
         val jobs = (1..10).map { i ->
             launch {
                 bulkhead.execute {
                     delay(50.milliseconds)
-                    synchronized(results) {
+                    mutex.withLock {
                         results.add(i)
                     }
                 }
@@ -505,6 +531,7 @@ class BulkheadTest {
         results.size shouldBe 10
     }
 
+    @JsName("bulkheadAvailableCapacityIsCorrect")
     @Test
     fun `bulkhead available capacity is correct`() = runTest {
         val bulkhead = Bulkhead(
@@ -525,7 +552,7 @@ class BulkheadTest {
         }
 
         delay(20.milliseconds)
-        
+
         val activeStats = bulkhead.statistics()
         activeStats.availableCapacity shouldBe 4
 
@@ -535,12 +562,13 @@ class BulkheadTest {
         finalStats.availableCapacity shouldBe 5
     }
 
+    @JsName("bulkheadResetStatisticsClearsCounters")
     @Test
     fun `bulkhead reset statistics clears counters`() = runTest {
         val bulkhead = Bulkhead()
 
         bulkhead.execute { "success" }
-        
+
         var stats = bulkhead.statistics()
         stats.totalCalls shouldBe 1
 

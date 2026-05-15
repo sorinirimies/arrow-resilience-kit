@@ -1,18 +1,24 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Sorin Albu-Irimies
 
+package ro.sorinirmies.arrow.resiliencekit
 
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.test.runTest
+import kotlin.js.JsName
 import kotlin.test.Test
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 class TimeLimiterTest {
 
+    @JsName("timeLimiterAllowsCallsWithinTimeout")
     @Test
     fun `time limiter allows calls within timeout`() = runTest {
         val timeLimiter = TimeLimiter(
@@ -31,6 +37,7 @@ class TimeLimiterTest {
         executed shouldBe true
     }
 
+    @JsName("timeLimiterThrowsExceptionOnTimeout")
     @Test
     fun `time limiter throws exception on timeout`() = runTest {
         val timeLimiter = TimeLimiter(
@@ -47,6 +54,7 @@ class TimeLimiterTest {
         }
     }
 
+    @JsName("executeOrNullReturnsNullOnTimeout")
     @Test
     fun `executeOrNull returns null on timeout`() = runTest {
         val timeLimiter = TimeLimiter(
@@ -63,6 +71,7 @@ class TimeLimiterTest {
         result shouldBe null
     }
 
+    @JsName("executeOrNullReturnsValueOnSuccess")
     @Test
     fun `executeOrNull returns value on success`() = runTest {
         val timeLimiter = TimeLimiter(
@@ -78,6 +87,7 @@ class TimeLimiterTest {
         result shouldBe "success"
     }
 
+    @JsName("executeOrFallbackUsesFallbackOnTimeout")
     @Test
     fun `executeOrFallback uses fallback on timeout`() = runTest {
         val timeLimiter = TimeLimiter(
@@ -96,6 +106,7 @@ class TimeLimiterTest {
         result shouldBe "fallback"
     }
 
+    @JsName("executeOrFallbackExecutesPrimaryWhenWithinTimeout")
     @Test
     fun `executeOrFallback executes primary when within timeout`() = runTest {
         val timeLimiter = TimeLimiter(
@@ -113,6 +124,7 @@ class TimeLimiterTest {
         result shouldBe "primary"
     }
 
+    @JsName("executeOrDefaultUsesDefaultOnTimeout")
     @Test
     fun `executeOrDefault uses default on timeout`() = runTest {
         val timeLimiter = TimeLimiter(
@@ -131,6 +143,7 @@ class TimeLimiterTest {
         result shouldBe "default"
     }
 
+    @JsName("executeWithRetryRetriesOnTimeout")
     @Test
     fun `executeWithRetry retries on timeout`() = runTest {
         val timeLimiter = TimeLimiter(
@@ -152,6 +165,7 @@ class TimeLimiterTest {
         attempts shouldBe 3 // Initial + 2 retries
     }
 
+    @JsName("executeWithRetrySucceedsOnRetry")
     @Test
     fun `executeWithRetry succeeds on retry`() = runTest {
         val timeLimiter = TimeLimiter(
@@ -176,6 +190,7 @@ class TimeLimiterTest {
         attempts shouldBe 2
     }
 
+    @JsName("customTimeoutOverridesConfigTimeout")
     @Test
     fun `custom timeout overrides config timeout`() = runTest {
         val timeLimiter = TimeLimiter(
@@ -192,6 +207,7 @@ class TimeLimiterTest {
         }
     }
 
+    @JsName("timeLimiterTracksStatistics")
     @Test
     fun `time limiter tracks statistics`() = runTest {
         val timeLimiter = TimeLimiter(
@@ -211,6 +227,7 @@ class TimeLimiterTest {
         stats.successRate shouldBe 1.0
     }
 
+    @JsName("timeLimiterTracksTimeouts")
     @Test
     fun `time limiter tracks timeouts`() = runTest {
         val timeLimiter = TimeLimiter(
@@ -235,6 +252,7 @@ class TimeLimiterTest {
         stats.timeoutRate shouldBe 1.0
     }
 
+    @JsName("timeLimiterTracksFailures")
     @Test
     fun `time limiter tracks failures`() = runTest {
         val timeLimiter = TimeLimiter(
@@ -258,6 +276,7 @@ class TimeLimiterTest {
         stats.failureRate shouldBe 1.0
     }
 
+    @JsName("timeLimiterListenerIsNotifiedOfSuccess")
     @Test
     fun `time limiter listener is notified of success`() = runTest {
         var onSuccessCalled = false
@@ -280,6 +299,7 @@ class TimeLimiterTest {
         duration shouldBe 0L // Very fast operation
     }
 
+    @JsName("timeLimiterListenerIsNotifiedOfTimeout")
     @Test
     fun `time limiter listener is notified of timeout`() = runTest {
         var onTimeoutCalled = false
@@ -306,6 +326,7 @@ class TimeLimiterTest {
         onTimeoutCalled shouldBe true
     }
 
+    @JsName("timeLimiterListenerIsNotifiedOfFailure")
     @Test
     fun `time limiter listener is notified of failure`() = runTest {
         var onFailureCalled = false
@@ -331,6 +352,7 @@ class TimeLimiterTest {
         onFailureCalled shouldBe true
     }
 
+    @JsName("timeLimiterConfigValidatesParameters")
     @Test
     fun `time limiter config validates parameters`() {
         shouldThrow<IllegalArgumentException> {
@@ -342,6 +364,7 @@ class TimeLimiterTest {
         }
     }
 
+    @JsName("timeLimiterDSLCreatesConfiguredLimiter")
     @Test
     fun `time limiter DSL creates configured limiter`() = runTest {
         val timeLimiter = timeLimiter {
@@ -353,6 +376,7 @@ class TimeLimiterTest {
         result shouldBe "success"
     }
 
+    @JsName("executeAllExecutesMultipleOperationsWithTimeout")
     @Test
     fun `executeAll executes multiple operations with timeout`() = runTest {
         val timeLimiter = TimeLimiter(
@@ -375,6 +399,7 @@ class TimeLimiterTest {
         results[3] shouldBe "instant"
     }
 
+    @JsName("resetStatisticsClearsCounters")
     @Test
     fun `reset statistics clears counters`() = runTest {
         val timeLimiter = TimeLimiter()
@@ -393,6 +418,7 @@ class TimeLimiterTest {
         stats.failedCalls shouldBe 0
     }
 
+    @JsName("timeLimiterRegistryManagesMultipleLimiters")
     @Test
     fun `TimeLimiterRegistry manages multiple limiters`() = runTest {
         val registry = TimeLimiterRegistry()
@@ -411,6 +437,7 @@ class TimeLimiterTest {
         registry.getNames() shouldBe setOf("fast", "slow")
     }
 
+    @JsName("timeLimiterRegistryGetReturnsExistingLimiter")
     @Test
     fun `TimeLimiterRegistry get returns existing limiter`() = runTest {
         val registry = TimeLimiterRegistry()
@@ -421,6 +448,7 @@ class TimeLimiterTest {
         registry.get("test") shouldBe limiter
     }
 
+    @JsName("timeLimiterRegistryRemoveRemovesLimiter")
     @Test
     fun `TimeLimiterRegistry remove removes limiter`() = runTest {
         val registry = TimeLimiterRegistry()
@@ -432,6 +460,7 @@ class TimeLimiterTest {
         registry.get("test") shouldBe null
     }
 
+    @JsName("timeLimiterRegistryResetAllStatisticsResetsAllLimiters")
     @Test
     fun `TimeLimiterRegistry resetAllStatistics resets all limiters`() = runTest {
         val registry = TimeLimiterRegistry()
@@ -448,6 +477,7 @@ class TimeLimiterTest {
         stats.totalCalls shouldBe 0
     }
 
+    @JsName("timeLimiterRegistryGetAllStatisticsReturnsStatsForAllLimiters")
     @Test
     fun `TimeLimiterRegistry getAllStatistics returns stats for all limiters`() = runTest {
         val registry = TimeLimiterRegistry()
@@ -465,6 +495,7 @@ class TimeLimiterTest {
         allStats["limiter2"]?.totalCalls shouldBe 1
     }
 
+    @JsName("withTimeLimitExtensionFunctionWorks")
     @Test
     fun `withTimeLimit extension function works`() = runTest {
         val result = withTimeLimit(1.seconds) {
@@ -474,6 +505,7 @@ class TimeLimiterTest {
         result shouldBe "success"
     }
 
+    @JsName("withTimeLimitExtensionFunctionTimesOut")
     @Test
     fun `withTimeLimit extension function times out`() = runTest {
         shouldThrow<TimeoutCancellationException> {
@@ -484,6 +516,7 @@ class TimeLimiterTest {
         }
     }
 
+    @JsName("withTimeLimitOrDefaultExtensionFunctionWorks")
     @Test
     fun `withTimeLimitOrDefault extension function works`() = runTest {
         val result = withTimeLimitOrDefault(1.seconds, default = "default") {
@@ -493,6 +526,7 @@ class TimeLimiterTest {
         result shouldBe "success"
     }
 
+    @JsName("withTimeLimitOrDefaultExtensionFunctionUsesDefaultOnTimeout")
     @Test
     fun `withTimeLimitOrDefault extension function uses default on timeout`() = runTest {
         val result = withTimeLimitOrDefault(50.milliseconds, default = "default") {
@@ -503,21 +537,23 @@ class TimeLimiterTest {
         result shouldBe "default"
     }
 
+    @JsName("timeLimiterHandlesConcurrentCalls")
     @Test
     fun `time limiter handles concurrent calls`() = runTest {
         val timeLimiter = TimeLimiter(
             config = TimeLimiterConfig(timeout = 200.milliseconds)
         )
 
+        val resultsMutex = Mutex()
         val results = mutableListOf<String>()
 
         val jobs = (1..10).map { i ->
-            kotlinx.coroutines.launch {
+            launch {
                 val result = timeLimiter.execute {
                     delay(50.milliseconds)
                     "result$i"
                 }
-                synchronized(results) {
+                resultsMutex.withLock {
                     results.add(result)
                 }
             }
@@ -528,6 +564,7 @@ class TimeLimiterTest {
         results.size shouldBe 10
     }
 
+    @JsName("timeLimiterCalculatesAverageTimeoutDuration")
     @Test
     fun `time limiter calculates average timeout duration`() = runTest {
         val timeLimiter = TimeLimiter(

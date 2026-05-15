@@ -1,12 +1,13 @@
 [versions]
-kotlin = "1.9.22"
-kotlinx-coroutines = "1.7.3"
-kotlinx-datetime = "0.5.0"
-arrow = "1.2.1"
-kotest = "5.8.0"
+kotlin = "1.9.25"
+kotlinx-coroutines = "1.8.1"
+kotlinx-datetime = "0.6.1"
+arrow = "1.2.4"
+kotest = "5.9.1"
 kotlin-logging = "3.0.5"
-logback = "1.4.14"
-dokka = "1.9.10"
+logback = "1.5.12"
+dokka = "1.9.20"
+detekt = "1.23.7"
 
 [libraries]
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
@@ -19,7 +20,9 @@ arrow-resilience = { module = "io.arrow-kt:arrow-resilience", version.ref = "arr
 kotlin-logging = { module = "io.github.microutils:kotlin-logging", version.ref = "kotlin-logging" }
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 kotest-assertions-core = { module = "io.kotest:kotest-assertions-core", version.ref = "kotest" }
+detekt-formatting = { module = "io.gitlab.arturbosch.detekt:detekt-formatting", version.ref = "detekt" }
 
 [plugins]
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
+detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }

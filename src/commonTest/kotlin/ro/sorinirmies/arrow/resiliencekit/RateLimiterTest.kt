@@ -1,19 +1,22 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Sorin Albu-Irimies
 
+package ro.sorinirmies.arrow.resiliencekit
 
 import io.kotest.assertions.throwables.shouldThrow
-import io.kotest.matchers.doubles.shouldBeGreaterThan
 import io.kotest.matchers.shouldBe
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.test.runTest
+import kotlin.js.JsName
 import kotlin.test.Test
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 class RateLimiterTest {
 
+    @JsName("rateLimiterAllowsCallsWithinRate")
     @Test
     fun `rate limiter allows calls within rate`() = runTest {
         val rateLimiter = RateLimiter(
@@ -33,6 +36,7 @@ class RateLimiterTest {
         executed shouldBe true
     }
 
+    @JsName("rateLimiterRejectsCallsWhenRateExceeded")
     @Test
     fun `rate limiter rejects calls when rate exceeded`() = runTest {
         val rateLimiter = RateLimiter(
@@ -54,13 +58,16 @@ class RateLimiterTest {
         result shouldBe null
     }
 
+    @JsName("rateLimiterRefillsTokensOverTime")
     @Test
     fun `rate limiter refills tokens over time`() = runTest {
+        val testClock = TestClock()
         val rateLimiter = RateLimiter(
             config = RateLimiterConfig(
                 permitsPerSecond = 10.0,
                 burstCapacity = 2
-            )
+            ),
+            clock = testClock
         )
 
         // Use up all tokens
@@ -70,27 +77,33 @@ class RateLimiterTest {
         // Should be rejected immediately
         rateLimiter.tryExecute { "call3" } shouldBe null
 
-        // Wait for tokens to refill (100ms = 1 token at 10/sec)
-        delay(150.milliseconds)
+        // Advance time for tokens to refill (100ms = 1 token at 10/sec)
+        testClock.advance(150.milliseconds)
 
         // Should succeed now
         val result = rateLimiter.tryExecute { "call4" }
         result shouldBe "call4"
     }
 
+    @JsName("rateLimiterExecuteWaitsForTokens")
     @Test
     fun `rate limiter execute waits for tokens`() = runTest {
+        val testClock = TestClock()
         val rateLimiter = RateLimiter(
             config = RateLimiterConfig(
                 permitsPerSecond = 5.0,
                 burstCapacity = 1
-            )
+            ),
+            clock = testClock
         )
 
         // Use up the token
         rateLimiter.tryExecute { "call1" }
 
-        // This should wait for token refill
+        // Advance time so token refills
+        testClock.advance(250.milliseconds)
+
+        // This should succeed now
         val result = rateLimiter.execute {
             "call2"
         }
@@ -98,6 +111,7 @@ class RateLimiterTest {
         result shouldBe "call2"
     }
 
+    @JsName("rateLimiterTracksAvailableTokens")
     @Test
     fun `rate limiter tracks available tokens`() = runTest {
         val rateLimiter = RateLimiter(
@@ -116,6 +130,7 @@ class RateLimiterTest {
         afterCall shouldBe 4.0
     }
 
+    @JsName("rateLimiterTracksStatistics")
     @Test
     fun `rate limiter tracks statistics`() = runTest {
         val rateLimiter = RateLimiter(
@@ -134,6 +149,7 @@ class RateLimiterTest {
         stats.rejectedRequests shouldBe 0
     }
 
+    @JsName("rateLimiterTracksRejectedRequests")
     @Test
     fun `rate limiter tracks rejected requests`() = runTest {
         val rateLimiter = RateLimiter(
@@ -153,6 +169,7 @@ class RateLimiterTest {
         stats.rejectionRate shouldBe 0.5
     }
 
+    @JsName("executeOrFallbackUsesFallbackWhenRateLimited")
     @Test
     fun `executeOrFallback uses fallback when rate limited`() = runTest {
         val rateLimiter = RateLimiter(
@@ -173,6 +190,7 @@ class RateLimiterTest {
         result shouldBe "fallback"
     }
 
+    @JsName("rateLimiterListenerIsNotifiedOfEvents")
     @Test
     fun `rate limiter listener is notified of events`() = runTest {
         var requestAccepted = false
@@ -202,6 +220,7 @@ class RateLimiterTest {
         requestRejected shouldBe true
     }
 
+    @JsName("rateLimiterConfigValidatesParameters")
     @Test
     fun `rate limiter config validates parameters`() {
         shouldThrow<IllegalArgumentException> {
@@ -221,6 +240,7 @@ class RateLimiterTest {
         }
     }
 
+    @JsName("rateLimiterDSLCreatesConfiguredLimiter")
     @Test
     fun `rate limiter DSL creates configured limiter`() = runTest {
         val rateLimiter = rateLimiter {
@@ -232,6 +252,7 @@ class RateLimiterTest {
         result shouldBe "success"
     }
 
+    @JsName("rateLimiterResetClearsState")
     @Test
     fun `rate limiter reset clears state`() = runTest {
         val rateLimiter = RateLimiter(
@@ -249,6 +270,7 @@ class RateLimiterTest {
         rateLimiter.availableTokens() shouldBe 1.0
     }
 
+    @JsName("rateLimiterResetStatisticsClearsCounters")
     @Test
     fun `rate limiter reset statistics clears counters`() = runTest {
         val rateLimiter = RateLimiter()
@@ -264,6 +286,7 @@ class RateLimiterTest {
         stats.totalRequests shouldBe 0
     }
 
+    @JsName("rateLimiterAllowsBurstUpToCapacity")
     @Test
     fun `rate limiter allows burst up to capacity`() = runTest {
         val rateLimiter = RateLimiter(
@@ -283,6 +306,7 @@ class RateLimiterTest {
         rateLimiter.tryExecute { "call6" } shouldBe null
     }
 
+    @JsName("rateLimiterHandlesMultiplePermitsPerRequest")
     @Test
     fun `rate limiter handles multiple permits per request`() = runTest {
         val rateLimiter = RateLimiter(
@@ -301,6 +325,7 @@ class RateLimiterTest {
         rateLimiter.availableTokens() shouldBe 7.0
     }
 
+    @JsName("rateLimiterValidatesPermitsParameter")
     @Test
     fun `rate limiter validates permits parameter`() = runTest {
         val rateLimiter = RateLimiter()
@@ -314,6 +339,7 @@ class RateLimiterTest {
         }
     }
 
+    @JsName("rateLimiterRegistryManagesMultipleLimiters")
     @Test
     fun `RateLimiterRegistry manages multiple limiters`() = runTest {
         val registry = RateLimiterRegistry()
@@ -332,6 +358,7 @@ class RateLimiterTest {
         registry.getNames() shouldBe setOf("api", "database")
     }
 
+    @JsName("rateLimiterRegistryGetReturnsExistingLimiter")
     @Test
     fun `RateLimiterRegistry get returns existing limiter`() = runTest {
         val registry = RateLimiterRegistry()
@@ -342,6 +369,7 @@ class RateLimiterTest {
         registry.get("test") shouldBe limiter
     }
 
+    @JsName("rateLimiterRegistryRemoveRemovesLimiter")
     @Test
     fun `RateLimiterRegistry remove removes limiter`() = runTest {
         val registry = RateLimiterRegistry()
@@ -353,6 +381,7 @@ class RateLimiterTest {
         registry.get("test") shouldBe null
     }
 
+    @JsName("rateLimiterRegistryResetAllResetsAllLimiters")
     @Test
     fun `RateLimiterRegistry resetAll resets all limiters`() = runTest {
         val registry = RateLimiterRegistry()
@@ -370,6 +399,7 @@ class RateLimiterTest {
         limiter.availableTokens() shouldBe 1.0
     }
 
+    @JsName("rateLimiterRegistryGetAllStatisticsReturnsStatsForAllLimiters")
     @Test
     fun `RateLimiterRegistry getAllStatistics returns stats for all limiters`() = runTest {
         val registry = RateLimiterRegistry()
@@ -389,6 +419,7 @@ class RateLimiterTest {
 
     // Sliding Window Rate Limiter Tests
 
+    @JsName("slidingWindowRateLimiterAllowsCallsWithinWindow")
     @Test
     fun `sliding window rate limiter allows calls within window`() = runTest {
         val rateLimiter = SlidingWindowRateLimiter(
@@ -406,6 +437,7 @@ class RateLimiterTest {
         rateLimiter.currentRequests() shouldBe 5
     }
 
+    @JsName("slidingWindowRateLimiterRejectsCallsWhenLimitExceeded")
     @Test
     fun `sliding window rate limiter rejects calls when limit exceeded`() = runTest {
         val rateLimiter = SlidingWindowRateLimiter(
@@ -424,13 +456,16 @@ class RateLimiterTest {
         result shouldBe null
     }
 
+    @JsName("slidingWindowRateLimiterAllowsCallsAfterWindowExpires")
     @Test
     fun `sliding window rate limiter allows calls after window expires`() = runTest {
+        val testClock = TestClock()
         val rateLimiter = SlidingWindowRateLimiter(
             config = SlidingWindowConfig(
                 maxRequests = 2,
                 windowDuration = 100.milliseconds
-            )
+            ),
+            clock = testClock
         )
 
         // Fill the window
@@ -440,14 +475,15 @@ class RateLimiterTest {
         // Should be rejected
         rateLimiter.tryExecute { "call3" } shouldBe null
 
-        // Wait for window to expire
-        delay(150.milliseconds)
+        // Advance past window
+        testClock.advance(150.milliseconds)
 
         // Should succeed now
         val result = rateLimiter.tryExecute { "call4" }
         result shouldBe "call4"
     }
 
+    @JsName("slidingWindowExecuteThrowsExceptionWhenRateExceeded")
     @Test
     fun `sliding window execute throws exception when rate exceeded`() = runTest {
         val rateLimiter = SlidingWindowRateLimiter(
@@ -464,6 +500,7 @@ class RateLimiterTest {
         }
     }
 
+    @JsName("slidingWindowTracksCurrentRequests")
     @Test
     fun `sliding window tracks current requests`() = runTest {
         val rateLimiter = SlidingWindowRateLimiter(
@@ -482,6 +519,7 @@ class RateLimiterTest {
         rateLimiter.currentRequests() shouldBe 2
     }
 
+    @JsName("slidingWindowTracksStatistics")
     @Test
     fun `sliding window tracks statistics`() = runTest {
         val rateLimiter = SlidingWindowRateLimiter(
@@ -504,6 +542,7 @@ class RateLimiterTest {
         stats.rejectionRate shouldBe 0.25
     }
 
+    @JsName("slidingWindowResetClearsState")
     @Test
     fun `sliding window reset clears state`() = runTest {
         val rateLimiter = SlidingWindowRateLimiter(
@@ -525,6 +564,7 @@ class RateLimiterTest {
         stats.totalRequests shouldBe 0
     }
 
+    @JsName("slidingWindowConfigValidatesParameters")
     @Test
     fun `sliding window config validates parameters`() {
         shouldThrow<IllegalArgumentException> {
@@ -540,6 +580,7 @@ class RateLimiterTest {
         }
     }
 
+    @JsName("slidingWindowHandlesConcurrentRequests")
     @Test
     fun `sliding window handles concurrent requests`() = runTest {
         val rateLimiter = SlidingWindowRateLimiter(
@@ -550,11 +591,12 @@ class RateLimiterTest {
         )
 
         val results = mutableListOf<String?>()
+        val resultsMutex = Mutex()
 
         val jobs = (1..10).map { i ->
             launch {
                 val result = rateLimiter.tryExecute { "call$i" }
-                synchronized(results) {
+                resultsMutex.withLock {
                     results.add(result)
                 }
             }

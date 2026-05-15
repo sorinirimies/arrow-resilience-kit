@@ -31,26 +31,18 @@ jobs:
       tag: ${{ steps.resolve.outputs.tag }}
       version: ${{ steps.resolve.outputs.version }}
     steps:
-      - name: Resolve and validate tag
-        id: resolve
+      - uses: actions/checkout@v4
+
+      - name: Install Nushell
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            TAG="${{ github.event.inputs.tag }}"
-          else
-            TAG="${{ github.ref_name }}"
-          fi
+          curl -sSfL https://github.com/nushell/nushell/releases/latest/download/nu-*-x86_64-unknown-linux-gnu.tar.gz | tar xz
+          sudo mv nu-*-x86_64-unknown-linux-gnu/nu /usr/local/bin/
 
-          echo "Resolved tag: ${TAG}"
-
-          if [[ ! "${TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "❌ Tag '${TAG}' does not match vX.Y.Z — aborting."
-            exit 1
-          fi
-
-          VERSION="${TAG#v}"
-          echo "tag=${TAG}"         >> "$GITHUB_OUTPUT"
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "✅ Tag ${TAG} (version ${VERSION}) is valid."
+      - name: Validate tag
+        id: resolve
+        run: nu scripts/validate_tag.nu "$TAG" | tee -a "$GITHUB_OUTPUT"
+        env:
+          TAG: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}
 
   # ── 1. Quality gate ──────────────────────────────────────────────────────────
   test:
@@ -69,12 +61,12 @@ jobs:
           distribution: "temurin"
 
       - name: Setup Gradle
-        uses: gradle/gradle-build-action@v2
+        uses: gradle/actions/setup-gradle@v3
         with:
           cache-read-only: false
 
       - name: Validate Gradle wrapper
-        uses: gradle/wrapper-validation-action@v1
+        uses: gradle/actions/wrapper-validation@v3
 
       - name: Build project
         run: ./gradlew build --no-daemon --stacktrace
@@ -100,10 +92,13 @@ jobs:
           . "$HOME/.cargo/env"
           cargo install git-cliff --locked
 
-      - name: Generate release notes
+      - name: Install Nushell
         run: |
-          git-cliff --current --strip header -o RELEASE_NOTES.md
-          git-cliff -o CHANGELOG.md
+          curl -sSfL https://github.com/nushell/nushell/releases/latest/download/nu-*-x86_64-unknown-linux-gnu.tar.gz | tar xz
+          sudo mv nu-*-x86_64-unknown-linux-gnu/nu /usr/local/bin/
+
+      - name: Generate release notes
+        run: nu scripts/release_notes.nu "${{ needs.validate.outputs.tag }}"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -143,7 +138,7 @@ jobs:
 
       - name: Setup Gradle
         if: env.HAS_TOKEN == 'true'
-        uses: gradle/gradle-build-action@v2
+        uses: gradle/actions/setup-gradle@v3
         with:
           cache-read-only: false
 
@@ -189,3 +184,42 @@ jobs:
             build/libs/
             build/reports/
           retention-days: 7
+
+  # ── 4. Publish to Maven Central ─────────────────────────────────────────────
+  publish-maven-central:
+    name: Publish to Maven Central
+    needs: [validate, release]
+    runs-on: ubuntu-latest
+    env:
+      HAS_MAVEN: ${{ secrets.MAVEN_USERNAME != '' }}
+    steps:
+      - name: Skip notice (no credentials)
+        if: env.HAS_MAVEN != 'true'
+        run: echo "⏭️  Maven Central credentials not configured — skipping."
+
+      - uses: actions/checkout@v4
+        if: env.HAS_MAVEN == 'true'
+        with:
+          ref: ${{ needs.validate.outputs.tag }}
+
+      - name: Set up JDK 17
+        if: env.HAS_MAVEN == 'true'
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+
+      - name: Setup Gradle
+        if: env.HAS_MAVEN == 'true'
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Publish to Maven Central
+        if: env.HAS_MAVEN == 'true'
+        run: ./gradlew publishAllPublicationsToMavenCentralRepository --no-daemon
+        env:
+          MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
+          MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
+
+      - name: Publish complete
+        if: env.HAS_MAVEN == 'true'
+        run: echo "✅ Published ${{ needs.validate.outputs.tag }} to Maven Central."

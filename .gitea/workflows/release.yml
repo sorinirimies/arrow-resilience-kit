@@ -31,26 +31,18 @@ jobs:
       tag: ${{ steps.resolve.outputs.tag }}
       version: ${{ steps.resolve.outputs.version }}
     steps:
-      - name: Resolve and validate tag
-        id: resolve
+      - uses: actions/checkout@v4
+
+      - name: Install Nushell
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            TAG="${{ github.event.inputs.tag }}"
-          else
-            TAG="${{ github.ref_name }}"
-          fi
+          curl -sSfL https://github.com/nushell/nushell/releases/latest/download/nu-*-x86_64-unknown-linux-gnu.tar.gz | tar xz
+          sudo mv nu-*-x86_64-unknown-linux-gnu/nu /usr/local/bin/
 
-          echo "Resolved tag: ${TAG}"
-
-          if [[ ! "${TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "❌ Tag '${TAG}' does not match vX.Y.Z — aborting."
-            exit 1
-          fi
-
-          VERSION="${TAG#v}"
-          echo "tag=${TAG}"         >> "$GITHUB_OUTPUT"
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "✅ Tag ${TAG} (version ${VERSION}) is valid."
+      - name: Validate tag
+        id: resolve
+        run: nu scripts/validate_tag.nu "$TAG" | tee -a "$GITHUB_OUTPUT"
+        env:
+          TAG: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}
 
   # ── 1. Quality gate ──────────────────────────────────────────────────────────
   test:
@@ -70,12 +62,12 @@ jobs:
           distribution: "temurin"
 
       - name: Setup Gradle
-        uses: gradle/gradle-build-action@v2
+        uses: gradle/actions/setup-gradle@v3
         with:
           cache-read-only: false
 
       - name: Validate Gradle wrapper
-        uses: gradle/wrapper-validation-action@v1
+        uses: gradle/actions/wrapper-validation@v3
 
       - name: Build project
         run: ./gradlew assemble --no-daemon --stacktrace
@@ -101,60 +93,18 @@ jobs:
           . "$HOME/.cargo/env"
           cargo install git-cliff --locked
 
-      - name: Generate release notes
+      - name: Install Nushell
         run: |
-          git-cliff --current --strip header -o RELEASE_NOTES.md
-          echo ""
-          echo "── Release Notes ──"
-          cat RELEASE_NOTES.md
-
-      - name: Generate full changelog
-        run: git-cliff -o CHANGELOG.md
+          curl -sSfL https://github.com/nushell/nushell/releases/latest/download/nu-*-x86_64-unknown-linux-gnu.tar.gz | tar xz
+          sudo mv nu-*-x86_64-unknown-linux-gnu/nu /usr/local/bin/
 
       - name: Create Gitea Release
-        run: |
-          TAG="${{ needs.validate.outputs.tag }}"
-          GITEA_URL="${{ github.server_url }}"
-          REPO="${{ github.repository }}"
-          TOKEN="${{ secrets.GITHUB_TOKEN }}"
-
-          echo "🎉 Creating Gitea release for tag ${TAG}..."
-
-          RELEASE_BODY=$(cat RELEASE_NOTES.md | python3 -c 'import sys,json; print(json.dumps(sys.stdin.read()))')
-          RESPONSE=$(curl -s -X POST \
-            "${GITEA_URL}/api/v1/repos/${REPO}/releases" \
-            -H "Authorization: token ${TOKEN}" \
-            -H "Content-Type: application/json" \
-            -d "{
-              \"tag_name\": \"${TAG}\",
-              \"name\": \"${TAG}\",
-              \"body\": ${RELEASE_BODY},
-              \"draft\": false,
-              \"prerelease\": false
-            }")
-
-          RELEASE_ID=$(echo "$RESPONSE" | python3 -c 'import sys,json; print(json.load(sys.stdin)["id"])' 2>/dev/null)
-          if [ -z "$RELEASE_ID" ] || [ "$RELEASE_ID" = "None" ]; then
-            echo "❌ Failed to create release:"
-            echo "$RESPONSE"
-            exit 1
-          fi
-          echo "✅ Release created (id: ${RELEASE_ID})"
-
-          # Upload assets
-          for file in LICENSE README.md CHANGELOG.md; do
-            [ -f "$file" ] || continue
-            FILENAME=$(basename "$file")
-            echo "📦 Uploading ${FILENAME}..."
-            curl -s -X POST \
-              "${GITEA_URL}/api/v1/repos/${REPO}/releases/${RELEASE_ID}/assets?name=${FILENAME}" \
-              -H "Authorization: token ${TOKEN}" \
-              -H "Content-Type: application/octet-stream" \
-              --data-binary "@${file}" > /dev/null
-            echo "✅ Uploaded ${FILENAME}"
-          done
-
-          echo "🎉 Release ${TAG} published at ${GITEA_URL}/${REPO}/releases/tag/${TAG}"
+        run: >
+          nu scripts/create_gitea_release.nu
+          "${{ needs.validate.outputs.tag }}"
+          --gitea-url "${{ github.server_url }}"
+          --repo "${{ github.repository }}"
+          --token "${{ secrets.GITHUB_TOKEN }}"
 
   # ── 3. Publish to GitHub Packages ───────────────────────────────────────────
   publish:
@@ -182,7 +132,7 @@ jobs:
 
       - name: Setup Gradle
         if: env.HAS_TOKEN == 'true'
-        uses: gradle/gradle-build-action@v2
+        uses: gradle/actions/setup-gradle@v3
         with:
           cache-read-only: false
 
@@ -196,3 +146,42 @@ jobs:
       - name: Publish complete
         if: env.HAS_TOKEN == 'true'
         run: echo "✅ Published ${{ needs.validate.outputs.tag }} to GitHub Packages."
+
+  # ── 4. Publish to Maven Central ─────────────────────────────────────────────
+  publish-maven-central:
+    name: Publish to Maven Central
+    needs: [validate, release]
+    runs-on: ubuntu-latest
+    env:
+      HAS_MAVEN: ${{ secrets.MAVEN_USERNAME != '' }}
+    steps:
+      - name: Skip notice (no credentials)
+        if: env.HAS_MAVEN != 'true'
+        run: echo "⏭️  Maven Central credentials not configured — skipping."
+
+      - uses: actions/checkout@v4
+        if: env.HAS_MAVEN == 'true'
+        with:
+          ref: ${{ needs.validate.outputs.tag }}
+
+      - name: Set up JDK 17
+        if: env.HAS_MAVEN == 'true'
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+
+      - name: Setup Gradle
+        if: env.HAS_MAVEN == 'true'
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Publish to Maven Central
+        if: env.HAS_MAVEN == 'true'
+        run: ./gradlew publishAllPublicationsToMavenCentralRepository --no-daemon
+        env:
+          MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
+          MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
+
+      - name: Publish complete
+        if: env.HAS_MAVEN == 'true'
+        run: echo "✅ Published ${{ needs.validate.outputs.tag }} to Maven Central."

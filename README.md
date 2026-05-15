@@ -1,41 +1,53 @@
 # Arrow Resilience Kit
 
-[![GitHub Release](https://img.shields.io/github/v/release/sorinirimies/arrow-resilience-kit)](https://github.com/sorinirimies/arrow-resilience-kit/releases)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![CI](https://github.com/sorinirimies/arrow-resilience-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/sorinirimies/arrow-resilience-kit/actions/workflows/ci.yml)
-[![Publish](https://github.com/sorinirimies/arrow-resilience-kit/actions/workflows/publish.yml/badge.svg)](https://github.com/sorinirimies/arrow-resilience-kit/actions/workflows/publish.yml)
-[![Kotlin](https://img.shields.io/badge/Kotlin-1.9.22-blue.svg?logo=kotlin)](https://kotlinlang.org)
-[![Arrow](https://img.shields.io/badge/Arrow-1.2.1-blue.svg)](https://arrow-kt.io)
+[![Release](https://github.com/sorinirimies/arrow-resilience-kit/actions/workflows/release.yml/badge.svg)](https://github.com/sorinirimies/arrow-resilience-kit/actions/workflows/release.yml)
+[![Maven Central](https://img.shields.io/maven-central/v/ro.sorinirmies.arrow/arrow-resilience-kit)](https://central.sonatype.com/artifact/ro.sorinirmies.arrow/arrow-resilience-kit)
+[![JitPack](https://jitpack.io/v/sorinirimies/arrow-resilience-kit.svg)](https://jitpack.io/#sorinirimies/arrow-resilience-kit)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A comprehensive resilience patterns library for Kotlin Multiplatform using Arrow-kt. Provides production-ready implementations of common resilience patterns including retry, circuit breaker, bulkhead, rate limiter, time limiter, cache, and saga patterns.
+## Overview
 
-**Live Documentation**: https://sorinirimies.github.io/arrow-resilience-kit/
+Arrow Resilience Kit is a Kotlin Multiplatform library that provides production-ready resilience patterns built on [Arrow-kt](https://arrow-kt.io/). It offers composable, coroutine-first implementations of **Bulkhead**, **Cache**, **Circuit Breaker**, **Rate Limiter**, **Retry & Repeat**, **Saga**, **Time Limiter**, and **STM Helpers** — everything you need to build fault-tolerant applications.
 
-## Features
-
-- **Retry & Repeat** - Automatic retry with exponential backoff, linear backoff, and custom strategies
-- **Circuit Breaker** - Prevent cascading failures with configurable thresholds and half-open states
-- **Bulkhead** - Resource isolation and concurrency limiting using semaphores
-- **Rate Limiter** - Control request rates with token bucket algorithm
-- **Time Limiter** - Timeout handling with fallback support
-- **Cache** - Thread-safe caching with TTL and size limits
-- **Saga** - Distributed transaction coordination with automatic compensation
-
-## Supported Platforms
-
-- **JVM** (Java 17+)
-- **JavaScript** (Browser & Node.js)
-- **Native** (Linux x64, macOS x64, macOS ARM64)
+**Supported platforms:** JVM (17+), JavaScript (Browser & Node.js), Native (Linux x64, macOS x64/ARM64).
 
 ## Installation
 
-### Add Repository
+**Coordinates:**
 
-Add the GitHub Packages repository to your `build.gradle.kts`:
+| | |
+|---|---|
+| **Group ID** | `ro.sorinirmies.arrow` |
+| **Artifact ID** | `arrow-resilience-kit` |
+| **Version** | `0.2.0` |
 
-```kotlin
+### Maven Central
+
+```arrow-resilience-kit/build.gradle.kts#L1-L5
 repositories {
     mavenCentral()
+}
+
+implementation("ro.sorinirmies.arrow:arrow-resilience-kit:0.2.0")
+```
+
+### JitPack
+
+```arrow-resilience-kit/build.gradle.kts#L1-L8
+repositories {
+    maven { url = uri("https://jitpack.io") }
+}
+
+dependencies {
+    implementation("com.github.sorinirimies:arrow-resilience-kit:0.2.0")
+}
+```
+
+### GitHub Packages
+
+```arrow-resilience-kit/build.gradle.kts#L1-L13
+repositories {
     maven {
         name = "GitHubPackages"
         url = uri("https://maven.pkg.github.com/sorinirimies/arrow-resilience-kit")
@@ -45,373 +57,385 @@ repositories {
         }
     }
 }
+
+implementation("ro.sorinirmies.arrow:arrow-resilience-kit:0.2.0")
 ```
 
-### Add Dependency
-
-```kotlin
-dependencies {
-    implementation("ro.sorinirmies.arrow:arrow-resilience-kit:0.2.0")
-}
-```
-
-### Configure Credentials
-
-Create or edit `~/.gradle/gradle.properties`:
-
-```properties
-gpr.user=your-github-username
-gpr.token=ghp_YOUR_PERSONAL_ACCESS_TOKEN
-```
-
-> **Note**: You need a GitHub Personal Access Token with `read:packages` scope.  
-> Create one at: https://github.com/settings/tokens/new
-
-For detailed setup instructions, troubleshooting, and CI/CD configuration, see [INSTALLATION.md](INSTALLATION.md).
+> Requires a GitHub Personal Access Token with `read:packages` scope. See [INSTALLATION.md](INSTALLATION.md) for full details.
 
 ## Quick Start
 
-### Retry with Exponential Backoff
+```/dev/null/QuickStart.kt#L1-L24
+import ro.sorinirmies.arrow.resiliencekit.*
+import kotlin.time.Duration.Companion.seconds
 
-```kotlin
-import ro.sorinirimies.arrow.resiliencekit.*
-
-// Simple retry
-val result = retryWithExponentialBackoff(retries = 3) {
-    apiClient.fetchData()
+// Retry a flaky call
+val data = retryWithExponentialBackoff(retries = 3) {
+    api.fetchData()
 }
 
-// Custom retry configuration
-val customResult = retryWithExponentialBackoff(
-    retries = 5,
-    initialDelay = 100.milliseconds,
-    maxDelay = 5.seconds,
-    factor = 2.0
-) {
-    unreliableService.call()
+// Protect with a circuit breaker
+val breaker = circuitBreaker {
+    failureThreshold = 5
+    resetTimeout = 30.seconds
 }
-```
+val result = breaker.execute { api.fetchData() }
 
-### Circuit Breaker
-
-```kotlin
-import ro.sorinirimies.arrow.resiliencekit.*
-
-// Create circuit breaker
-val breaker = CircuitBreaker(
-    failureThreshold = 5,
-    successThreshold = 2,
-    timeout = 60.seconds
-)
-
-// Execute with circuit breaker protection
-val result = breaker.execute {
-    externalService.call()
+// Enforce a deadline
+val fast = withTimeLimit(5.seconds) {
+    slowService.query()
 }
 
-// Check circuit state
-when (breaker.state) {
-    CircuitState.CLOSED -> println("Circuit is healthy")
-    CircuitState.OPEN -> println("Circuit is open, failing fast")
-    CircuitState.HALF_OPEN -> println("Circuit is testing recovery")
+// Limit concurrency
+val guarded = withBulkhead(BulkheadConfig(maxConcurrentCalls = 10)) {
+    db.query()
 }
 ```
 
-### Bulkhead (Concurrency Limiting)
+## Patterns
 
-```kotlin
-import ro.sorinirimies.arrow.resiliencekit.*
+### Bulkhead
 
-// Limit concurrent calls
-withBulkhead(BulkheadConfig(maxConcurrentCalls = 10)) {
-    databaseQuery()
+Limits concurrent access to a resource using a semaphore, with optional wait-queue limits and timeouts.
+
+```/dev/null/BulkheadExample.kt#L1-L21
+// DSL builder
+val bh = bulkhead {
+    maxConcurrentCalls = 10
+    maxWaitingCalls = 20
+    maxWaitDuration = 5.seconds
 }
 
-// With custom timeout
-withBulkhead(
-    config = BulkheadConfig(
-        maxConcurrentCalls = 10,
-        maxWaitTime = 5.seconds
-    )
-) {
-    heavyComputation()
-}
-```
+val result = bh.execute { dbPool.query() }
 
-### Rate Limiter
+// With fallback on rejection
+val safe = bh.executeOrFallback(
+    fallback = { cachedValue }
+) { dbPool.query() }
 
-```kotlin
-import ro.sorinirimies.arrow.resiliencekit.*
-
-// Create rate limiter (10 requests per second)
-val limiter = RateLimiter(
-    permitsPerSecond = 10,
-    maxBurstSize = 20
-)
-
-// Execute with rate limiting
-val result = limiter.execute {
-    apiClient.request()
-}
-```
-
-### Time Limiter (Timeout)
-
-```kotlin
-import ro.sorinirimies.arrow.resiliencekit.*
-
-// Simple timeout
-val result = withTimeout(5.seconds) {
-    longRunningOperation()
-}
-
-// With fallback
-val resultWithFallback = withTimeout(
-    timeout = 5.seconds,
-    fallback = { TimeoutException -> "Default value" }
-) {
-    longRunningOperation()
+// Registry for named bulkheads
+val registry = BulkheadRegistry()
+val apiBulkhead = registry.getOrCreate("api") {
+    maxConcurrentCalls = 50
 }
 ```
 
 ### Cache
 
-```kotlin
-import ro.sorinirimies.arrow.resiliencekit.*
+Thread-safe cache with TTL, size limits, and configurable eviction strategies (LRU, LFU, FIFO).
 
-// Create cache with TTL
-val cache = Cache<String, User>(
-    ttl = 5.minutes,
-    maxSize = 1000
-)
-
-// Get or compute
-val user = cache.getOrPut("user123") {
-    userService.fetchUser("user123")
+```/dev/null/CacheExample.kt#L1-L22
+// DSL builder
+val userCache = cache<String, User> {
+    maxSize = 1_000
+    ttl = 5.minutes
+    evictionStrategy = EvictionStrategy.LRU
 }
 
-// Manual operations
-cache.put("user456", userInstance)
-val cachedUser = cache.get("user456")
-cache.invalidate("user456")
+// Get or compute
+val user = userCache.getOrPut("user-123") {
+    userService.fetch("user-123")
+}
+
+// Loading cache (auto-fetch on miss)
+val loader = LoadingCache<String, User>(
+    config = CacheConfig(maxSize = 500, ttl = 10.minutes),
+    loader = { id -> userService.fetch(id) }
+)
+val u = loader.get("user-456") // fetches automatically
+
+// Statistics
+val stats = userCache.statistics() // hits, misses, hitRate, evictions
 ```
 
-### Saga Pattern
+### Circuit Breaker
 
-```kotlin
-import ro.sorinirimies.arrow.resiliencekit.*
+Prevents cascading failures with three states: **Closed** → **Open** → **Half-Open**.
 
-// Define saga with compensation
-val saga = Saga<OrderContext>()
-    .step(
-        forward = { ctx -> orderService.createOrder(ctx.order) },
-        compensate = { ctx -> orderService.cancelOrder(ctx.orderId) }
-    )
-    .step(
-        forward = { ctx -> paymentService.processPayment(ctx.payment) },
-        compensate = { ctx -> paymentService.refund(ctx.paymentId) }
-    )
-    .step(
-        forward = { ctx -> inventoryService.reserveItems(ctx.items) },
-        compensate = { ctx -> inventoryService.releaseItems(ctx.items) }
-    )
+```/dev/null/CircuitBreakerExample.kt#L1-L24
+val cb = circuitBreaker {
+    failureThreshold = 5        // failures before opening
+    resetTimeout = 60.seconds   // wait before half-open
+    halfOpenSuccessThreshold = 2 // successes to close again
+}
 
-// Execute saga
-val result = saga.execute(orderContext)
+// Basic execution
+val result = cb.execute { externalService.call() }
+
+// With fallback
+val safe = cb.executeOrFallback(
+    fallback = { ex -> defaultResponse }
+) { externalService.call() }
+
+// Inspect state
+when (cb.currentState()) {
+    CircuitBreakerState.Closed -> println("Healthy")
+    CircuitBreakerState.Open -> println("Failing fast")
+    CircuitBreakerState.HalfOpen -> println("Testing recovery")
+}
+
+// Listen for transitions
+cb.addListener { old, new -> log.info("Circuit: $old -> $new") }
 ```
 
-### Combining Patterns
+### Rate Limiter
 
-Patterns can be easily combined for robust resilience:
+Controls request throughput using a token-bucket algorithm. Also includes a sliding-window variant.
 
-```kotlin
-import ro.sorinirimies.arrow.resiliencekit.*
+```/dev/null/RateLimiterExample.kt#L1-L16
+// Token bucket
+val rl = rateLimiter {
+    permitsPerSecond = 10.0
+    burstCapacity = 20
+}
 
-// Combine circuit breaker + retry + timeout
-suspend fun fetchDataResilient(): Result<Data> = 
-    circuitBreaker.execute {
-        retryWithExponentialBackoff(retries = 3) {
-            withTimeout(10.seconds) {
-                apiClient.fetchData()
-            }
-        }
+val result = rl.execute { api.request() }
+
+// Sliding window
+val sw = SlidingWindowRateLimiter(
+    SlidingWindowConfig(maxRequests = 100, windowDuration = 1.seconds)
+)
+sw.execute { api.request() }
+
+// Check stats
+val stats = rl.statistics() // accepted, rejected, acceptanceRate
+```
+
+### Retry & Repeat
+
+Flexible retry strategies with exponential, constant, Fibonacci, and capped backoff. Repeat helpers for polling.
+
+```/dev/null/RetryRepeatExample.kt#L1-L32
+// Exponential backoff
+val data = retryWithExponentialBackoff(
+    retries = 5,
+    initialDelay = 100.milliseconds,
+    maxDelay = 10.seconds,
+    factor = 2.0
+) { api.fetch() }
+
+// Constant delay
+val d2 = retryWithConstantDelay(retries = 3, delay = 500.milliseconds) { api.fetch() }
+
+// Fibonacci backoff
+val d3 = retryWithFibonacci(retries = 5, baseDelay = 100.milliseconds) { api.fetch() }
+
+// Conditional retry
+val d4 = retryIf(retries = 3, delay = 1.seconds, predicate = { it is IOException }) {
+    api.fetch()
+}
+
+// Retry with fallback default
+val d5 = retryOrDefault(retries = 3, defaultValue = emptyList()) { api.fetchList() }
+
+// Repeat until condition
+val finalValue = repeatUntil(
+    maxAttempts = 10,
+    delay = 1.seconds,
+    predicate = { it.status == "COMPLETE" }
+) { api.pollStatus() }
+
+// Repeat and collect all results
+val all = repeatAndCollect(times = 5, delay = 500.milliseconds) { api.sample() }
+```
+
+### Saga
+
+Distributed transaction coordination with automatic compensation on failure.
+
+```/dev/null/SagaExample.kt#L1-L25
+val orderSaga = saga<OrderResult> {
+    step(
+        name = "Reserve inventory",
+        action = { inventoryService.reserve(items) },
+        compensation = { reservation -> inventoryService.release(reservation.id) }
+    )
+    step(
+        name = "Charge payment",
+        action = { paymentService.charge(amount) },
+        compensation = { payment -> paymentService.refund(payment.txId) }
+    )
+    stepWithRetry(
+        name = "Send confirmation",
+        retries = 3,
+        action = { emailService.send(confirmation) }
+    )
+}
+
+when (val result = orderSaga.execute()) {
+    is SagaResult.Success -> println("Order placed: ${result.result}")
+    is SagaResult.Failure -> {
+        println("Order failed: ${result.error.message}")
+        println("Compensated ${result.compensatedSteps} steps")
     }
-
-// Rate limiting + bulkhead
-suspend fun processRequest(request: Request): Response =
-    rateLimiter.execute {
-        withBulkhead(BulkheadConfig(maxConcurrentCalls = 100)) {
-            processService.handle(request)
-        }
-    }
+}
 ```
 
-## Documentation
+### Time Limiter
 
-### User Documentation
-- **[API Documentation](https://sorinirimies.github.io/arrow-resilience-kit/)** - Complete API reference (auto-generated)
-- **[Installation Guide](INSTALLATION.md)** - Detailed setup and troubleshooting
-- **[Changelog](CHANGELOG.md)** - Version history and release notes
+Timeout enforcement with fallback, retry-on-timeout, race, and batch execution.
 
-### Developer Documentation
-- **[Contributing Guide](CONTRIBUTING.md)** - How to contribute to the project
-- **[Development Setup](docs/guides/DEVELOPMENT.md)** - Local development setup
-- **[Documentation Guide](docs/guides/DOCUMENTATION_SETUP.md)** - Working with Dokka and GitHub Pages
+```/dev/null/TimeLimiterExample.kt#L1-L19
+val tl = timeLimiter {
+    timeout = 5.seconds
+}
 
-### Maintainer Documentation
-- **[Release Guide](RELEASE.md)** - Complete release process
-- **[Pre-Release Checklist](PRE_RELEASE_CHECKLIST.md)** - Step-by-step release checklist
-- **[Token Setup](TOKEN_SETUP_GUIDE.md)** - GitHub token configuration
-- **[Git-Cliff Guide](docs/guides/GIT_CLIFF_GUIDE.md)** - Changelog generation
+// Execute or throw on timeout
+val result = tl.execute { slowOp() }
 
-## Project Structure
+// Execute or return null
+val maybe = tl.executeOrNull { slowOp() }
 
-```
-arrow-resilience-kit/
-├── src/
-│   ├── commonMain/kotlin/           # Shared Kotlin code
-│   │   └── ro/sorinirimies/arrow/resiliencekit/
-│   ├── commonTest/kotlin/           # Shared tests
-│   ├── jvmMain/kotlin/              # JVM-specific code
-│   ├── jsMain/kotlin/               # JS-specific code
-│   └── nativeMain/kotlin/           # Native-specific code
-├── docs/                            # Auto-generated API documentation (Dokka)
-│   └── guides/                      # Documentation guides
-├── gradle/                          # Gradle configuration
-│   ├── libs.versions.toml          # Version catalog
-│   └── publishing.gradle.kts       # Publishing configuration
-├── .github/workflows/               # CI/CD workflows
-│   ├── ci.yml                      # Continuous Integration
-│   ├── publish.yml                 # Release and publishing
-│   └── docs.yml                    # Documentation deployment
-├── build.gradle.kts                # Build configuration
-├── README.md                       # This file
-├── INSTALLATION.md                 # Installation guide
-├── CONTRIBUTING.md                 # Contribution guidelines
-├── CHANGELOG.md                    # Version history
-└── RELEASE.md                      # Release process
+// Execute with fallback
+val safe = tl.executeOrFallback(fallback = { cachedValue }) { slowOp() }
+
+// Retry on timeout
+val retried = tl.executeWithRetry(retries = 3) { slowOp() }
+
+// Convenience free function
+val quick = withTimeLimit(2.seconds) { fastOp() }
 ```
 
-## Development
+### STM Helpers
 
-### Prerequisites
+Lock-free, composable transactional primitives built on Arrow's Software Transactional Memory.
 
-- JDK 17 or higher
-- Gradle 8.5+ (included via wrapper)
+```/dev/null/StmExample.kt#L1-L30
+import ro.sorinirmies.arrow.resiliencekit.stm.*
+import arrow.fx.stm.atomically
 
-### Building
+// Atomic counter
+val counter = StmCounter.create(0L)
+atomically { with(counter) { increment() } }
+println(counter.value()) // 1
 
-```bash
-./gradlew build
+// Gauge with min/max tracking
+val gauge = StmGauge.create(0.0)
+atomically { with(gauge) { set(42.0) } }
+
+// Typed state machine
+val sm = StmStateMachine.create("IDLE")
+atomically { with(sm) { transitionIf("IDLE", "RUNNING") } }
+
+// Composable semaphore
+val sem = StmSemaphore.create(5)
+atomically { with(sem) { acquire() } }
+
+// Sliding-window rate tracking
+val window = StmRateWindow.create(windowMs = 1000L)
+atomically { with(window) { tryAcquire(maxRequests = 10, nowMs = currentTimeMs) } }
+
+// TVar extensions
+val tvar = TVar.new(0)
+tvar.modify { it + 1 }
+tvar.compareAndSet(expected = 1, new = 2)
+stmTransaction { tvar.write(tvar.read() + 10) }
 ```
 
-### Running Tests
+## Configuration
 
-```bash
-./gradlew test           # Run tests
-./gradlew allTests       # All platforms
+Every pattern supports a DSL builder for configuration:
+
+```/dev/null/ConfigExamples.kt#L1-L22
+val cb = circuitBreaker {
+    failureThreshold = 10
+    resetTimeout = 60.seconds
+    halfOpenSuccessThreshold = 3
+}
+
+val bh = bulkhead {
+    maxConcurrentCalls = 25
+    maxWaitingCalls = 50
+    maxWaitDuration = 10.seconds
+}
+
+val rl = rateLimiter {
+    permitsPerSecond = 100.0
+    burstCapacity = 200
+}
+
+val tl = timeLimiter {
+    timeout = 15.seconds
+    onTimeout = TimeoutStrategy.RETURN_NULL
+}
 ```
 
-### Generating Documentation
+Named registries (`CircuitBreakerRegistry`, `BulkheadRegistry`, `RateLimiterRegistry`, `TimeLimiterRegistry`, `CacheRegistry`) let you manage instances by name and collect statistics across all instances.
 
-```bash
-./gradlew dokkaHtml      # Generate API docs
-./gradlew prepareDocs    # Prepare for GitHub Pages
+## Publishing
+
+### Maven Central
+
+Publishing to Maven Central is handled via the release CI workflow. See [RELEASE.md](RELEASE.md) for the full process.
+
+### JitPack
+
+JitPack builds are automatic — any tag or commit on GitHub is available at:
+
+```/dev/null/jitpack.txt#L1
+https://jitpack.io/#sorinirimies/arrow-resilience-kit
 ```
 
-Documentation will be generated in `build/docs/` and can be copied to `docs/` for GitHub Pages deployment.
-
-### Using Just (Task Runner)
-
-If you have [just](https://github.com/casey/just) installed:
-
-```bash
-just build              # Build project
-just test               # Run tests
-just doc                # Generate documentation
-just doc-open           # Generate and open docs
-just changelog          # Generate changelog
-just release 0.1.0      # Complete release workflow
-```
-
-See `justfile` for all available commands.
+The `jitpack.yml` in the repo root configures the JitPack build.
 
 ## Dependencies
 
-- **Kotlin** 1.9.22
-- **Arrow-kt** 1.2.1
-- **Kotlinx Coroutines** 1.7.3
-- **Kotlinx DateTime** 0.4.1
+| Dependency | Version |
+|---|---|
+| Kotlin | 1.9.25 |
+| Arrow-kt (Core, FX Coroutines, FX STM, Resilience) | 1.2.4 |
+| Kotlinx Coroutines | 1.8.1 |
+| Kotlinx DateTime | 0.6.1 |
+| Kotlin Logging | 3.0.5 |
+| Kotest (test) | 5.9.1 |
+| Detekt | 1.23.7 |
+| Dokka | 1.9.20 |
 
-See [gradle/libs.versions.toml](gradle/libs.versions.toml) for the complete dependency list.
+See [`gradle/libs.versions.toml`](gradle/libs.versions.toml) for the full version catalog.
+
+## Project Structure
+
+```/dev/null/tree.txt#L1-L28
+arrow-resilience-kit/
+├── src/
+│   ├── commonMain/kotlin/ro/sorinirmies/arrow/resiliencekit/
+│   │   ├── stm/
+│   │   │   ├── StmExtensions.kt
+│   │   │   └── StmHelpers.kt
+│   │   ├── Bulkhead.kt
+│   │   ├── Cache.kt
+│   │   ├── CircuitBreaker.kt
+│   │   ├── RateLimiter.kt
+│   │   ├── RetryRepeat.kt
+│   │   ├── Saga.kt
+│   │   └── TimeLimiter.kt
+│   ├── commonTest/kotlin/
+│   ├── jvmMain/kotlin/
+│   ├── jsMain/kotlin/
+│   └── nativeMain/kotlin/
+├── docs/
+├── gradle/
+│   └── libs.versions.toml
+├── .github/workflows/
+│   ├── ci.yml
+│   └── release.yml
+├── scripts/
+├── config/
+├── build.gradle.kts
+├── settings.gradle.kts
+├── justfile
+└── jitpack.yml
+```
 
 ## Contributing
 
-Contributions are welcome! We appreciate your help in making this library better.
-
-### How to Contribute
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes
-4. Run tests: `./gradlew test`
-5. Commit using [Conventional Commits](https://www.conventionalcommits.org/):
-   - `feat:` - New features
-   - `fix:` - Bug fixes
-   - `docs:` - Documentation changes
-   - `refactor:` - Code refactoring
-   - `test:` - Test changes
-   - `chore:` - Maintenance tasks
-6. Push to your fork (`git push origin feature/amazing-feature`)
-7. Open a Pull Request
+1. Fork the repo and create a feature branch.
+2. Make changes and run `./gradlew test` (or `./gradlew allTests` for all platforms).
+3. Commit using [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:`, etc.).
+4. Open a Pull Request against `main`.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 
-## Versioning
-
-This project follows [Semantic Versioning](https://semver.org/):
-- **MAJOR** version for incompatible API changes
-- **MINOR** version for new functionality in a backward compatible manner
-- **PATCH** version for backward compatible bug fixes
-
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Credits
-
-Built with:
-- [Kotlin Multiplatform](https://kotlinlang.org/docs/multiplatform.html) - Write once, run everywhere
-- [Arrow-kt](https://arrow-kt.io/) - Functional programming for Kotlin
-- [Kotlinx Coroutines](https://github.com/Kotlin/kotlinx.coroutines) - Asynchronous programming
-- [Dokka](https://kotlin.github.io/dokka/) - API documentation
-
-Inspired by resilience libraries like [Resilience4j](https://resilience4j.readme.io/) and [Hystrix](https://github.com/Netflix/Hystrix).
-
-## Support
-
-- **Issues**: [GitHub Issues](https://github.com/sorinirimies/arrow-resilience-kit/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/sorinirimies/arrow-resilience-kit/discussions)
-- **Documentation**: [API Docs](https://sorinirimies.github.io/arrow-resilience-kit/)
-
-## Roadmap
-
-- [ ] Additional retry strategies (fibonacci backoff, decorrelated jitter)
-- [ ] Metrics and monitoring integration
-- [ ] Spring Boot integration
-- [ ] Ktor integration
-- [ ] More comprehensive examples and tutorials
-- [ ] Performance benchmarks
-
-## Acknowledgments
-
-Special thanks to:
-- The Arrow-kt team for the amazing functional programming library
-- The Kotlin team for Kotlin Multiplatform
-- All contributors and users of this library
-
----
-
-**Ready to build resilient applications?** Get started with the [Installation Guide](INSTALLATION.md)!
-
-**Questions?** Open a [discussion](https://github.com/sorinirimies/arrow-resilience-kit/discussions) on GitHub.
+This project is licensed under the [MIT License](LICENSE).

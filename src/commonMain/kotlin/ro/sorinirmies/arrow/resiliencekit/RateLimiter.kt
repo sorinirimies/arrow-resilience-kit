@@ -1,20 +1,21 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Sorin Albu-Irimies
 
+package ro.sorinirmies.arrow.resiliencekit
 
-import arrow.fx.stm.STM
-import arrow.fx.stm.TVar
-import arrow.fx.stm.atomically
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import mu.KotlinLogging
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 private val logger = KotlinLogging.logger {}
 
 /**
- * Rate limiter pattern implementation using token bucket algorithm with Arrow STM.
+ * Token bucket rate limiter for controlling request throughput.
  *
  * The Rate Limiter pattern controls the rate of operations to prevent overwhelming
  * a system or service. It uses a token bucket algorithm where tokens are added at
@@ -32,68 +33,73 @@ private val logger = KotlinLogging.logger {}
  * - If no tokens are available, the operation is throttled
  * - Allows bursts up to bucket capacity
  *
+ * **Basic usage:**
+ * ```kotlin
+ * val limiter = RateLimiter(config = RateLimiterConfig(
+ *     permitsPerSecond = 10.0,
+ *     burstCapacity = 20
+ * ))
+ *
+ * val result = limiter.tryExecute {
+ *     callApi()
+ * } // returns null if rate exceeded
+ * ```
+ *
+ * **Blocking execution:**
+ * ```kotlin
+ * val result = limiter.execute {
+ *     callApi()
+ * } // waits for available token
+ * ```
+ *
+ * **Sliding window variant:**
+ * ```kotlin
+ * val limiter = SlidingWindowRateLimiter(config = SlidingWindowConfig(
+ *     maxRequests = 100,
+ *     windowDuration = 1.minutes
+ * ))
+ * ```
+ *
  * @param config Configuration for rate limiter behavior
- *
- * Example usage:
- * ```
- * val rateLimiter = RateLimiter.create(
- *     config = RateLimiterConfig(
- *         permitsPerSecond = 10.0,
- *         burstCapacity = 20
- *     )
- * )
- *
- * // Execute operation with rate limiting
- * val result = rateLimiter.execute {
- *     apiClient.call()
- * }
- * ```
  */
-class RateLimiter private constructor(
-    private val config: RateLimiterConfig,
-    private val tokensVar: TVar<Double>,
-    private val lastRefillTimeVar: TVar<Instant>,
-    private val totalRequestsVar: TVar<Long>,
-    private val acceptedRequestsVar: TVar<Long>,
-    private val rejectedRequestsVar: TVar<Long>
+public class RateLimiter(
+    private val config: RateLimiterConfig = RateLimiterConfig(),
+    internal val clock: Clock = Clock.System,
 ) {
-    companion object {
-        /**
-         * Creates a new RateLimiter instance with the given configuration.
-         */
-        suspend fun create(config: RateLimiterConfig = RateLimiterConfig()): RateLimiter {
-            return RateLimiter(
-                config = config,
-                tokensVar = TVar.new(config.burstCapacity.toDouble()),
-                lastRefillTimeVar = TVar.new(Clock.System.now()),
-                totalRequestsVar = TVar.new(0L),
-                acceptedRequestsVar = TVar.new(0L),
-                rejectedRequestsVar = TVar.new(0L)
-            )
-        }
+    private val mutex = Mutex()
+    private var tokens: Double = config.burstCapacity.toDouble()
+    private var lastRefillTime: Instant = clock.now()
+    private var totalRequests: Long = 0L
+    private var acceptedRequests: Long = 0L
+    private var rejectedRequests: Long = 0L
+    private val listeners = mutableListOf<RateLimiterListener>()
+
+    /**
+     * Adds a listener for rate limiter events.
+     */
+    public fun addListener(listener: RateLimiterListener) {
+        listeners.add(listener)
     }
 
     /**
      * Gets the current number of available tokens.
      */
-    suspend fun availableTokens(): Double = atomically {
+    public suspend fun availableTokens(): Double = mutex.withLock {
         doRefillTokens()
-        tokensVar.read()
+        tokens
     }
 
     /**
      * Gets the current statistics.
      */
-    suspend fun statistics(): RateLimiterStatistics = atomically {
+    public suspend fun statistics(): RateLimiterStatistics = mutex.withLock {
         RateLimiterStatistics(
-            availableTokens = tokensVar.read(),
-            totalRequests = totalRequestsVar.read(),
-            acceptedRequests = acceptedRequestsVar.read(),
-            rejectedRequests = rejectedRequestsVar.read(),
+            availableTokens = tokens,
+            totalRequests = totalRequests,
+            acceptedRequests = acceptedRequests,
+            rejectedRequests = rejectedRequests,
         )
     }
-
-
 
     /**
      * Executes an operation with rate limiting.
@@ -105,7 +111,7 @@ class RateLimiter private constructor(
      * @return The result of the operation
      * @throws Exception if the operation fails
      */
-    suspend fun <T> execute(
+    public suspend fun <T> execute(
         permits: Int = 1,
         block: suspend () -> T,
     ): T {
@@ -139,7 +145,7 @@ class RateLimiter private constructor(
      * @param block The operation to execute
      * @return The result of the operation or null if rate limited
      */
-    suspend fun <T> tryExecute(
+    public suspend fun <T> tryExecute(
         permits: Int = 1,
         block: suspend () -> T,
     ): T? {
@@ -166,7 +172,7 @@ class RateLimiter private constructor(
      * @param block The primary operation to execute
      * @return The result of the operation or fallback
      */
-    suspend fun <T> executeOrFallback(
+    public suspend fun <T> executeOrFallback(
         permits: Int = 1,
         fallback: suspend () -> T,
         block: suspend () -> T,
@@ -180,28 +186,28 @@ class RateLimiter private constructor(
      * @param permits Number of permits to acquire
      * @return true if permits were acquired, false otherwise
      */
-    suspend fun tryAcquire(permits: Int = 1): Boolean {
+    public suspend fun tryAcquire(permits: Int = 1): Boolean {
         require(permits > 0) { "permits must be > 0, but was $permits" }
 
-        val acquired = atomically {
-            val total = totalRequestsVar.read()
-            totalRequestsVar.write(total + 1)
+        val acquired = mutex.withLock {
+            totalRequests++
             doRefillTokens()
 
-            val currentTokens = tokensVar.read()
-            if (currentTokens >= permits) {
-                tokensVar.write(currentTokens - permits)
-                val accepted = acceptedRequestsVar.read()
-                acceptedRequestsVar.write(accepted + 1)
+            if (tokens >= permits) {
+                tokens -= permits
+                acceptedRequests++
                 true
             } else {
-                val rejected = rejectedRequestsVar.read()
-                rejectedRequestsVar.write(rejected + 1)
+                rejectedRequests++
                 false
             }
         }
 
-        // Token acquisition handled
+        if (acquired) {
+            listeners.forEach { it.onRequestAccepted() }
+        } else {
+            listeners.forEach { it.onRequestRejected() }
+        }
 
         return acquired
     }
@@ -209,45 +215,42 @@ class RateLimiter private constructor(
     /**
      * Resets all statistics counters.
      */
-    suspend fun resetStatistics() {
-        atomically {
-            totalRequestsVar.write(0L)
-            acceptedRequestsVar.write(0L)
-            rejectedRequestsVar.write(0L)
+    public suspend fun resetStatistics(): Unit {
+        mutex.withLock {
+            totalRequests = 0L
+            acceptedRequests = 0L
+            rejectedRequests = 0L
         }
     }
 
     /**
      * Resets the rate limiter to initial state.
      */
-    suspend fun reset() {
-        atomically {
-            tokensVar.write(config.burstCapacity.toDouble())
-            lastRefillTimeVar.write(Clock.System.now())
-            totalRequestsVar.write(0L)
-            acceptedRequestsVar.write(0L)
-            rejectedRequestsVar.write(0L)
+    public suspend fun reset(): Unit {
+        mutex.withLock {
+            tokens = config.burstCapacity.toDouble()
+            lastRefillTime = Clock.System.now()
+            totalRequests = 0L
+            acceptedRequests = 0L
+            rejectedRequests = 0L
         }
     }
 
     /**
      * Refills tokens based on elapsed time.
-     * Must be called within an STM transaction.
+     * Must be called while holding the mutex.
      */
-    private fun STM.doRefillTokens() {
-        val now = Clock.System.now()
-        val lastRefillTime = lastRefillTimeVar.read()
+    private fun doRefillTokens() {
+        val now = clock.now()
         val elapsed = now - lastRefillTime
 
         if (elapsed > Duration.ZERO) {
             val tokensToAdd = elapsed.inWholeMilliseconds * config.permitsPerSecond / 1000.0
-            val currentTokens = tokensVar.read()
-            val newTokens = minOf(
-                currentTokens + tokensToAdd,
+            tokens = minOf(
+                tokens + tokensToAdd,
                 config.burstCapacity.toDouble()
             )
-            tokensVar.write(newTokens)
-            lastRefillTimeVar.write(now)
+            lastRefillTime = now
         }
     }
 
@@ -257,10 +260,8 @@ class RateLimiter private constructor(
     private fun calculateWaitTime(permits: Int): kotlin.time.Duration {
         val tokensNeeded = permits.toDouble()
         val millisecondsToWait = (tokensNeeded * 1000.0 / config.permitsPerSecond).toLong()
-        return kotlin.time.Duration.parse("${millisecondsToWait}ms")
+        return millisecondsToWait.milliseconds
     }
-
-
 }
 
 /**
@@ -269,9 +270,9 @@ class RateLimiter private constructor(
  * @property permitsPerSecond Number of permits to add per second (default: 10.0)
  * @property burstCapacity Maximum number of permits that can be accumulated (default: 10)
  */
-data class RateLimiterConfig(
-    val permitsPerSecond: Double = 10.0,
-    val burstCapacity: Int = 10,
+public data class RateLimiterConfig(
+    public val permitsPerSecond: Double = 10.0,
+    public val burstCapacity: Int = 10,
 ) {
     init {
         require(permitsPerSecond > 0) {
@@ -291,20 +292,20 @@ data class RateLimiterConfig(
  * @property acceptedRequests Total number of accepted requests
  * @property rejectedRequests Total number of rejected requests
  */
-data class RateLimiterStatistics(
-    val availableTokens: Double,
-    val totalRequests: Long,
-    val acceptedRequests: Long,
-    val rejectedRequests: Long,
+public data class RateLimiterStatistics(
+    public val availableTokens: Double,
+    public val totalRequests: Long,
+    public val acceptedRequests: Long,
+    public val rejectedRequests: Long,
 ) {
-    val acceptanceRate: Double
+    public val acceptanceRate: Double
         get() = if (totalRequests > 0) {
             acceptedRequests.toDouble() / totalRequests
         } else {
             0.0
         }
 
-    val rejectionRate: Double
+    public val rejectionRate: Double
         get() = if (totalRequests > 0) {
             rejectedRequests.toDouble() / totalRequests
         } else {
@@ -315,21 +316,21 @@ data class RateLimiterStatistics(
 /**
  * Listener for rate limiter events.
  */
-interface RateLimiterListener {
+public interface RateLimiterListener {
     /**
      * Called when a request is accepted.
      */
-    fun onRequestAccepted() {}
+    public fun onRequestAccepted(): Unit {}
 
     /**
      * Called when a request is rejected due to rate limiting.
      */
-    fun onRequestRejected() {}
+    public fun onRequestRejected(): Unit {}
 
     /**
      * Called when a request fails.
      */
-    fun onRequestFailed(exception: Exception) {}
+    public fun onRequestFailed(exception: Exception): Unit {}
 }
 
 /**
@@ -343,20 +344,20 @@ interface RateLimiterListener {
  * }
  * ```
  */
-suspend fun rateLimiter(configure: RateLimiterConfigBuilder.() -> Unit): RateLimiter {
+public fun rateLimiter(configure: RateLimiterConfigBuilder.() -> Unit): RateLimiter {
     val builder = RateLimiterConfigBuilder()
     builder.configure()
-    return RateLimiter.create(builder.build())
+    return RateLimiter(builder.build())
 }
 
 /**
  * Builder for rate limiter configuration.
  */
-class RateLimiterConfigBuilder {
-    var permitsPerSecond: Double = 10.0
-    var burstCapacity: Int = 10
+public class RateLimiterConfigBuilder {
+    public var permitsPerSecond: Double = 10.0
+    public var burstCapacity: Int = 10
 
-    fun build(): RateLimiterConfig {
+    public fun build(): RateLimiterConfig {
         return RateLimiterConfig(
             permitsPerSecond = permitsPerSecond,
             burstCapacity = burstCapacity,
@@ -365,7 +366,7 @@ class RateLimiterConfigBuilder {
 }
 
 /**
- * Sliding window rate limiter implementation using Arrow STM.
+ * Sliding window rate limiter implementation.
  *
  * Unlike token bucket, this tracks requests within a time window and rejects
  * requests if the limit is exceeded within that window.
@@ -387,46 +388,34 @@ class RateLimiterConfigBuilder {
  * )
  * ```
  */
-class SlidingWindowRateLimiter private constructor(
-    private val config: SlidingWindowConfig,
-    private val requestTimestampsVar: TVar<List<Instant>>,
-    private val totalRequestsVar: TVar<Long>,
-    private val acceptedRequestsVar: TVar<Long>,
-    private val rejectedRequestsVar: TVar<Long>
+public class SlidingWindowRateLimiter(
+    private val config: SlidingWindowConfig = SlidingWindowConfig(),
+    internal val clock: Clock = Clock.System,
 ) {
-    companion object {
-        /**
-         * Creates a new SlidingWindowRateLimiter instance.
-         */
-        suspend fun create(config: SlidingWindowConfig = SlidingWindowConfig()): SlidingWindowRateLimiter {
-            return SlidingWindowRateLimiter(
-                config = config,
-                requestTimestampsVar = TVar.new(emptyList()),
-                totalRequestsVar = TVar.new(0L),
-                acceptedRequestsVar = TVar.new(0L),
-                rejectedRequestsVar = TVar.new(0L)
-            )
-        }
-    }
+    private val mutex = Mutex()
+    private var requestTimestamps: MutableList<Instant> = mutableListOf()
+    private var totalRequests: Long = 0L
+    private var acceptedRequests: Long = 0L
+    private var rejectedRequests: Long = 0L
 
     /**
      * Gets the current number of requests in the window.
      */
-    suspend fun currentRequests(): Int = atomically {
+    public suspend fun currentRequests(): Int = mutex.withLock {
         doCleanupOldRequests()
-        requestTimestampsVar.read().size
+        requestTimestamps.size
     }
 
     /**
      * Gets the current statistics.
      */
-    suspend fun statistics(): SlidingWindowStatistics = atomically {
+    public suspend fun statistics(): SlidingWindowStatistics = mutex.withLock {
         doCleanupOldRequests()
         SlidingWindowStatistics(
-            currentRequests = requestTimestampsVar.read().size,
-            totalRequests = totalRequestsVar.read(),
-            acceptedRequests = acceptedRequestsVar.read(),
-            rejectedRequests = rejectedRequestsVar.read(),
+            currentRequests = requestTimestamps.size,
+            totalRequests = totalRequests,
+            acceptedRequests = acceptedRequests,
+            rejectedRequests = rejectedRequests,
         )
     }
 
@@ -438,7 +427,7 @@ class SlidingWindowRateLimiter private constructor(
      * @throws RateLimitExceededException if rate limit is exceeded
      * @throws Exception if the operation fails
      */
-    suspend fun <T> execute(block: suspend () -> T): T {
+    public suspend fun <T> execute(block: suspend () -> T): T {
         val acquired = tryAcquire()
         if (!acquired) {
             throw RateLimitExceededException(
@@ -455,7 +444,7 @@ class SlidingWindowRateLimiter private constructor(
      * @param block The operation to execute
      * @return The result of the operation or null if rate limited
      */
-    suspend fun <T> tryExecute(block: suspend () -> T): T? {
+    public suspend fun <T> tryExecute(block: suspend () -> T): T? {
         val acquired = tryAcquire()
         if (!acquired) {
             return null
@@ -469,22 +458,18 @@ class SlidingWindowRateLimiter private constructor(
      *
      * @return true if permit was acquired, false otherwise
      */
-    suspend fun tryAcquire(): Boolean {
-        return atomically {
-            val total = totalRequestsVar.read()
-            totalRequestsVar.write(total + 1)
+    public suspend fun tryAcquire(): Boolean {
+        return mutex.withLock {
+            totalRequests++
             doCleanupOldRequests()
 
-            val currentRequests = requestTimestampsVar.read()
-            if (currentRequests.size < config.maxRequests) {
-                val now = Clock.System.now()
-                requestTimestampsVar.write(currentRequests + now)
-                val accepted = acceptedRequestsVar.read()
-                acceptedRequestsVar.write(accepted + 1)
+            if (requestTimestamps.size < config.maxRequests) {
+                val now = clock.now()
+                requestTimestamps.add(now)
+                acceptedRequests++
                 true
             } else {
-                val rejected = rejectedRequestsVar.read()
-                rejectedRequestsVar.write(rejected + 1)
+                rejectedRequests++
                 false
             }
         }
@@ -493,25 +478,23 @@ class SlidingWindowRateLimiter private constructor(
     /**
      * Resets the rate limiter to initial state.
      */
-    suspend fun reset() {
-        atomically {
-            requestTimestampsVar.write(emptyList())
-            totalRequestsVar.write(0L)
-            acceptedRequestsVar.write(0L)
-            rejectedRequestsVar.write(0L)
+    public suspend fun reset(): Unit {
+        mutex.withLock {
+            requestTimestamps.clear()
+            totalRequests = 0L
+            acceptedRequests = 0L
+            rejectedRequests = 0L
         }
     }
 
     /**
      * Removes requests older than the window duration.
-     * Must be called within an STM transaction.
+     * Must be called while holding the mutex.
      */
-    private fun STM.doCleanupOldRequests() {
-        val now = Clock.System.now()
+    private fun doCleanupOldRequests() {
+        val now = clock.now()
         val cutoffTime = now - config.windowDuration
-        val currentRequests = requestTimestampsVar.read()
-        val validRequests = currentRequests.filter { it >= cutoffTime }
-        requestTimestampsVar.write(validRequests)
+        requestTimestamps.removeAll { it < cutoffTime }
     }
 }
 
@@ -521,9 +504,9 @@ class SlidingWindowRateLimiter private constructor(
  * @property maxRequests Maximum number of requests allowed in the window (default: 100)
  * @property windowDuration Duration of the sliding window (default: 1 minute)
  */
-data class SlidingWindowConfig(
-    val maxRequests: Int = 100,
-    val windowDuration: Duration = 60.seconds,
+public data class SlidingWindowConfig(
+    public val maxRequests: Int = 100,
+    public val windowDuration: Duration = 60.seconds,
 ) {
     init {
         require(maxRequests > 0) {
@@ -543,20 +526,20 @@ data class SlidingWindowConfig(
  * @property acceptedRequests Total number of accepted requests
  * @property rejectedRequests Total number of rejected requests
  */
-data class SlidingWindowStatistics(
-    val currentRequests: Int,
-    val totalRequests: Long,
-    val acceptedRequests: Long,
-    val rejectedRequests: Long,
+public data class SlidingWindowStatistics(
+    public val currentRequests: Int,
+    public val totalRequests: Long,
+    public val acceptedRequests: Long,
+    public val rejectedRequests: Long,
 ) {
-    val acceptanceRate: Double
+    public val acceptanceRate: Double
         get() = if (totalRequests > 0) {
             acceptedRequests.toDouble() / totalRequests
         } else {
             0.0
         }
 
-    val rejectionRate: Double
+    public val rejectionRate: Double
         get() = if (totalRequests > 0) {
             rejectedRequests.toDouble() / totalRequests
         } else {
@@ -567,7 +550,7 @@ data class SlidingWindowStatistics(
 /**
  * Exception thrown when rate limit is exceeded.
  */
-class RateLimitExceededException(
+public class RateLimitExceededException(
     message: String,
     cause: Throwable? = null,
 ) : Exception(message, cause)
@@ -585,13 +568,13 @@ class RateLimitExceededException(
  * }
  * ```
  */
-class RateLimiterRegistry {
+public class RateLimiterRegistry {
     private val limiters = mutableMapOf<String, RateLimiter>()
 
     /**
      * Gets an existing rate limiter or creates a new one.
      */
-    suspend fun getOrCreate(
+    public fun getOrCreate(
         name: String,
         configure: (RateLimiterConfigBuilder.() -> Unit)? = null,
     ): RateLimiter {
@@ -599,7 +582,7 @@ class RateLimiterRegistry {
             if (configure != null) {
                 rateLimiter(configure)
             } else {
-                RateLimiter.create()
+                RateLimiter()
             }
         }
     }
@@ -607,35 +590,35 @@ class RateLimiterRegistry {
     /**
      * Gets an existing rate limiter by name.
      */
-    fun get(name: String): RateLimiter? {
+    public fun get(name: String): RateLimiter? {
         return limiters[name]
     }
 
     /**
      * Removes a rate limiter from the registry.
      */
-    fun remove(name: String): RateLimiter? {
+    public fun remove(name: String): RateLimiter? {
         return limiters.remove(name)
     }
 
     /**
      * Resets all rate limiters in the registry.
      */
-    suspend fun resetAll() {
+    public suspend fun resetAll(): Unit {
         limiters.values.forEach { it.reset() }
     }
 
     /**
      * Gets all rate limiter names in the registry.
      */
-    fun getNames(): Set<String> {
+    public fun getNames(): Set<String> {
         return limiters.keys.toSet()
     }
 
     /**
      * Gets statistics for all rate limiters.
      */
-    suspend fun getAllStatistics(): Map<String, RateLimiterStatistics> {
+    public suspend fun getAllStatistics(): Map<String, RateLimiterStatistics> {
         return limiters.mapValues { (_, limiter) ->
             limiter.statistics()
         }
