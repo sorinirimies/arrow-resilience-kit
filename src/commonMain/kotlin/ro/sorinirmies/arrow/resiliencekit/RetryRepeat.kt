@@ -1,6 +1,42 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Sorin Albu-Irimies
 
+/**
+ * Retry and repeat utilities with configurable backoff strategies.
+ *
+ * This file provides a rich set of retry and repeat functions built on top of
+ * Arrow's [Schedule] for resilient operation execution.
+ *
+ * **Exponential backoff retry:**
+ * ```kotlin
+ * val result = retryWithExponentialBackoff(retries = 5, base = 100.milliseconds) {
+ *     callFlakkyService()
+ * }
+ * ```
+ *
+ * **Retry with history:**
+ * ```kotlin
+ * val result = retryWithHistory(retries = 3) {
+ *     callService()
+ * }
+ * println("Succeeded after ${result.attemptCount} attempts in ${result.totalDuration}")
+ * ```
+ *
+ * **Conditional retry:**
+ * ```kotlin
+ * val result = retryIf(retries = 5, shouldRetry = { it is IOException }) {
+ *     callNetworkService()
+ * }
+ * ```
+ *
+ * **Repeat until condition:**
+ * ```kotlin
+ * val result = repeatUntil(maxAttempts = 10, condition = { it.isReady }) {
+ *     checkStatus()
+ * }
+ * ```
+ */
+package ro.sorinirmies.arrow.resiliencekit
 
 import arrow.core.Either
 import arrow.resilience.Schedule
@@ -60,7 +96,7 @@ private fun applyJitter(delay: Duration, jitterFactor: Double = 0.1): Duration {
  * }
  * ```
  */
-suspend fun <R> retryWithExponentialBackoff(
+public suspend fun <R> retryWithExponentialBackoff(
     retries: Long = 3,
     base: Duration = 200.milliseconds,
     factor: Double = 2.0,
@@ -98,7 +134,7 @@ suspend fun <R> retryWithExponentialBackoff(
  * }
  * ```
  */
-suspend fun <R> retryWithConstantDelay(
+public suspend fun <R> retryWithConstantDelay(
     retries: Long = 3,
     delay: Duration = 1.seconds,
     block: suspend () -> R,
@@ -131,7 +167,7 @@ suspend fun <R> retryWithConstantDelay(
  * }
  * ```
  */
-suspend fun <R> retryWithFibonacci(
+public suspend fun <R> retryWithFibonacci(
     retries: Long = 5,
     base: Duration = 100.milliseconds,
     block: suspend () -> R,
@@ -186,7 +222,7 @@ suspend fun <R> retryWithFibonacci(
  * }
  * ```
  */
-suspend fun <R> retryOrDefault(
+public suspend fun <R> retryOrDefault(
     retries: Long = 3,
     base: Duration = 200.milliseconds,
     factor: Double = 2.0,
@@ -233,7 +269,7 @@ suspend fun <R> retryOrDefault(
  * }
  * ```
  */
-suspend fun <R> retryIf(
+public suspend fun <R> retryIf(
     retries: Long = 3,
     delay: Duration = 1.seconds,
     shouldRetry: (Throwable) -> Boolean,
@@ -290,10 +326,11 @@ suspend fun <R> retryIf(
  * println("Total duration: ${result.totalDuration}")
  * ```
  */
-suspend fun <R> retryWithHistory(
+public suspend fun <R> retryWithHistory(
     retries: Long = 3,
     base: Duration = 200.milliseconds,
     factor: Double = 2.0,
+    clock: Clock = Clock.System,
     block: suspend () -> R,
 ): RetryResult<R> {
     require(retries >= 0) { "retries must be >= 0, but was $retries" }
@@ -301,19 +338,19 @@ suspend fun <R> retryWithHistory(
     require(factor > 0) { "factor must be > 0, but was $factor" }
 
     val attempts = mutableListOf<AttemptResult<R>>()
-    val startTime = Clock.System.now()
+    val startTime = clock.now()
     var attempt = 0L
     var currentDelay = base
 
     while (attempt <= retries) {
-        val attemptStart = Clock.System.now()
+        val attemptStart = clock.now()
         val attemptResult = try {
             val result = block()
             Result.success(result)
         } catch (exception: Exception) {
             Result.failure(exception)
         }
-        val attemptEnd = Clock.System.now()
+        val attemptEnd = clock.now()
         val attemptDuration = attemptEnd - attemptStart
 
         attempts.add(
@@ -325,7 +362,7 @@ suspend fun <R> retryWithHistory(
         )
 
         if (attemptResult.isSuccess) {
-            val totalDuration = Clock.System.now() - startTime
+            val totalDuration = clock.now() - startTime
             return RetryResult(
                 finalResult = attemptResult,
                 attempts = attempts,
@@ -334,7 +371,7 @@ suspend fun <R> retryWithHistory(
         }
 
         if (attempt >= retries) {
-            val totalDuration = Clock.System.now() - startTime
+            val totalDuration = clock.now() - startTime
             return RetryResult(
                 finalResult = attemptResult,
                 attempts = attempts,
@@ -377,7 +414,7 @@ suspend fun <R> retryWithHistory(
  * }
  * ```
  */
-suspend fun <R> repeatWithExponentialBackoff(
+public suspend fun <R> repeatWithExponentialBackoff(
     times: Long = 3,
     base: Duration = 1.seconds,
     factor: Double = 2.0,
@@ -418,7 +455,7 @@ suspend fun <R> repeatWithExponentialBackoff(
  * }
  * ```
  */
-suspend fun <R> repeatWithFixedDelay(
+public suspend fun <R> repeatWithFixedDelay(
     times: Long = 3,
     delay: Duration = 500.milliseconds,
     block: suspend () -> R,
@@ -455,7 +492,7 @@ suspend fun <R> repeatWithFixedDelay(
  * }
  * ```
  */
-suspend fun <R> repeatUntil(
+public suspend fun <R> repeatUntil(
     maxAttempts: Long = 10,
     delay: Duration = 500.milliseconds,
     condition: (R) -> Boolean,
@@ -500,7 +537,7 @@ suspend fun <R> repeatUntil(
  * }
  * ```
  */
-suspend fun <R> repeatOrElse(
+public suspend fun <R> repeatOrElse(
     times: Long = 3,
     delay: Duration = 500.milliseconds,
     onError: suspend (Throwable, Long) -> R,
@@ -539,7 +576,7 @@ suspend fun <R> repeatOrElse(
  * @throws kotlinx.coroutines.TimeoutCancellationException if timeout is exceeded
  * @throws Exception if any execution fails
  */
-suspend fun <R> repeatWithTimeout(
+public suspend fun <R> repeatWithTimeout(
     timeout: Duration,
     times: Long = 3,
     delay: Duration = 500.milliseconds,
@@ -566,18 +603,18 @@ suspend fun <R> repeatWithTimeout(
  * @property attempts List of all attempts made
  * @property totalDuration Total time spent on all attempts
  */
-data class RetryResult<R>(
-    val finalResult: Result<R>,
-    val attempts: List<AttemptResult<R>>,
-    val totalDuration: Duration,
+public data class RetryResult<R>(
+    public val finalResult: Result<R>,
+    public val attempts: List<AttemptResult<R>>,
+    public val totalDuration: Duration,
 ) {
-    val isSuccess: Boolean get() = finalResult.isSuccess
-    val isFailure: Boolean get() = finalResult.isFailure
-    val attemptCount: Int get() = attempts.size
+    public val isSuccess: Boolean get() = finalResult.isSuccess
+    public val isFailure: Boolean get() = finalResult.isFailure
+    public val attemptCount: Int get() = attempts.size
 
-    fun getOrNull(): R? = finalResult.getOrNull()
-    fun getOrThrow(): R = finalResult.getOrThrow()
-    fun exceptionOrNull(): Throwable? = finalResult.exceptionOrNull()
+    public fun getOrNull(): R? = finalResult.getOrNull()
+    public fun getOrThrow(): R = finalResult.getOrThrow()
+    public fun exceptionOrNull(): Throwable? = finalResult.exceptionOrNull()
 }
 
 /**
@@ -588,14 +625,139 @@ data class RetryResult<R>(
  * @property result The result of this attempt
  * @property duration Time taken for this attempt
  */
-data class AttemptResult<R>(
-    val attemptNumber: Int,
-    val result: Result<R>,
-    val duration: Duration,
+public data class AttemptResult<R>(
+    public val attemptNumber: Int,
+    public val result: Result<R>,
+    public val duration: Duration,
 ) {
-    val isSuccess: Boolean get() = result.isSuccess
-    val isFailure: Boolean get() = result.isFailure
+    public val isSuccess: Boolean get() = result.isSuccess
+    public val isFailure: Boolean get() = result.isFailure
 
-    fun getOrNull(): R? = result.getOrNull()
-    fun exceptionOrNull(): Throwable? = result.exceptionOrNull()
+    public fun getOrNull(): R? = result.getOrNull()
+    public fun exceptionOrNull(): Throwable? = result.exceptionOrNull()
+}
+
+// ============================================================================
+// ADDITIONAL RETRY OPERATIONS
+// ============================================================================
+
+/**
+ * Executes a suspend operation with retry using exponential backoff capped at a maximum delay.
+ *
+ * @param R The return type of the suspend operation
+ * @param retries The maximum number of retry attempts (defaults to 3)
+ * @param base The base duration for exponential backoff (defaults to 200 milliseconds)
+ * @param maxDelay The maximum delay between retries
+ * @param factor The exponential factor (defaults to 2.0)
+ * @param block The suspend operation to execute
+ *
+ * @return The result of the successful execution
+ * @throws Exception if all retry attempts fail
+ */
+public suspend fun <R> retryWithCappedBackoff(
+    retries: Long = 3,
+    base: Duration = 200.milliseconds,
+    maxDelay: Duration = 10.seconds,
+    factor: Double = 2.0,
+    block: suspend () -> R,
+): R {
+    require(retries >= 0) { "retries must be >= 0, but was $retries" }
+    require(base >= Duration.ZERO) { "base delay must be >= 0, but was $base" }
+    require(maxDelay > Duration.ZERO) { "maxDelay must be > 0, but was $maxDelay" }
+    require(factor > 0) { "factor must be > 0, but was $factor" }
+
+    var attempt = 0L
+    var currentDelay = base
+
+    while (true) {
+        try {
+            return block()
+        } catch (exception: Exception) {
+            if (attempt >= retries) {
+                logger.warn(exception) { "All retry attempts exhausted after $attempt attempts" }
+                throw exception
+            }
+
+            logger.debug {
+                "Retrying after ${exception::class.simpleName} (capped backoff attempt ${attempt + 1}/$retries)"
+            }
+
+            val effectiveDelay = if (currentDelay > maxDelay) maxDelay else currentDelay
+            delay(applyJitter(effectiveDelay))
+            currentDelay = currentDelay * factor
+            attempt++
+        }
+    }
+}
+
+// ============================================================================
+// ADDITIONAL REPEAT OPERATIONS
+// ============================================================================
+
+/**
+ * Repeats an operation while a condition is true, collecting all results.
+ *
+ * @param R The return type of the suspend operation
+ * @param maxAttempts The maximum number of attempts (defaults to 10)
+ * @param delay The delay between attempts (defaults to 500 milliseconds)
+ * @param predicate Predicate to test the result; returns true to continue repeating
+ * @param block The suspend operation to repeat
+ *
+ * @return List of all results collected
+ */
+public suspend fun <R> repeatWhile(
+    maxAttempts: Long = 10,
+    delay: Duration = 500.milliseconds,
+    predicate: (R) -> Boolean,
+    block: suspend () -> R,
+): List<R> {
+    require(maxAttempts > 0) { "maxAttempts must be > 0, but was $maxAttempts" }
+    require(delay >= Duration.ZERO) { "delay must be >= 0, but was $delay" }
+
+    val results = mutableListOf<R>()
+
+    repeat(maxAttempts.toInt()) { attempt ->
+        val result = block()
+        results.add(result)
+
+        if (!predicate(result)) {
+            return results
+        }
+
+        if (attempt < maxAttempts - 1) {
+            delay(applyJitter(delay))
+        }
+    }
+
+    return results
+}
+
+/**
+ * Repeats an operation and collects all results.
+ *
+ * @param R The return type of the suspend operation
+ * @param times The number of times to repeat after the initial execution (defaults to 3)
+ * @param delay The delay between repetitions (defaults to 500 milliseconds)
+ * @param block The suspend operation to repeat
+ *
+ * @return List of all results collected (initial execution + repeats)
+ * @throws Exception if any execution fails
+ */
+public suspend fun <R> repeatAndCollect(
+    times: Long = 3,
+    delay: Duration = 500.milliseconds,
+    block: suspend () -> R,
+): List<R> {
+    require(times >= 0) { "times must be >= 0, but was $times" }
+    require(delay >= Duration.ZERO) { "delay must be >= 0, but was $delay" }
+
+    val results = mutableListOf<R>()
+    results.add(block())
+
+    repeat(times.toInt()) {
+        delay(applyJitter(delay))
+        results.add(block())
+    }
+
+    return results
 }

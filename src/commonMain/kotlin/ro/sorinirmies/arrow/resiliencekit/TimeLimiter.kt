@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Sorin Albu-Irimies
 
+package ro.sorinirmies.arrow.resiliencekit
 
-import arrow.fx.stm.TVar
-import arrow.fx.stm.atomically
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.selects.select
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 import mu.KotlinLogging
@@ -17,7 +18,7 @@ import kotlin.time.Duration.Companion.seconds
 private val logger = KotlinLogging.logger {}
 
 /**
- * Time limiter pattern implementation for timeout handling with Arrow STM.
+ * Time limiter for enforcing execution timeouts.
  *
  * The Time Limiter pattern ensures that operations complete within a specified
  * time limit. It provides various strategies for handling timeouts including
@@ -29,66 +30,82 @@ private val logger = KotlinLogging.logger {}
  * - Detect slow or unresponsive services
  * - Set deadlines for operations
  *
- * @param config Configuration for time limiter behavior
+ * **Basic usage:**
+ * ```kotlin
+ * val limiter = TimeLimiter(config = TimeLimiterConfig(timeout = 5.seconds))
  *
- * Example usage:
+ * val result = limiter.execute {
+ *     callSlowService()
+ * } // throws TimeoutCancellationException if > 5s
  * ```
- * val timeLimiter = TimeLimiter.create(
- *     config = TimeLimiterConfig(
- *         timeout = 5.seconds
- *     )
- * )
  *
- * val result = timeLimiter.execute {
- *     slowOperation()
+ * **With fallback:**
+ * ```kotlin
+ * val result = limiter.executeOrFallback(
+ *     fallback = { "default" }
+ * ) {
+ *     callSlowService()
  * }
  * ```
+ *
+ * **Parallel execution with timeout:**
+ * ```kotlin
+ * val results = limiter.executeAll(
+ *     blocks = listOf(
+ *         { callService1() },
+ *         { callService2() },
+ *         { callService3() }
+ *     )
+ * ) // returns list with null for timed-out calls
+ * ```
+ *
+ * @param config Configuration for time limiter behavior
  */
-class TimeLimiter private constructor(
-    private val config: TimeLimiterConfig,
-    private val totalCallsVar: TVar<Long>,
-    private val successfulCallsVar: TVar<Long>,
-    private val timedOutCallsVar: TVar<Long>,
-    private val failedCallsVar: TVar<Long>,
-    private val totalTimeoutDurationVar: TVar<Long>
+public class TimeLimiter(
+    private val config: TimeLimiterConfig = TimeLimiterConfig(),
 ) {
-    companion object {
+    private val mutex = Mutex()
+    private var totalCalls = 0L
+    private var successfulCalls = 0L
+    private var timedOutCalls = 0L
+    private var failedCalls = 0L
+    private var totalTimeoutDuration = 0L
+    private val listeners = mutableListOf<TimeLimiterListener>()
+
+    public companion object {
         /**
          * Creates a new TimeLimiter instance with the given configuration.
          */
-        suspend fun create(config: TimeLimiterConfig = TimeLimiterConfig()): TimeLimiter {
-            return TimeLimiter(
-                config = config,
-                totalCallsVar = TVar.new(0L),
-                successfulCallsVar = TVar.new(0L),
-                timedOutCallsVar = TVar.new(0L),
-                failedCallsVar = TVar.new(0L),
-                totalTimeoutDurationVar = TVar.new(0L)
-            )
+        public suspend fun create(config: TimeLimiterConfig = TimeLimiterConfig()): TimeLimiter {
+            return TimeLimiter(config)
         }
+    }
+
+    /**
+     * Adds a listener for time limiter events.
+     */
+    public fun addListener(listener: TimeLimiterListener) {
+        listeners.add(listener)
     }
 
     /**
      * Gets the current statistics.
      */
-    suspend fun statistics(): TimeLimiterStatistics = atomically {
-        val timedOut = timedOutCallsVar.read()
-        val avgDuration = if (timedOut > 0) {
-            Duration.parse("${totalTimeoutDurationVar.read() / timedOut}ms")
+    public suspend fun statistics(): TimeLimiterStatistics = mutex.withLock {
+        val avgDuration = if (timedOutCalls > 0) {
+            Duration.parse("${totalTimeoutDuration / timedOutCalls}ms")
         } else {
             Duration.ZERO
         }
-        
+
         TimeLimiterStatistics(
-            totalCalls = totalCallsVar.read(),
-            successfulCalls = successfulCallsVar.read(),
-            timedOutCalls = timedOut,
-            failedCalls = failedCallsVar.read(),
+            totalCalls = totalCalls,
+            successfulCalls = successfulCalls,
+            timedOutCalls = timedOutCalls,
+            failedCalls = failedCalls,
             averageTimeoutDuration = avgDuration,
         )
     }
-
-
 
     /**
      * Executes an operation with a timeout.
@@ -99,16 +116,13 @@ class TimeLimiter private constructor(
      * @throws TimeoutCancellationException if the operation times out
      * @throws Exception if the operation fails
      */
-    suspend fun <T> execute(
+    public suspend fun <T> execute(
         timeout: Duration? = null,
         block: suspend () -> T,
     ): T {
         val effectiveTimeout = timeout ?: config.timeout
 
-        atomically {
-            val total = totalCallsVar.read()
-            totalCallsVar.write(total + 1)
-        }
+        mutex.withLock { totalCalls++ }
 
         val startTime = kotlinx.datetime.Clock.System.now()
 
@@ -117,30 +131,23 @@ class TimeLimiter private constructor(
                 block()
             }
 
-            atomically {
-                val successful = successfulCallsVar.read()
-                successfulCallsVar.write(successful + 1)
-            }
-            // Success recorded
+            val durationMs = (kotlinx.datetime.Clock.System.now() - startTime).inWholeMilliseconds
+            mutex.withLock { successfulCalls++ }
+            listeners.forEach { it.onSuccess(durationMs) }
 
             result
         } catch (e: TimeoutCancellationException) {
             val duration = kotlinx.datetime.Clock.System.now() - startTime
-            atomically {
-                val timedOut = timedOutCallsVar.read()
-                timedOutCallsVar.write(timedOut + 1)
-                val totalDuration = totalTimeoutDurationVar.read()
-                totalTimeoutDurationVar.write(totalDuration + duration.inWholeMilliseconds)
+            mutex.withLock {
+                timedOutCalls++
+                totalTimeoutDuration += duration.inWholeMilliseconds
             }
             logger.warn { "Operation timed out after $effectiveTimeout" }
-            // Timeout recorded
+            listeners.forEach { it.onTimeout(effectiveTimeout) }
             throw e
         } catch (e: Exception) {
-            atomically {
-                val failed = failedCallsVar.read()
-                failedCallsVar.write(failed + 1)
-            }
-            // Failure recorded
+            mutex.withLock { failedCalls++ }
+            listeners.forEach { it.onFailure(e) }
             throw e
         }
     }
@@ -153,16 +160,13 @@ class TimeLimiter private constructor(
      * @return The result of the operation or null if it times out
      * @throws Exception if the operation fails (not timeout)
      */
-    suspend fun <T> executeOrNull(
+    public suspend fun <T> executeOrNull(
         timeout: Duration? = null,
         block: suspend () -> T,
     ): T? {
         val effectiveTimeout = timeout ?: config.timeout
 
-        atomically {
-            val total = totalCallsVar.read()
-            totalCallsVar.write(total + 1)
-        }
+        mutex.withLock { totalCalls++ }
 
         val startTime = kotlinx.datetime.Clock.System.now()
 
@@ -172,30 +176,23 @@ class TimeLimiter private constructor(
             }
 
             if (result != null) {
-                atomically {
-                    val successful = successfulCallsVar.read()
-                    successfulCallsVar.write(successful + 1)
-                }
-                // Success recorded
+                val durationMs = (kotlinx.datetime.Clock.System.now() - startTime).inWholeMilliseconds
+                mutex.withLock { successfulCalls++ }
+                listeners.forEach { it.onSuccess(durationMs) }
             } else {
                 val duration = kotlinx.datetime.Clock.System.now() - startTime
-                atomically {
-                    val timedOut = timedOutCallsVar.read()
-                    timedOutCallsVar.write(timedOut + 1)
-                    val totalDuration = totalTimeoutDurationVar.read()
-                    totalTimeoutDurationVar.write(totalDuration + duration.inWholeMilliseconds)
+                mutex.withLock {
+                    timedOutCalls++
+                    totalTimeoutDuration += duration.inWholeMilliseconds
                 }
                 logger.warn { "Operation timed out after $effectiveTimeout" }
-                // Timeout recorded
+                listeners.forEach { it.onTimeout(effectiveTimeout) }
             }
 
             result
         } catch (e: Exception) {
-            atomically {
-                val failed = failedCallsVar.read()
-                failedCallsVar.write(failed + 1)
-            }
-            // Failure recorded
+            mutex.withLock { failedCalls++ }
+            listeners.forEach { it.onFailure(e) }
             throw e
         }
     }
@@ -208,7 +205,7 @@ class TimeLimiter private constructor(
      * @param block The primary operation to execute
      * @return The result of the operation or fallback
      */
-    suspend fun <T> executeOrFallback(
+    public suspend fun <T> executeOrFallback(
         timeout: Duration? = null,
         fallback: suspend (TimeoutCancellationException) -> T,
         block: suspend () -> T,
@@ -229,7 +226,7 @@ class TimeLimiter private constructor(
      * @param block The operation to execute
      * @return The result of the operation or default value
      */
-    suspend fun <T> executeOrDefault(
+    public suspend fun <T> executeOrDefault(
         timeout: Duration? = null,
         default: T,
         block: suspend () -> T,
@@ -247,7 +244,7 @@ class TimeLimiter private constructor(
      * @throws TimeoutCancellationException if all attempts time out
      * @throws Exception if the operation fails
      */
-    suspend fun <T> executeWithRetry(
+    public suspend fun <T> executeWithRetry(
         timeout: Duration? = null,
         retries: Int = 3,
         block: suspend () -> T,
@@ -282,7 +279,7 @@ class TimeLimiter private constructor(
      * @param blocks List of operations to execute
      * @return List of results (null for failed/timed-out operations)
      */
-    suspend fun <T> executeAll(
+    public suspend fun <T> executeAll(
         timeout: Duration? = null,
         blocks: List<suspend () -> T>,
     ): List<T?> {
@@ -303,7 +300,7 @@ class TimeLimiter private constructor(
      * @return The result of the first completing operation
      * @throws TimeoutCancellationException if all operations time out
      */
-    suspend fun <T> executeRace(
+    public suspend fun <T> executeRace(
         timeout: Duration? = null,
         blocks: List<suspend () -> T>,
     ): T {
@@ -327,17 +324,15 @@ class TimeLimiter private constructor(
     /**
      * Resets all statistics counters.
      */
-    suspend fun resetStatistics() {
-        atomically {
-            totalCallsVar.write(0L)
-            successfulCallsVar.write(0L)
-            timedOutCallsVar.write(0L)
-            failedCallsVar.write(0L)
-            totalTimeoutDurationVar.write(0L)
+    public suspend fun resetStatistics() {
+        mutex.withLock {
+            totalCalls = 0L
+            successfulCalls = 0L
+            timedOutCalls = 0L
+            failedCalls = 0L
+            totalTimeoutDuration = 0L
         }
     }
-
-
 }
 
 /**
@@ -346,9 +341,9 @@ class TimeLimiter private constructor(
  * @property timeout Default timeout duration (default: 30 seconds)
  * @property onTimeout Strategy for handling timeouts (default: THROW)
  */
-data class TimeLimiterConfig(
-    val timeout: Duration = 30.seconds,
-    val onTimeout: TimeoutStrategy = TimeoutStrategy.THROW,
+public data class TimeLimiterConfig(
+    public val timeout: Duration = 30.seconds,
+    public val onTimeout: TimeoutStrategy = TimeoutStrategy.THROW,
 ) {
     init {
         require(timeout > Duration.ZERO) {
@@ -360,7 +355,7 @@ data class TimeLimiterConfig(
 /**
  * Strategy for handling timeouts.
  */
-enum class TimeoutStrategy {
+public enum class TimeoutStrategy {
     /**
      * Throw TimeoutCancellationException (default behavior).
      */
@@ -386,28 +381,28 @@ enum class TimeoutStrategy {
  * @property failedCalls Total number of failed calls
  * @property averageTimeoutDuration Average duration of timed-out calls
  */
-data class TimeLimiterStatistics(
-    val totalCalls: Long,
-    val successfulCalls: Long,
-    val timedOutCalls: Long,
-    val failedCalls: Long,
-    val averageTimeoutDuration: Duration,
+public data class TimeLimiterStatistics(
+    public val totalCalls: Long,
+    public val successfulCalls: Long,
+    public val timedOutCalls: Long,
+    public val failedCalls: Long,
+    public val averageTimeoutDuration: Duration,
 ) {
-    val successRate: Double
+    public val successRate: Double
         get() = if (totalCalls > 0) {
             successfulCalls.toDouble() / totalCalls
         } else {
             0.0
         }
 
-    val timeoutRate: Double
+    public val timeoutRate: Double
         get() = if (totalCalls > 0) {
             timedOutCalls.toDouble() / totalCalls
         } else {
             0.0
         }
 
-    val failureRate: Double
+    public val failureRate: Double
         get() = if (totalCalls > 0) {
             failedCalls.toDouble() / totalCalls
         } else {
@@ -418,27 +413,27 @@ data class TimeLimiterStatistics(
 /**
  * Listener for time limiter events.
  */
-interface TimeLimiterListener {
+public interface TimeLimiterListener {
     /**
      * Called when an operation completes successfully.
      *
      * @param durationMs Duration of the operation in milliseconds
      */
-    fun onSuccess(durationMs: Long) {}
+    public fun onSuccess(durationMs: Long) {}
 
     /**
      * Called when an operation times out.
      *
      * @param timeout The timeout duration that was exceeded
      */
-    fun onTimeout(timeout: Duration) {}
+    public fun onTimeout(timeout: Duration) {}
 
     /**
      * Called when an operation fails (not due to timeout).
      *
      * @param exception The exception that occurred
      */
-    fun onFailure(exception: Exception) {}
+    public fun onFailure(exception: Exception) {}
 }
 
 /**
@@ -452,20 +447,20 @@ interface TimeLimiterListener {
  * }
  * ```
  */
-suspend fun timeLimiter(configure: TimeLimiterConfigBuilder.() -> Unit): TimeLimiter {
+public fun timeLimiter(configure: TimeLimiterConfigBuilder.() -> Unit): TimeLimiter {
     val builder = TimeLimiterConfigBuilder()
     builder.configure()
-    return TimeLimiter.create(builder.build())
+    return TimeLimiter(builder.build())
 }
 
 /**
  * Builder for time limiter configuration.
  */
-class TimeLimiterConfigBuilder {
-    var timeout: Duration = 30.seconds
-    var onTimeout: TimeoutStrategy = TimeoutStrategy.THROW
+public class TimeLimiterConfigBuilder {
+    public var timeout: Duration = 30.seconds
+    public var onTimeout: TimeoutStrategy = TimeoutStrategy.THROW
 
-    fun build(): TimeLimiterConfig {
+    public fun build(): TimeLimiterConfig {
         return TimeLimiterConfig(
             timeout = timeout,
             onTimeout = onTimeout,
@@ -489,13 +484,13 @@ class TimeLimiterConfigBuilder {
  * }
  * ```
  */
-class TimeLimiterRegistry {
+public class TimeLimiterRegistry {
     private val limiters = mutableMapOf<String, TimeLimiter>()
 
     /**
      * Gets an existing time limiter or creates a new one.
      */
-    suspend fun getOrCreate(
+    public fun getOrCreate(
         name: String,
         configure: (TimeLimiterConfigBuilder.() -> Unit)? = null,
     ): TimeLimiter {
@@ -503,7 +498,7 @@ class TimeLimiterRegistry {
             if (configure != null) {
                 timeLimiter(configure)
             } else {
-                TimeLimiter.create()
+                TimeLimiter()
             }
         }
     }
@@ -511,35 +506,35 @@ class TimeLimiterRegistry {
     /**
      * Gets an existing time limiter by name.
      */
-    fun get(name: String): TimeLimiter? {
+    public fun get(name: String): TimeLimiter? {
         return limiters[name]
     }
 
     /**
      * Removes a time limiter from the registry.
      */
-    fun remove(name: String): TimeLimiter? {
+    public fun remove(name: String): TimeLimiter? {
         return limiters.remove(name)
     }
 
     /**
      * Resets statistics for all time limiters in the registry.
      */
-    suspend fun resetAllStatistics() {
+    public suspend fun resetAllStatistics() {
         limiters.values.forEach { it.resetStatistics() }
     }
 
     /**
      * Gets all time limiter names in the registry.
      */
-    fun getNames(): Set<String> {
+    public fun getNames(): Set<String> {
         return limiters.keys.toSet()
     }
 
     /**
      * Gets statistics for all time limiters.
      */
-    suspend fun getAllStatistics(): Map<String, TimeLimiterStatistics> {
+    public suspend fun getAllStatistics(): Map<String, TimeLimiterStatistics> {
         return limiters.mapValues { (_, limiter) ->
             limiter.statistics()
         }
@@ -556,11 +551,11 @@ class TimeLimiterRegistry {
  * }
  * ```
  */
-suspend fun <T> withTimeLimit(
+public suspend fun <T> withTimeLimit(
     timeout: Duration,
     block: suspend () -> T,
 ): T {
-    return TimeLimiter.create(TimeLimiterConfig(timeout = timeout)).execute(block = block)
+    return TimeLimiter(TimeLimiterConfig(timeout = timeout)).execute(block = block)
 }
 
 /**
@@ -573,11 +568,11 @@ suspend fun <T> withTimeLimit(
  * }
  * ```
  */
-suspend fun <T> withTimeLimitOrDefault(
+public suspend fun <T> withTimeLimitOrDefault(
     timeout: Duration,
     default: T,
     block: suspend () -> T,
 ): T {
-    return TimeLimiter.create(TimeLimiterConfig(timeout = timeout))
+    return TimeLimiter(TimeLimiterConfig(timeout = timeout))
         .executeOrDefault(default = default, block = block)
 }

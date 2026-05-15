@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Sorin Albu-Irimies
 
+package ro.sorinirmies.arrow.resiliencekit
 
-import arrow.fx.stm.TVar
-import arrow.fx.stm.atomically
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import mu.KotlinLogging
@@ -14,7 +14,7 @@ import kotlin.time.Duration.Companion.seconds
 private val logger = KotlinLogging.logger {}
 
 /**
- * Circuit Breaker pattern implementation for fault tolerance using Arrow STM.
+ * Circuit breaker pattern to prevent cascading failures.
  *
  * The circuit breaker prevents cascading failures by stopping calls to failing services.
  * It has three states: Closed (normal), Open (failing), and Half-Open (testing recovery).
@@ -32,67 +32,79 @@ private val logger = KotlinLogging.logger {}
  * Half-Open -> Open: When any failure occurs
  * ```
  *
- * @param config Configuration for circuit breaker behavior
+ * **Basic usage:**
+ * ```kotlin
+ * val breaker = CircuitBreaker(config = CircuitBreakerConfig(
+ *     failureThreshold = 5,
+ *     resetTimeout = 30.seconds
+ * ))
  *
- * Example usage:
- * ```
- * val circuitBreaker = CircuitBreaker.create(
- *     config = CircuitBreakerConfig(
- *         failureThreshold = 5,
- *         successThreshold = 3,
- *         timeout = 60.seconds
- *     )
- * )
- *
- * val result = circuitBreaker.execute {
- *     externalService.call()
+ * val result = breaker.execute {
+ *     callExternalService()
  * }
  * ```
+ *
+ * **With fallback:**
+ * ```kotlin
+ * val result = breaker.executeOrFallback(
+ *     fallback = { cachedValue() }
+ * ) {
+ *     callExternalService()
+ * }
+ * ```
+ *
+ * **State monitoring:**
+ * ```kotlin
+ * when (breaker.currentState()) {
+ *     CircuitBreakerState.Closed -> println("Service healthy")
+ *     CircuitBreakerState.Open -> println("Service unavailable")
+ *     CircuitBreakerState.HalfOpen -> println("Testing service...")
+ * }
+ * ```
+ *
+ * **DSL builder:**
+ * ```kotlin
+ * val breaker = circuitBreaker {
+ *     failureThreshold = 5
+ *     resetTimeout = 30.seconds
+ *     halfOpenSuccessThreshold = 3
+ * }
+ * ```
+ *
+ * @param config Configuration for circuit breaker behavior
  */
-class CircuitBreaker private constructor(
-    private val config: CircuitBreakerConfig,
-    private val stateVar: TVar<CircuitBreakerState>,
-    private val failureCountVar: TVar<Int>,
-    private val successCountVar: TVar<Int>,
-    private val lastFailureTimeVar: TVar<Instant?>
+public class CircuitBreaker(
+    private val config: CircuitBreakerConfig = CircuitBreakerConfig(),
+    internal val clock: Clock = Clock.System,
 ) {
-    companion object {
-        /**
-         * Creates a new CircuitBreaker instance with the given configuration.
-         */
-        suspend fun create(config: CircuitBreakerConfig = CircuitBreakerConfig()): CircuitBreaker {
-            return CircuitBreaker(
-                config = config,
-                stateVar = TVar.new(CircuitBreakerState.Closed),
-                failureCountVar = TVar.new(0),
-                successCountVar = TVar.new(0),
-                lastFailureTimeVar = TVar.new(null)
-            )
-        }
+    private val mutex = Mutex()
+    private var state: CircuitBreakerState = CircuitBreakerState.Closed
+    private var failureCount: Int = 0
+    private var successCount: Int = 0
+    private var lastFailureTime: Instant? = null
+    private val listeners = mutableListOf<CircuitBreakerListener>()
+
+    /**
+     * Adds a listener for circuit breaker state changes.
+     */
+    public fun addListener(listener: CircuitBreakerListener) {
+        listeners.add(listener)
     }
 
     /**
      * Gets the current state of the circuit breaker.
      */
-    suspend fun currentState(): CircuitBreakerState = atomically {
-        stateVar.read()
-    }
+    public suspend fun currentState(): CircuitBreakerState = mutex.withLock { state }
 
     /**
      * Gets the current failure count.
      */
-    suspend fun failures(): Int = atomically {
-        failureCountVar.read()
-    }
+    public suspend fun failures(): Int = mutex.withLock { failureCount }
 
     /**
      * Gets the current success count (in half-open state).
      */
-    suspend fun successes(): Int = atomically {
-        successCountVar.read()
-    }
-
-
+    public suspend fun successes(): Int = mutex.withLock { successCount }
 
     /**
      * Executes an operation through the circuit breaker.
@@ -102,10 +114,10 @@ class CircuitBreaker private constructor(
      * @throws CircuitBreakerOpenException if the circuit is open
      * @throws Exception if the operation fails
      */
-    suspend fun <T> execute(block: suspend () -> T): T {
+    public suspend fun <T> execute(block: suspend () -> T): T {
         checkAndUpdateState()
 
-        val currentState = atomically { stateVar.read() }
+        val currentState = mutex.withLock { state }
 
         return when (currentState) {
             CircuitBreakerState.Open -> {
@@ -130,7 +142,7 @@ class CircuitBreaker private constructor(
      * @param block The primary operation to execute
      * @return The result of the operation or fallback
      */
-    suspend fun <T> executeOrFallback(
+    public suspend fun <T> executeOrFallback(
         fallback: suspend (CircuitBreakerOpenException) -> T,
         block: suspend () -> T,
     ): T {
@@ -145,34 +157,34 @@ class CircuitBreaker private constructor(
     /**
      * Manually resets the circuit breaker to closed state.
      */
-    suspend fun reset() {
-        atomically {
-            failureCountVar.write(0)
-            successCountVar.write(0)
-            lastFailureTimeVar.write(null)
-            val oldState = stateVar.read()
-            stateVar.write(CircuitBreakerState.Closed)
-            oldState
-        }.also { oldState ->
-            if (oldState != CircuitBreakerState.Closed) {
-                logger.info { "Manually resetting circuit breaker from $oldState to Closed" }
-            }
+    public suspend fun reset() {
+        val oldState = mutex.withLock {
+            val old = state
+            failureCount = 0
+            successCount = 0
+            lastFailureTime = null
+            state = CircuitBreakerState.Closed
+            old
+        }
+        if (oldState != CircuitBreakerState.Closed) {
+            logger.info { "Manually resetting circuit breaker from $oldState to Closed" }
+            notifyListeners(oldState, CircuitBreakerState.Closed)
         }
     }
 
     /**
      * Manually opens the circuit breaker.
      */
-    suspend fun trip() {
-        atomically {
-            val oldState = stateVar.read()
-            stateVar.write(CircuitBreakerState.Open)
-            lastFailureTimeVar.write(Clock.System.now())
-            oldState
-        }.also { oldState ->
-            if (oldState != CircuitBreakerState.Open) {
-                logger.warn { "Manually tripping circuit breaker from $oldState to Open" }
-            }
+    public suspend fun trip() {
+        val oldState = mutex.withLock {
+            val old = state
+            state = CircuitBreakerState.Open
+            lastFailureTime = clock.now()
+            old
+        }
+        if (oldState != CircuitBreakerState.Open) {
+            logger.warn { "Manually tripping circuit breaker from $oldState to Open" }
+            notifyListeners(oldState, CircuitBreakerState.Open)
         }
     }
 
@@ -199,36 +211,36 @@ class CircuitBreaker private constructor(
     }
 
     private suspend fun checkAndUpdateState() {
-        val (shouldTransition, lastFailure) = atomically {
-            val currentState = stateVar.read()
-            val lastFailure = lastFailureTimeVar.read()
-            Pair(currentState == CircuitBreakerState.Open && lastFailure != null, lastFailure)
+        val (shouldTransition, lastFailure) = mutex.withLock {
+            Pair(state == CircuitBreakerState.Open && lastFailureTime != null, lastFailureTime)
         }
 
         if (shouldTransition && lastFailure != null) {
-            val timeSinceLastFailure = Clock.System.now() - lastFailure
+            val timeSinceLastFailure = clock.now() - lastFailure
             if (timeSinceLastFailure >= config.resetTimeout) {
-                atomically {
-                    val oldState = stateVar.read()
-                    if (oldState == CircuitBreakerState.Open) {
-                        stateVar.write(CircuitBreakerState.HalfOpen)
-                        successCountVar.write(0)
-                        oldState
+                val oldState = mutex.withLock {
+                    if (state == CircuitBreakerState.Open) {
+                        val old = state
+                        state = CircuitBreakerState.HalfOpen
+                        successCount = 0
+                        old
                     } else {
                         null
                     }
-                }?.also { oldState ->
+                }
+                if (oldState != null) {
                     logger.info { "Reset timeout expired, transitioning from $oldState to HALF_OPEN" }
+                    notifyListeners(oldState, CircuitBreakerState.HalfOpen)
                 }
             }
         }
     }
 
     private suspend fun onSuccess() {
-        val previousFailures = atomically {
-            val failures = failureCountVar.read()
+        val previousFailures = mutex.withLock {
+            val failures = failureCount
             if (failures > 0) {
-                failureCountVar.write(0)
+                failureCount = 0
             }
             failures
         }
@@ -239,73 +251,81 @@ class CircuitBreaker private constructor(
     }
 
     private suspend fun onFailure(exception: Exception) {
-        val (newFailures, shouldOpen) = atomically {
-            val failures = failureCountVar.read() + 1
-            failureCountVar.write(failures)
-            lastFailureTimeVar.write(Clock.System.now())
+        val (newFailures, shouldOpen) = mutex.withLock {
+            val failures = failureCount + 1
+            failureCount = failures
+            lastFailureTime = clock.now()
             Pair(failures, failures >= config.failureThreshold)
         }
 
         logger.warn(exception) { "Failure in CLOSED state, count: $newFailures/${config.failureThreshold}" }
 
         if (shouldOpen) {
-            atomically {
-                val oldState = stateVar.read()
-                if (oldState == CircuitBreakerState.Closed) {
-                    stateVar.write(CircuitBreakerState.Open)
-                    oldState
+            val oldState = mutex.withLock {
+                if (state == CircuitBreakerState.Closed) {
+                    val old = state
+                    state = CircuitBreakerState.Open
+                    old
                 } else {
                     null
                 }
-            }?.also { oldState ->
+            }
+            if (oldState != null) {
                 logger.error { "Failure threshold reached ($newFailures), opening circuit breaker from $oldState" }
+                notifyListeners(oldState, CircuitBreakerState.Open)
             }
         }
     }
 
     private suspend fun onSuccessInHalfOpen() {
-        val (newSuccesses, shouldClose) = atomically {
-            val successes = successCountVar.read() + 1
-            successCountVar.write(successes)
+        val (newSuccesses, shouldClose) = mutex.withLock {
+            val successes = successCount + 1
+            successCount = successes
             Pair(successes, successes >= config.halfOpenSuccessThreshold)
         }
 
         logger.info { "Success in HALF_OPEN state, count: $newSuccesses/${config.halfOpenSuccessThreshold}" }
 
         if (shouldClose) {
-            atomically {
-                val oldState = stateVar.read()
-                if (oldState == CircuitBreakerState.HalfOpen) {
-                    failureCountVar.write(0)
-                    successCountVar.write(0)
-                    stateVar.write(CircuitBreakerState.Closed)
-                    oldState
+            val oldState = mutex.withLock {
+                if (state == CircuitBreakerState.HalfOpen) {
+                    val old = state
+                    failureCount = 0
+                    successCount = 0
+                    state = CircuitBreakerState.Closed
+                    old
                 } else {
                     null
                 }
-            }?.also { oldState ->
+            }
+            if (oldState != null) {
                 logger.info { "Success threshold reached, closing circuit breaker from $oldState" }
+                notifyListeners(oldState, CircuitBreakerState.Closed)
             }
         }
     }
 
     private suspend fun onFailureInHalfOpen(exception: Exception) {
-        atomically {
-            val oldState = stateVar.read()
-            if (oldState == CircuitBreakerState.HalfOpen) {
-                successCountVar.write(0)
-                lastFailureTimeVar.write(Clock.System.now())
-                stateVar.write(CircuitBreakerState.Open)
-                oldState
+        val oldState = mutex.withLock {
+            if (state == CircuitBreakerState.HalfOpen) {
+                val old = state
+                successCount = 0
+                lastFailureTime = clock.now()
+                state = CircuitBreakerState.Open
+                old
             } else {
                 null
             }
-        }?.also { oldState ->
+        }
+        if (oldState != null) {
             logger.error(exception) { "Failure in HALF_OPEN state, re-opening circuit breaker from $oldState" }
+            notifyListeners(oldState, CircuitBreakerState.Open)
         }
     }
 
-
+    private fun notifyListeners(oldState: CircuitBreakerState, newState: CircuitBreakerState) {
+        listeners.forEach { it.onStateChange(oldState, newState) }
+    }
 }
 
 /**
@@ -316,11 +336,11 @@ class CircuitBreaker private constructor(
  * @property halfOpenSuccessThreshold Number of successes needed in Half-Open state to close circuit (default: 2)
  * @property halfOpenMaxCalls Maximum number of calls allowed in Half-Open state (default: 3)
  */
-data class CircuitBreakerConfig(
-    val failureThreshold: Int = 5,
-    val resetTimeout: Duration = 30.seconds,
-    val halfOpenSuccessThreshold: Int = 2,
-    val halfOpenMaxCalls: Int = 3,
+public data class CircuitBreakerConfig(
+    public val failureThreshold: Int = 5,
+    public val resetTimeout: Duration = 30.seconds,
+    public val halfOpenSuccessThreshold: Int = 2,
+    public val halfOpenMaxCalls: Int = 3,
 ) {
     init {
         require(failureThreshold > 0) { "failureThreshold must be > 0, but was $failureThreshold" }
@@ -333,27 +353,16 @@ data class CircuitBreakerConfig(
 /**
  * Circuit breaker state.
  */
-enum class CircuitBreakerState {
-    /**
-     * Normal operation, all calls are allowed.
-     */
+public enum class CircuitBreakerState {
     Closed,
-
-    /**
-     * Circuit is broken, all calls fail immediately without executing.
-     */
     Open,
-
-    /**
-     * Testing recovery, limited calls are allowed to test if service has recovered.
-     */
     HalfOpen
 }
 
 /**
  * Exception thrown when circuit breaker is open.
  */
-class CircuitBreakerOpenException(
+public class CircuitBreakerOpenException(
     message: String,
     cause: Throwable? = null,
 ) : Exception(message, cause)
@@ -361,44 +370,29 @@ class CircuitBreakerOpenException(
 /**
  * Listener for circuit breaker state changes.
  */
-fun interface CircuitBreakerListener {
-    /**
-     * Called when the circuit breaker state changes.
-     *
-     * @param oldState The previous state
-     * @param newState The new state
-     */
-    fun onStateChange(oldState: CircuitBreakerState, newState: CircuitBreakerState)
+public fun interface CircuitBreakerListener {
+    public fun onStateChange(oldState: CircuitBreakerState, newState: CircuitBreakerState)
 }
 
 /**
  * Creates a circuit breaker with DSL-style configuration.
- *
- * Example usage:
- * ```
- * val breaker = circuitBreaker {
- *     failureThreshold = 5
- *     resetTimeout = 30.seconds
- *     halfOpenSuccessThreshold = 2
- * }
- * ```
  */
-suspend fun circuitBreaker(configure: CircuitBreakerConfigBuilder.() -> Unit): CircuitBreaker {
+public fun circuitBreaker(configure: CircuitBreakerConfigBuilder.() -> Unit): CircuitBreaker {
     val builder = CircuitBreakerConfigBuilder()
     builder.configure()
-    return CircuitBreaker.create(builder.build())
+    return CircuitBreaker(builder.build())
 }
 
 /**
  * Builder for circuit breaker configuration.
  */
-class CircuitBreakerConfigBuilder {
-    var failureThreshold: Int = 5
-    var resetTimeout: Duration = 30.seconds
-    var halfOpenSuccessThreshold: Int = 2
-    var halfOpenMaxCalls: Int = 3
+public class CircuitBreakerConfigBuilder {
+    public var failureThreshold: Int = 5
+    public var resetTimeout: Duration = 30.seconds
+    public var halfOpenSuccessThreshold: Int = 2
+    public var halfOpenMaxCalls: Int = 3
 
-    fun build(): CircuitBreakerConfig {
+    public fun build(): CircuitBreakerConfig {
         return CircuitBreakerConfig(
             failureThreshold = failureThreshold,
             resetTimeout = resetTimeout,
@@ -410,36 +404,11 @@ class CircuitBreakerConfigBuilder {
 
 /**
  * Registry for managing multiple named circuit breakers.
- *
- * Useful for managing circuit breakers for different services or endpoints.
- *
- * Example usage:
- * ```
- * val registry = CircuitBreakerRegistry()
- *
- * // Create circuit breakers for different services
- * val userServiceBreaker = registry.getOrCreate("user-service") {
- *     failureThreshold = 5
- *     resetTimeout = 30.seconds
- * }
- *
- * val paymentServiceBreaker = registry.getOrCreate("payment-service") {
- *     failureThreshold = 3
- *     resetTimeout = 60.seconds
- * }
- * ```
  */
-class CircuitBreakerRegistry {
+public class CircuitBreakerRegistry {
     private val breakers = mutableMapOf<String, CircuitBreaker>()
 
-    /**
-     * Gets an existing circuit breaker or creates a new one.
-     *
-     * @param name The name of the circuit breaker
-     * @param configure Optional configuration block
-     * @return The circuit breaker instance
-     */
-    suspend fun getOrCreate(
+    public fun getOrCreate(
         name: String,
         configure: (CircuitBreakerConfigBuilder.() -> Unit)? = null,
     ): CircuitBreaker {
@@ -447,49 +416,28 @@ class CircuitBreakerRegistry {
             if (configure != null) {
                 circuitBreaker(configure)
             } else {
-                CircuitBreaker.create()
+                CircuitBreaker()
             }
         }
     }
 
-    /**
-     * Gets an existing circuit breaker by name.
-     *
-     * @param name The name of the circuit breaker
-     * @return The circuit breaker instance or null if not found
-     */
-    fun get(name: String): CircuitBreaker? {
+    public fun get(name: String): CircuitBreaker? {
         return breakers[name]
     }
 
-    /**
-     * Removes a circuit breaker from the registry.
-     *
-     * @param name The name of the circuit breaker to remove
-     * @return The removed circuit breaker or null if not found
-     */
-    fun remove(name: String): CircuitBreaker? {
+    public fun remove(name: String): CircuitBreaker? {
         return breakers.remove(name)
     }
 
-    /**
-     * Resets all circuit breakers in the registry.
-     */
-    suspend fun resetAll() {
+    public suspend fun resetAll() {
         breakers.values.forEach { it.reset() }
     }
 
-    /**
-     * Gets all circuit breaker names in the registry.
-     */
-    fun getNames(): Set<String> {
+    public fun getNames(): Set<String> {
         return breakers.keys.toSet()
     }
 
-    /**
-     * Gets statistics for all circuit breakers.
-     */
-    suspend fun getStatistics(): Map<String, CircuitBreakerStats> {
+    public suspend fun getStatistics(): Map<String, CircuitBreakerStats> {
         return breakers.mapValues { (_, breaker) ->
             CircuitBreakerStats(
                 state = breaker.currentState(),
@@ -503,8 +451,8 @@ class CircuitBreakerRegistry {
 /**
  * Statistics for a circuit breaker.
  */
-data class CircuitBreakerStats(
-    val state: CircuitBreakerState,
-    val failures: Int,
-    val successes: Int,
+public data class CircuitBreakerStats(
+    public val state: CircuitBreakerState,
+    public val failures: Int,
+    public val successes: Int,
 )

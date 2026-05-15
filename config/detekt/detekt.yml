@@ -1,0 +1,125 @@
+build:
+  maxIssues: 0
+
+complexity:
+  LongMethod:
+    threshold: 80
+  CyclomaticComplexMethod:
+    threshold: 20
+  LongParameterList:
+    functionThreshold: 8
+    constructorThreshold: 8
+  TooManyFunctions:
+    thresholdInFiles: 30
+    thresholdInClasses: 25
+  NestedBlockDepth:
+    threshold: 6
+  ComplexCondition:
+    threshold: 5
+  StringLiteralDuplication:
+    threshold: 5
+    ignoreAnnotation: true
+    excludeStringsWithLessThan5Characters: true
+
+naming:
+  FunctionNaming:
+    active: true
+    functionPattern: "[a-zA-Z][a-zA-Z0-9]*"
+  MatchingDeclarationName:
+    active: false
+  ClassNaming:
+    classPattern: "[A-Z][a-zA-Z0-9]*"
+  PackageNaming:
+    packagePattern: '[a-z]+(\.[a-z][a-z0-9]*)*'
+  TopLevelPropertyNaming:
+    constantPattern: "[A-Z][A-Za-z0-9_]*"
+    propertyPattern: "[a-z][a-zA-Z0-9]*"
+
+style:
+  MagicNumber:
+    active: false
+  MaxLineLength:
+    maxLineLength: 150
+  WildcardImport:
+    active: false
+  ReturnCount:
+    max: 5
+  ThrowsCount:
+    max: 8
+  UseCheckOrError:
+    active: false
+  LoopWithTooManyJumpStatements:
+    active: false
+  UnnecessaryAbstractClass:
+    active: true
+  DataClassContainsFunctions:
+    active: false
+  DataClassShouldBeImmutable:
+    active: true
+  EqualsNullCall:
+    active: true
+  ForbiddenComment:
+    active: true
+    values:
+      - "FIXME"
+      - "STOPSHIP"
+      - "HACK"
+    allowedPatterns: "TODO"
+  UnnecessaryLet:
+    active: true
+  UnnecessaryApply:
+    active: true
+  RedundantVisibilityModifierRule:
+    active: false # We want explicit visibility with explicitApi()
+  OptionalAbstractKeyword:
+    active: true
+  SerialVersionUIDInSerializableClass:
+    active: false # KMP doesn't use Java serialization
+  UseDataClass:
+    active: true
+    allowVars: false
+
+potential-bugs:
+  UnsafeCast:
+    active: true
+  EqualsWithHashCodeExist:
+    active: true
+  InvalidRange:
+    active: true
+  IteratorNotThrowingNoSuchElementException:
+    active: true
+  UnreachableCatchBlock:
+    active: true
+  UselessPostfixExpression:
+    active: true
+
+exceptions:
+  TooGenericExceptionCaught:
+    active: false
+  TooGenericExceptionThrown:
+    active: false
+  SwallowedException:
+    active: false
+  RethrowCaughtException:
+    active: false
+
+performance:
+  ArrayPrimitive:
+    active: true
+  CouldBeSequence:
+    active: true
+    threshold: 4
+  ForEachOnRange:
+    active: true
+  SpreadOperator:
+    active: false # Common in KMP DSLs
+  UnnecessaryTemporaryInstantiation:
+    active: true
+
+coroutines:
+  GlobalCoroutineUsage:
+    active: true
+  RedundantSuspendModifier:
+    active: true
+  SuspendFunWithFlowReturnType:
+    active: true

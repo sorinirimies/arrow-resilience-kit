@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.dokka)
+    alias(libs.plugins.detekt)
     `maven-publish`
     signing
 }
@@ -16,13 +17,31 @@ apply(from = "gradle/publishing.gradle.kts")
 group = "ro.sorinirmies.arrow"
 version = "0.2.0"
 
-// Dokka configuration
-subprojects {
-    apply(plugin = "org.jetbrains.dokka")
-}
-
 repositories {
     mavenCentral()
+}
+
+detekt {
+    buildUponDefaultConfig = true
+    config.setFrom(files("config/detekt/detekt.yml"))
+    basePath = projectDir.absolutePath
+    source.setFrom(
+        files(
+            "src/commonMain/kotlin",
+            "src/commonTest/kotlin",
+            "src/jvmMain/kotlin",
+            "src/jvmTest/kotlin"
+        )
+    )
+}
+
+tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
+    reports {
+        html.required.set(true)
+        xml.required.set(false)
+        txt.required.set(false)
+        sarif.required.set(false)
+    }
 }
 
 kotlin {
@@ -33,16 +52,16 @@ kotlin {
             useJUnitPlatform()
         }
     }
-    
+
     js(IR) {
         browser()
         nodejs()
     }
-    
+
     linuxX64()
     macosX64()
     macosArm64()
-    
+
     sourceSets {
         val commonMain by getting {
             dependencies {
@@ -55,7 +74,7 @@ kotlin {
                 implementation(libs.kotlin.logging)
             }
         }
-        
+
         val commonTest by getting {
             dependencies {
                 implementation(kotlin("test"))
@@ -63,7 +82,7 @@ kotlin {
                 implementation(libs.kotest.assertions.core)
             }
         }
-        
+
         val jvmMain by getting
         val jvmTest by getting {
             dependencies {
@@ -71,28 +90,27 @@ kotlin {
             }
         }
     }
-    
+
     // Explicit API mode for better library hygiene
-    // TODO: Enable once all public APIs have explicit visibility modifiers
-    // explicitApi()
+    explicitApi()
 }
 
 // Configure Dokka for better documentation
 tasks.dokkaHtml.configure {
     outputDirectory.set(layout.buildDirectory.dir("docs"))
-    
+
     dokkaSourceSets {
         named("commonMain") {
             moduleName.set("Arrow Resilience Kit")
-            
+
             includes.from("Module.md")
-            
+
             sourceLink {
                 localDirectory.set(file("src/commonMain/kotlin"))
                 remoteUrl.set(uri("https://github.com/sorinirimies/arrow-resilience-kit/tree/main/src/commonMain/kotlin").toURL())
                 remoteLineSuffix.set("#L")
             }
-            
+
             // Package documentation
             perPackageOption {
                 matchingRegex.set(".*")
@@ -100,18 +118,18 @@ tasks.dokkaHtml.configure {
                 reportUndocumented.set(true)
                 skipDeprecated.set(false)
             }
-            
+
             // External documentation links
             externalDocumentationLink {
                 url.set(uri("https://arrow-kt.io/docs/").toURL())
             }
-            
+
             externalDocumentationLink {
                 url.set(uri("https://kotlinlang.org/api/kotlinx.coroutines/").toURL())
             }
         }
     }
-    
+
     pluginsMapConfiguration.set(
         mapOf(
             "org.jetbrains.dokka.base.DokkaBase" to """
@@ -119,7 +137,7 @@ tasks.dokkaHtml.configure {
                     "customStyleSheets": [],
                     "customAssets": [],
                     "separateInheritedMembers": false,
-                    "footerMessage": "© 2024 Arrow Resilience Kit"
+                    "footerMessage": "© 2025 Arrow Resilience Kit"
                 }
             """
         )
@@ -131,11 +149,11 @@ tasks.register<Copy>("prepareDocs") {
     dependsOn(tasks.dokkaHtml)
     from(layout.buildDirectory.dir("docs"))
     into(file("docs"))
-    
+
     doLast {
         // Create .nojekyll to bypass Jekyll processing
         file("docs/.nojekyll").writeText("")
-        
+
         println("Documentation prepared in docs/ directory")
         println("Commit and push docs/ to publish to GitHub Pages")
     }

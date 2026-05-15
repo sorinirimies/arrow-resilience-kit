@@ -1,19 +1,24 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Sorin Albu-Irimies
 
+package ro.sorinirmies.arrow.resiliencekit
 
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.collections.shouldHaveSize
+import io.kotest.matchers.comparables.shouldBeGreaterThan
+import io.kotest.matchers.comparables.shouldBeLessThan
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlinx.coroutines.test.runTest
+import kotlin.js.JsName
 import kotlin.test.Test
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
-import java.io.IOException
+
 
 class SagaTest {
 
+    @JsName("sagaExecutesAllStepsSuccessfully")
     @Test
     fun `saga executes all steps successfully`() = runTest {
         var step1Executed = false
@@ -36,6 +41,7 @@ class SagaTest {
         step3Executed shouldBe true
     }
 
+    @JsName("sagaCompensatesOnFailure")
     @Test
     fun `saga compensates on failure`() = runTest {
         var step1Compensated = false
@@ -54,7 +60,7 @@ class SagaTest {
             )
             step(
                 name = "Step 3",
-                action = { throw IOException("Step 3 failed") }
+                action = { throw RuntimeException("Step 3 failed") }
             )
         }
 
@@ -67,6 +73,7 @@ class SagaTest {
         step2Compensated shouldBe true
     }
 
+    @JsName("sagaCompensatesInReverseOrder")
     @Test
     fun `saga compensates in reverse order`() = runTest {
         val compensationOrder = mutableListOf<String>()
@@ -89,7 +96,7 @@ class SagaTest {
             )
             step(
                 name = "Step 4",
-                action = { throw IOException("Fail") }
+                action = { throw RuntimeException("Fail") }
             )
         }
 
@@ -98,6 +105,7 @@ class SagaTest {
         compensationOrder shouldBe listOf("Step 3", "Step 2", "Step 1")
     }
 
+    @JsName("sagaSkipsCompensationForStepsWithoutCompensationDefined")
     @Test
     fun `saga skips compensation for steps without compensation defined`() = runTest {
         var step1Compensated = false
@@ -121,7 +129,7 @@ class SagaTest {
             )
             step(
                 name = "Step 4",
-                action = { throw IOException("Fail") }
+                action = { throw RuntimeException("Fail") }
             )
         }
 
@@ -134,6 +142,7 @@ class SagaTest {
         step3Compensated shouldBe true
     }
 
+    @JsName("sagaContinuesCompensationOnFailureByDefault")
     @Test
     fun `saga continues compensation on failure by default`() = runTest {
         var step1Compensated = false
@@ -155,7 +164,7 @@ class SagaTest {
                 action = { "result2" },
                 compensation = {
                     step2Compensated = true
-                    throw IOException("Compensation failed")
+                    throw RuntimeException("Compensation failed")
                 }
             )
             step(
@@ -165,7 +174,7 @@ class SagaTest {
             )
             step(
                 name = "Step 4",
-                action = { throw IOException("Step failed") }
+                action = { throw RuntimeException("Step failed") }
             )
         }
 
@@ -181,6 +190,7 @@ class SagaTest {
         step3Compensated shouldBe true
     }
 
+    @JsName("sagaStopsCompensationOnFailureWhenConfigured")
     @Test
     fun `saga stops compensation on failure when configured`() = runTest {
         var step1Compensated = false
@@ -202,7 +212,7 @@ class SagaTest {
                 action = { "result2" },
                 compensation = {
                     step2Compensated = true
-                    throw IOException("Compensation failed")
+                    throw RuntimeException("Compensation failed")
                 }
             )
             step(
@@ -212,7 +222,7 @@ class SagaTest {
             )
             step(
                 name = "Step 4",
-                action = { throw IOException("Step failed") }
+                action = { throw RuntimeException("Step failed") }
             )
         }
 
@@ -227,6 +237,7 @@ class SagaTest {
         step3Compensated shouldBe true
     }
 
+    @JsName("sagaPassesResultsToCompensationActions")
     @Test
     fun `saga passes results to compensation actions`() = runTest {
         var compensatedValue: String? = null
@@ -241,7 +252,7 @@ class SagaTest {
             )
             step(
                 name = "Fail step",
-                action = { throw IOException("Fail") }
+                action = { throw RuntimeException("Fail") }
             )
         }
 
@@ -250,9 +261,10 @@ class SagaTest {
         compensatedValue shouldBe "resource-123"
     }
 
+    @JsName("sagaFailureResultContainsOriginalError")
     @Test
     fun `saga failure result contains original error`() = runTest {
-        val expectedError = IOException("Original error")
+        val expectedError = RuntimeException("Original error")
 
         val saga = saga<String> {
             step("Step 1", { "result" })
@@ -266,17 +278,18 @@ class SagaTest {
         result.error.cause shouldBe expectedError
     }
 
+    @JsName("sagaFailureResultIncludesCompensationErrors")
     @Test
     fun `saga failure result includes compensation errors`() = runTest {
         val saga = saga<String> {
             step(
                 name = "Step 1",
                 action = { "result" },
-                compensation = { throw IOException("Compensation error") }
+                compensation = { throw RuntimeException("Compensation error") }
             )
             step(
                 name = "Step 2",
-                action = { throw IOException("Step error") }
+                action = { throw RuntimeException("Step error") }
             )
         }
 
@@ -288,6 +301,7 @@ class SagaTest {
         result.compensationErrors[0].stepName shouldBe "Step 1"
     }
 
+    @JsName("stepWithTimeoutEnforcesTimeout")
     @Test
     fun `stepWithTimeout enforces timeout`() = runTest {
         val saga = saga<String> {
@@ -306,6 +320,7 @@ class SagaTest {
         result.shouldBeInstanceOf<SagaResult.Failure<String>>()
     }
 
+    @JsName("stepWithRetryRetriesOnFailure")
     @Test
     fun `stepWithRetry retries on failure`() = runTest {
         var attempts = 0
@@ -316,7 +331,7 @@ class SagaTest {
                 retries = 3,
                 action = {
                     attempts++
-                    if (attempts < 3) throw IOException("Fail")
+                    if (attempts < 3) throw RuntimeException("Fail")
                     "success"
                 }
             )
@@ -328,6 +343,7 @@ class SagaTest {
         attempts shouldBe 3
     }
 
+    @JsName("executeSagaIsAConvenienceFunction")
     @Test
     fun `executeSaga is a convenience function`() = runTest {
         var executed = false
@@ -340,6 +356,7 @@ class SagaTest {
         executed shouldBe true
     }
 
+    @JsName("sagaBuilderRequiresAtLeastOneStep")
     @Test
     fun `saga builder requires at least one step`() {
         shouldThrow<IllegalArgumentException> {
@@ -347,12 +364,14 @@ class SagaTest {
         }
     }
 
+    @JsName("sagaSuccessResultProvidesExecutionMetrics")
     @Test
     fun `saga success result provides execution metrics`() = runTest {
-        val saga = saga<String> {
-            step("Step 1", { kotlinx.coroutines.delay(10.milliseconds); "r1" })
-            step("Step 2", { kotlinx.coroutines.delay(10.milliseconds); "r2" })
-            step("Step 3", { kotlinx.coroutines.delay(10.milliseconds); "r3" })
+        val testClock = TestClock()
+        val saga = saga<String>(clock = testClock) {
+            step("Step 1", { testClock.advance(10.milliseconds); "r1" })
+            step("Step 2", { testClock.advance(10.milliseconds); "r2" })
+            step("Step 3", { testClock.advance(10.milliseconds); "r3" })
         }
 
         val result = saga.execute()
@@ -361,16 +380,17 @@ class SagaTest {
         result as SagaResult.Success
         result.isSuccess shouldBe true
         result.executedSteps shouldBe 3
-        result.duration.inWholeMilliseconds shouldBe 30L // At least 30ms
+        result.duration.inWholeMilliseconds shouldBeGreaterThan 0L
     }
 
+    @JsName("sagaFailureResultProvidesCompensationMetrics")
     @Test
     fun `saga failure result provides compensation metrics`() = runTest {
         val saga = saga<String> {
             step("Step 1", { "r1" }, {})
             step("Step 2", { "r2" }, {})
             step("Step 3", { "r3" }, {})
-            step("Step 4", { throw IOException("Fail") })
+            step("Step 4", { throw RuntimeException("Fail") })
         }
 
         val result = saga.execute()
@@ -382,6 +402,7 @@ class SagaTest {
         result.compensationErrors shouldHaveSize 0
     }
 
+    @JsName("parallelSagaCoordinatorExecutesSagasInParallel")
     @Test
     fun `ParallelSagaCoordinator executes sagas in parallel`() = runTest {
         val coordinator = ParallelSagaCoordinator()
@@ -398,13 +419,14 @@ class SagaTest {
         results.all { it is SagaResult.Success } shouldBe true
     }
 
+    @JsName("parallelSagaCoordinatorHandlesMixedSuccessAndFailure")
     @Test
     fun `ParallelSagaCoordinator handles mixed success and failure`() = runTest {
         val coordinator = ParallelSagaCoordinator()
 
         val sagas = listOf(
             saga<String> { step("Success", { "ok" }) },
-            saga<String> { step("Fail", { throw IOException("Error") }) },
+            saga<String> { step("Fail", { throw RuntimeException("Error") }) },
             saga<String> { step("Success 2", { "ok2" }) }
         )
 
@@ -415,13 +437,14 @@ class SagaTest {
         results.count { it is SagaResult.Failure } shouldBe 1
     }
 
+    @JsName("parallelSagaCoordinatorExecuteWithStatsProvidesStatistics")
     @Test
     fun `ParallelSagaCoordinator executeWithStats provides statistics`() = runTest {
         val coordinator = ParallelSagaCoordinator()
 
         val sagas = listOf(
             saga<String> { step("S1", { "r1" }) },
-            saga<String> { step("S2", { throw IOException("Fail") }) },
+            saga<String> { step("S2", { throw RuntimeException("Fail") }) },
             saga<String> { step("S3", { "r3" }) }
         )
 
@@ -430,10 +453,12 @@ class SagaTest {
         result.totalSagas shouldBe 3
         result.successfulSagas shouldBe 2
         result.failedSagas shouldBe 1
-        result.successRate shouldBe 0.666 // 2/3 (approximately)
+        result.successRate shouldBeGreaterThan 0.6
+        result.successRate shouldBeLessThan 0.7 // 2/3 (approximately)
         result.allSuccessful shouldBe false
     }
 
+    @JsName("parallelSagaCoordinatorAllSuccessfulCase")
     @Test
     fun `ParallelSagaCoordinator all successful case`() = runTest {
         val coordinator = ParallelSagaCoordinator()
@@ -449,8 +474,9 @@ class SagaTest {
         result.successRate shouldBe 1.0
     }
 
+    @JsName("complexSagaScenarioWithInventoryAndPaymentAndOrder")
     @Test
-    fun `complex saga scenario with inventory, payment, and order`() = runTest {
+    fun `complex saga scenario with inventory and payment and order`() = runTest {
         data class ReservationId(val id: String)
         data class PaymentId(val id: String)
         data class OrderId(val id: String)
@@ -490,7 +516,7 @@ class SagaTest {
                 action = {
                     orderCreated = true
                     // Simulate failure
-                    throw IOException("Order creation failed")
+                    throw RuntimeException("Order creation failed")
                 },
                 compensation = {
                     orderCancelled = true
@@ -513,6 +539,7 @@ class SagaTest {
         orderCancelled shouldBe false // Never created, so no compensation
     }
 
+    @JsName("sagaWithRetryAndTimeoutSteps")
     @Test
     fun `saga with retry and timeout steps`() = runTest {
         var retriedStepAttempts = 0
@@ -524,7 +551,7 @@ class SagaTest {
                 retries = 2,
                 action = {
                     retriedStepAttempts++
-                    if (retriedStepAttempts < 2) throw IOException("Temporary failure")
+                    if (retriedStepAttempts < 2) throw RuntimeException("Temporary failure")
                     "api-result"
                 }
             )

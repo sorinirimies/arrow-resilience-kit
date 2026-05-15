@@ -1,24 +1,27 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Sorin Albu-Irimies
 
+package ro.sorinirmies.arrow.resiliencekit
 
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
+import kotlin.js.JsName
 import kotlin.test.Test
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
-import java.io.IOException
+
 
 class CircuitBreakerTest {
 
+    @JsName("circuitBreakerStartsInClosedState")
     @Test
     fun `circuit breaker starts in closed state`() = runTest {
         val breaker = CircuitBreaker()
         breaker.currentState() shouldBe CircuitBreakerState.Closed
     }
 
+    @JsName("circuitBreakerAllowsCallsInClosedState")
     @Test
     fun `circuit breaker allows calls in closed state`() = runTest {
         val breaker = CircuitBreaker()
@@ -34,6 +37,7 @@ class CircuitBreakerTest {
         breaker.currentState() shouldBe CircuitBreakerState.Closed
     }
 
+    @JsName("circuitBreakerOpensAfterThresholdFailures")
     @Test
     fun `circuit breaker opens after threshold failures`() = runTest {
         val breaker = CircuitBreaker(
@@ -45,9 +49,9 @@ class CircuitBreakerTest {
 
         // Cause 3 failures to open the circuit
         repeat(3) {
-            shouldThrow<IOException> {
+            shouldThrow<RuntimeException> {
                 breaker.execute {
-                    throw IOException("Failure ${it + 1}")
+                    throw RuntimeException("Failure ${it + 1}")
                 }
             }
         }
@@ -56,6 +60,7 @@ class CircuitBreakerTest {
         breaker.failures() shouldBe 3
     }
 
+    @JsName("circuitBreakerRejectsCallsWhenOpen")
     @Test
     fun `circuit breaker rejects calls when open`() = runTest {
         val breaker = CircuitBreaker(
@@ -63,8 +68,8 @@ class CircuitBreakerTest {
         )
 
         // Open the circuit
-        shouldThrow<IOException> {
-            breaker.execute { throw IOException("Fail") }
+        shouldThrow<RuntimeException> {
+            breaker.execute { throw RuntimeException("Fail") }
         }
 
         breaker.currentState() shouldBe CircuitBreakerState.Open
@@ -75,26 +80,30 @@ class CircuitBreakerTest {
         }
     }
 
+    @JsName("circuitBreakerTransitionsToHalfOpenAfterResetTimeout")
     @Test
     fun `circuit breaker transitions to half-open after reset timeout`() = runTest {
+        val testClock = TestClock()
         val breaker = CircuitBreaker(
             config = CircuitBreakerConfig(
                 failureThreshold = 1,
-                resetTimeout = 50.milliseconds
-            )
+                resetTimeout = 50.milliseconds,
+                halfOpenSuccessThreshold = 1
+            ),
+            clock = testClock
         )
 
         // Open the circuit
-        shouldThrow<IOException> {
-            breaker.execute { throw IOException("Fail") }
+        shouldThrow<RuntimeException> {
+            breaker.execute { throw RuntimeException("Fail") }
         }
 
         breaker.currentState() shouldBe CircuitBreakerState.Open
 
-        // Wait for reset timeout
-        delay(60.milliseconds)
+        // Advance past reset timeout
+        testClock.advance(60.milliseconds)
 
-        // Try to execute - should transition to half-open
+        // Try to execute - should transition to half-open then close
         var executed = false
         val result = breaker.execute {
             executed = true
@@ -106,22 +115,25 @@ class CircuitBreakerTest {
         breaker.currentState() shouldBe CircuitBreakerState.Closed
     }
 
+    @JsName("circuitBreakerClosesFromHalfOpenAfterSuccessThreshold")
     @Test
     fun `circuit breaker closes from half-open after success threshold`() = runTest {
+        val testClock = TestClock()
         val breaker = CircuitBreaker(
             config = CircuitBreakerConfig(
                 failureThreshold = 1,
                 resetTimeout = 50.milliseconds,
                 halfOpenSuccessThreshold = 2
-            )
+            ),
+            clock = testClock
         )
 
         // Open the circuit
-        shouldThrow<IOException> {
-            breaker.execute { throw IOException("Fail") }
+        shouldThrow<RuntimeException> {
+            breaker.execute { throw RuntimeException("Fail") }
         }
 
-        delay(60.milliseconds)
+        testClock.advance(60.milliseconds)
 
         // First success in half-open
         breaker.execute { "success 1" }
@@ -132,31 +144,35 @@ class CircuitBreakerTest {
         breaker.currentState() shouldBe CircuitBreakerState.Closed
     }
 
+    @JsName("circuitBreakerReopensFromHalfOpenOnFailure")
     @Test
     fun `circuit breaker reopens from half-open on failure`() = runTest {
+        val testClock = TestClock()
         val breaker = CircuitBreaker(
             config = CircuitBreakerConfig(
                 failureThreshold = 1,
                 resetTimeout = 50.milliseconds,
                 halfOpenSuccessThreshold = 2
-            )
+            ),
+            clock = testClock
         )
 
         // Open the circuit
-        shouldThrow<IOException> {
-            breaker.execute { throw IOException("Initial failure") }
+        shouldThrow<RuntimeException> {
+            breaker.execute { throw RuntimeException("Initial failure") }
         }
 
-        delay(60.milliseconds)
+        testClock.advance(60.milliseconds)
 
         // Fail in half-open state
-        shouldThrow<IOException> {
-            breaker.execute { throw IOException("Half-open failure") }
+        shouldThrow<RuntimeException> {
+            breaker.execute { throw RuntimeException("Half-open failure") }
         }
 
         breaker.currentState() shouldBe CircuitBreakerState.Open
     }
 
+    @JsName("executeOrFallbackUsesFallbackWhenCircuitIsOpen")
     @Test
     fun `executeOrFallback uses fallback when circuit is open`() = runTest {
         val breaker = CircuitBreaker(
@@ -164,8 +180,8 @@ class CircuitBreakerTest {
         )
 
         // Open the circuit
-        shouldThrow<IOException> {
-            breaker.execute { throw IOException("Fail") }
+        shouldThrow<RuntimeException> {
+            breaker.execute { throw RuntimeException("Fail") }
         }
 
         var fallbackUsed = false
@@ -182,6 +198,7 @@ class CircuitBreakerTest {
         fallbackUsed shouldBe true
     }
 
+    @JsName("executeOrFallbackExecutesPrimaryWhenCircuitIsClosed")
     @Test
     fun `executeOrFallback executes primary when circuit is closed`() = runTest {
         val breaker = CircuitBreaker()
@@ -200,6 +217,7 @@ class CircuitBreakerTest {
         fallbackUsed shouldBe false
     }
 
+    @JsName("manualResetClosesTheCircuit")
     @Test
     fun `manual reset closes the circuit`() = runTest {
         val breaker = CircuitBreaker(
@@ -207,8 +225,8 @@ class CircuitBreakerTest {
         )
 
         // Open the circuit
-        shouldThrow<IOException> {
-            breaker.execute { throw IOException("Fail") }
+        shouldThrow<RuntimeException> {
+            breaker.execute { throw RuntimeException("Fail") }
         }
 
         breaker.currentState() shouldBe CircuitBreakerState.Open
@@ -220,6 +238,7 @@ class CircuitBreakerTest {
         breaker.failures() shouldBe 0
     }
 
+    @JsName("manualTripOpensTheCircuit")
     @Test
     fun `manual trip opens the circuit`() = runTest {
         val breaker = CircuitBreaker()
@@ -230,6 +249,7 @@ class CircuitBreakerTest {
         breaker.currentState() shouldBe CircuitBreakerState.Open
     }
 
+    @JsName("circuitBreakerResetsFailureCountOnSuccessInClosedState")
     @Test
     fun `circuit breaker resets failure count on success in closed state`() = runTest {
         val breaker = CircuitBreaker(
@@ -238,8 +258,8 @@ class CircuitBreakerTest {
 
         // Cause 2 failures
         repeat(2) {
-            shouldThrow<IOException> {
-                breaker.execute { throw IOException("Fail") }
+            shouldThrow<RuntimeException> {
+                breaker.execute { throw RuntimeException("Fail") }
             }
         }
 
@@ -252,6 +272,7 @@ class CircuitBreakerTest {
         breaker.currentState() shouldBe CircuitBreakerState.Closed
     }
 
+    @JsName("circuitBreakerListenerIsNotifiedOfStateChanges")
     @Test
     fun `circuit breaker listener is notified of state changes`() = runTest {
         val stateChanges = mutableListOf<Pair<CircuitBreakerState, CircuitBreakerState>>()
@@ -265,14 +286,15 @@ class CircuitBreakerTest {
         }
 
         // Open the circuit
-        shouldThrow<IOException> {
-            breaker.execute { throw IOException("Fail") }
+        shouldThrow<RuntimeException> {
+            breaker.execute { throw RuntimeException("Fail") }
         }
 
         stateChanges.size shouldBe 1
         stateChanges[0] shouldBe (CircuitBreakerState.Closed to CircuitBreakerState.Open)
     }
 
+    @JsName("circuitBreakerConfigValidatesParameters")
     @Test
     fun `circuit breaker config validates parameters`() {
         shouldThrow<IllegalArgumentException> {
@@ -292,6 +314,7 @@ class CircuitBreakerTest {
         }
     }
 
+    @JsName("circuitBreakerDSLCreatesConfiguredBreaker")
     @Test
     fun `circuitBreaker DSL creates configured breaker`() = runTest {
         val breaker = circuitBreaker {
@@ -305,21 +328,22 @@ class CircuitBreakerTest {
 
         // Should take 10 failures to open
         repeat(9) {
-            shouldThrow<IOException> {
-                breaker.execute { throw IOException("Fail") }
+            shouldThrow<RuntimeException> {
+                breaker.execute { throw RuntimeException("Fail") }
             }
         }
 
         breaker.currentState() shouldBe CircuitBreakerState.Closed
 
         // 10th failure opens it
-        shouldThrow<IOException> {
-            breaker.execute { throw IOException("Fail") }
+        shouldThrow<RuntimeException> {
+            breaker.execute { throw RuntimeException("Fail") }
         }
 
         breaker.currentState() shouldBe CircuitBreakerState.Open
     }
 
+    @JsName("circuitBreakerRegistryManagesMultipleBreakers")
     @Test
     fun `CircuitBreakerRegistry manages multiple breakers`() = runTest {
         val registry = CircuitBreakerRegistry()
@@ -343,6 +367,7 @@ class CircuitBreakerTest {
         registry.getNames() shouldBe setOf("service1", "service2")
     }
 
+    @JsName("circuitBreakerRegistryGetReturnsExistingBreaker")
     @Test
     fun `CircuitBreakerRegistry get returns existing breaker`() = runTest {
         val registry = CircuitBreakerRegistry()
@@ -353,6 +378,7 @@ class CircuitBreakerTest {
         registry.get("test") shouldBe breaker
     }
 
+    @JsName("circuitBreakerRegistryRemoveRemovesBreaker")
     @Test
     fun `CircuitBreakerRegistry remove removes breaker`() = runTest {
         val registry = CircuitBreakerRegistry()
@@ -364,6 +390,7 @@ class CircuitBreakerTest {
         registry.get("test") shouldBe null
     }
 
+    @JsName("circuitBreakerRegistryResetAllResetsAllBreakers")
     @Test
     fun `CircuitBreakerRegistry resetAll resets all breakers`() = runTest {
         val registry = CircuitBreakerRegistry()
@@ -377,11 +404,11 @@ class CircuitBreakerTest {
         }
 
         // Open both circuits
-        shouldThrow<IOException> {
-            breaker1.execute { throw IOException("Fail") }
+        shouldThrow<RuntimeException> {
+            breaker1.execute { throw RuntimeException("Fail") }
         }
-        shouldThrow<IOException> {
-            breaker2.execute { throw IOException("Fail") }
+        shouldThrow<RuntimeException> {
+            breaker2.execute { throw RuntimeException("Fail") }
         }
 
         breaker1.currentState() shouldBe CircuitBreakerState.Open
@@ -394,6 +421,7 @@ class CircuitBreakerTest {
         breaker2.currentState() shouldBe CircuitBreakerState.Closed
     }
 
+    @JsName("circuitBreakerRegistryGetStatisticsReturnsStatsForAllBreakers")
     @Test
     fun `CircuitBreakerRegistry getStatistics returns stats for all breakers`() = runTest {
         val registry = CircuitBreakerRegistry()
@@ -404,8 +432,8 @@ class CircuitBreakerTest {
 
         // Cause some failures
         repeat(2) {
-            shouldThrow<IOException> {
-                breaker1.execute { throw IOException("Fail") }
+            shouldThrow<RuntimeException> {
+                breaker1.execute { throw RuntimeException("Fail") }
             }
         }
 
@@ -416,23 +444,26 @@ class CircuitBreakerTest {
         stats["service1"]?.failures shouldBe 2
     }
 
+    @JsName("circuitBreakerHandlesConcurrentCallsInHalfOpenState")
     @Test
     fun `circuit breaker handles concurrent calls in half-open state`() = runTest {
+        val testClock = TestClock()
         val breaker = CircuitBreaker(
             config = CircuitBreakerConfig(
                 failureThreshold = 1,
                 resetTimeout = 50.milliseconds,
                 halfOpenSuccessThreshold = 2,
                 halfOpenMaxCalls = 3
-            )
+            ),
+            clock = testClock
         )
 
         // Open the circuit
-        shouldThrow<IOException> {
-            breaker.execute { throw IOException("Fail") }
+        shouldThrow<RuntimeException> {
+            breaker.execute { throw RuntimeException("Fail") }
         }
 
-        delay(60.milliseconds)
+        testClock.advance(60.milliseconds)
 
         // Execute successfully in half-open
         breaker.execute { "success 1" }

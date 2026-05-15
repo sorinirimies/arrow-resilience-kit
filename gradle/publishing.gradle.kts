@@ -10,24 +10,23 @@ configure<PublishingExtension> {
         withType<MavenPublication> {
             pom {
                 name.set("Arrow Resilience Kit")
-                description.set("Resilience patterns for Kotlin Multiplatform using Arrow")
+                description.set("Kotlin Multiplatform resilience patterns built on Arrow")
                 url.set("https://github.com/sorinirimies/arrow-resilience-kit")
-                
+
                 licenses {
                     license {
                         name.set("MIT License")
                         url.set("https://opensource.org/licenses/MIT")
                     }
                 }
-                
+
                 developers {
                     developer {
                         id.set("sorinirimies")
                         name.set("Sorin Albu-Irimies")
-                        email.set("sorin.irimies@gmail.com")
                     }
                 }
-                
+
                 scm {
                     connection.set("scm:git:git://github.com/sorinirimies/arrow-resilience-kit.git")
                     developerConnection.set("scm:git:ssh://github.com/sorinirimies/arrow-resilience-kit.git")
@@ -36,26 +35,33 @@ configure<PublishingExtension> {
             }
         }
     }
-    
+
     repositories {
+        maven {
+            name = "MavenCentral"
+            url = uri("https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/")
+            credentials {
+                username = System.getenv("MAVEN_USERNAME") ?: ""
+                password = System.getenv("MAVEN_PASSWORD") ?: ""
+            }
+        }
         maven {
             name = "GitHubPackages"
             url = uri("https://maven.pkg.github.com/sorinirimies/arrow-resilience-kit")
             credentials {
-                username = project.findProperty("gpr.user") as String? ?: System.getenv("GITHUB_ACTOR")
-                password = project.findProperty("gpr.token") as String? ?: System.getenv("PACKAGES_PUBLISH")
+                username = System.getenv("GITHUB_ACTOR") ?: ""
+                password = System.getenv("PACKAGES_PUBLISH") ?: ""
             }
         }
     }
 }
 
-// Optional: Configure signing for releases
+// Optional GPG signing (required for Maven Central, skip for local/JitPack)
 configure<SigningExtension> {
-    val signingKey = project.findProperty("signingKey") as String? ?: System.getenv("SIGNING_KEY")
-    val signingPassword = project.findProperty("signingPassword") as String? ?: System.getenv("SIGNING_PASSWORD")
-    
-    if (signingKey != null && signingPassword != null) {
-        useInMemoryPgpKeys(signingKey, signingPassword)
+    val signingKey = System.getenv("GPG_SIGNING_KEY")
+    val signingPassphrase = System.getenv("GPG_PASSPHRASE")
+    if (!signingKey.isNullOrBlank()) {
+        useInMemoryPgpKeys(signingKey, signingPassphrase)
         sign(extensions.getByType<PublishingExtension>().publications)
     }
 }

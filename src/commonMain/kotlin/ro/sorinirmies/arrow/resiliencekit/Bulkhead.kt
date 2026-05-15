@@ -1,27 +1,23 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Sorin Albu-Irimies
 
+package ro.sorinirmies.arrow.resiliencekit
 
-import arrow.fx.stm.TVar
-import arrow.fx.stm.atomically
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withLock
 import mu.KotlinLogging
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.seconds
 
 private val logger = KotlinLogging.logger {}
 
 /**
  * Configuration for bulkhead behavior.
- *
- * @property maxConcurrentCalls Maximum number of concurrent calls allowed (default: 10)
- * @property maxWaitingCalls Maximum number of calls that can wait for a permit (default: 10)
- * @property maxWaitDuration Maximum time a call can wait for a permit (default: null = infinite)
  */
-data class BulkheadConfig(
-    val maxConcurrentCalls: Int = 10,
-    val maxWaitingCalls: Int = 10,
-    val maxWaitDuration: Duration? = null,
+public data class BulkheadConfig(
+    public val maxConcurrentCalls: Int = 10,
+    public val maxWaitingCalls: Int = 10,
+    public val maxWaitDuration: Duration? = null,
 ) {
     init {
         require(maxConcurrentCalls > 0) {
@@ -39,7 +35,7 @@ data class BulkheadConfig(
 /**
  * Exception thrown when the bulkhead is full.
  */
-class BulkheadFullException(
+public class BulkheadFullException(
     message: String,
     cause: Throwable? = null,
 ) : Exception(message, cause)
@@ -47,132 +43,264 @@ class BulkheadFullException(
 /**
  * Exception thrown when waiting for a bulkhead permit times out.
  */
-class BulkheadTimeoutException(
+public class BulkheadTimeoutException(
     message: String,
     cause: Throwable? = null,
 ) : Exception(message, cause)
 
 /**
- * Executes an operation with bulkhead protection (concurrency limiting).
+ * Statistics tracked by a bulkhead.
+ */
+public data class BulkheadStatistics(
+    public val totalCalls: Long,
+    public val successfulCalls: Long,
+    public val failedCalls: Long,
+    public val rejectedCalls: Long,
+    public val availableCapacity: Int,
+    public val utilizationRate: Double,
+)
+
+/**
+ * Listener interface for bulkhead events.
+ */
+public interface BulkheadListener {
+    public fun onCallEntered() {}
+    public fun onCallExited() {}
+    public fun onCallSucceeded() {}
+    public fun onCallFailed(throwable: Throwable) {}
+    public fun onCallRejected() {}
+}
+
+/**
+ * Bulkhead pattern implementation for concurrency isolation.
  *
- * The Bulkhead pattern isolates resources to prevent cascading failures. It limits the number
- * of concurrent calls to a resource, ensuring that one slow or failing service doesn't consume
- * all available resources.
+ * Limits the number of concurrent calls to protect shared resources from overload.
+ * When the maximum number of concurrent calls is reached, additional calls are either
+ * queued (up to [BulkheadConfig.maxWaitingCalls]) or rejected immediately.
  *
- * **Use Cases:**
- * - Limit concurrent database connections
- * - Prevent thread pool exhaustion
- * - Isolate calls to different microservices
- * - Protect shared resources from overload
+ * **Basic usage:**
+ * ```kotlin
+ * val bulkhead = Bulkhead(config = BulkheadConfig(maxConcurrentCalls = 5))
  *
- * Example usage:
- * ```
- * val result = withBulkhead(
- *     config = BulkheadConfig(
- *         maxConcurrentCalls = 10,
- *         maxWaitingCalls = 5
- *     )
- * ) {
- *     externalService.call()
+ * val result = bulkhead.execute {
+ *     callExternalService()
  * }
  * ```
  *
- * @param config Configuration for bulkhead behavior
- * @param block The operation to execute with bulkhead protection
- * @return The result of the operation
- * @throws BulkheadFullException if the bulkhead is full and maxWaitingCalls is exceeded
- * @throws BulkheadTimeoutException if waiting for a permit times out
- * @throws Exception if the operation fails
+ * **With waiting queue:**
+ * ```kotlin
+ * val bulkhead = Bulkhead(config = BulkheadConfig(
+ *     maxConcurrentCalls = 10,
+ *     maxWaitingCalls = 20,
+ *     maxWaitDuration = 5.seconds
+ * ))
+ * ```
+ *
+ * **With fallback:**
+ * ```kotlin
+ * val result = bulkhead.executeOrFallback(
+ *     fallback = { cachedResponse() }
+ * ) {
+ *     callExternalService()
+ * }
+ * ```
+ *
+ * **DSL builder:**
+ * ```kotlin
+ * val bulkhead = bulkhead {
+ *     maxConcurrentCalls = 5
+ *     maxWaitingCalls = 10
+ *     maxWaitDuration = 3.seconds
+ * }
+ * ```
+ *
+ * **With listener:**
+ * ```kotlin
+ * bulkhead.addListener(object : BulkheadListener {
+ *     override fun onCallRejected() {
+ *         metrics.incrementRejected()
+ *     }
+ * })
+ * ```
+ *
+ * **Statistics:**
+ * ```kotlin
+ * val stats = bulkhead.statistics()
+ * println("Total: ${stats.totalCalls}, Rejected: ${stats.rejectedCalls}")
+ * println("Utilization: ${stats.utilizationRate * 100}%")
+ * ```
  */
-suspend fun <T> withBulkhead(
-    config: BulkheadConfig = BulkheadConfig(),
-    block: suspend () -> T,
-): T {
-    val semaphore = Semaphore(config.maxConcurrentCalls)
-    val activeCallsVar = TVar.new(0)
-    val waitingCallsVar = TVar.new(0)
+public class Bulkhead(public val config: BulkheadConfig = BulkheadConfig()) {
 
-    // Check if we can accept this call
-    val canAccept = atomically {
-        val waiting = waitingCallsVar.read()
-        waiting < config.maxWaitingCalls
+    private val semaphore = Semaphore(config.maxConcurrentCalls)
+    private val mutex = Mutex()
+    private var activeCalls = 0
+    private var waitingCalls = 0
+    private var totalCalls = 0L
+    private var successfulCalls = 0L
+    private var failedCalls = 0L
+    private var rejectedCalls = 0L
+    private val listeners = mutableListOf<BulkheadListener>()
+
+    public fun addListener(listener: BulkheadListener) {
+        listeners.add(listener)
     }
 
-    if (!canAccept) {
-        logger.warn { "Bulkhead is full, rejecting call" }
-        val stats = atomically {
-            "Active: ${activeCallsVar.read()}, Waiting: ${waitingCallsVar.read()}"
-        }
-        throw BulkheadFullException("Bulkhead is full. $stats, Max waiting: ${config.maxWaitingCalls}")
+    public suspend fun activeCalls(): Int = mutex.withLock { activeCalls }
+
+    public suspend fun statistics(): BulkheadStatistics = mutex.withLock {
+        BulkheadStatistics(
+            totalCalls = totalCalls,
+            successfulCalls = successfulCalls,
+            failedCalls = failedCalls,
+            rejectedCalls = rejectedCalls,
+            availableCapacity = config.maxConcurrentCalls - activeCalls,
+            utilizationRate = activeCalls.toDouble() / config.maxConcurrentCalls,
+        )
     }
 
-    // Increment waiting calls
-    atomically {
-        val waiting = waitingCallsVar.read()
-        waitingCallsVar.write(waiting + 1)
+    public suspend fun resetStatistics(): Unit = mutex.withLock {
+        totalCalls = 0L
+        successfulCalls = 0L
+        failedCalls = 0L
+        rejectedCalls = 0L
     }
 
-    try {
-        // Acquire semaphore permit
-        if (config.maxWaitDuration != null) {
-            val acquired = tryAcquireSemaphore(semaphore, config.maxWaitDuration)
-            if (!acquired) {
-                atomically {
-                    val waiting = waitingCallsVar.read()
-                    waitingCallsVar.write(waiting - 1)
-                }
-                throw BulkheadTimeoutException(
-                    "Timeout waiting for bulkhead permit after ${config.maxWaitDuration}"
-                )
+    public suspend fun <T> execute(block: suspend () -> T): T {
+        // Check if we can accept this call (waiting queue check)
+        val canAccept = mutex.withLock {
+            if (activeCalls < config.maxConcurrentCalls || waitingCalls < config.maxWaitingCalls) {
+                waitingCalls++
+                true
+            } else {
+                false
             }
-        } else {
-            semaphore.acquire()
         }
 
-        // Decrement waiting, increment active
-        atomically {
-            val waiting = waitingCallsVar.read()
-            waitingCallsVar.write(waiting - 1)
-            val active = activeCallsVar.read()
-            activeCallsVar.write(active + 1)
+        if (!canAccept) {
+            mutex.withLock {
+                totalCalls++
+                rejectedCalls++
+            }
+            listeners.forEach { it.onCallRejected() }
+            throw BulkheadFullException("Bulkhead is full. Max concurrent: ${config.maxConcurrentCalls}, Max waiting: ${config.maxWaitingCalls}")
         }
 
-        logger.debug { "Executing call through bulkhead" }
+        try {
+            // Acquire semaphore permit (with optional timeout)
+            if (config.maxWaitDuration != null) {
+                val acquired = kotlinx.coroutines.withTimeoutOrNull(config.maxWaitDuration!!) {
+                    semaphore.acquire()
+                    true
+                } ?: false
+                if (!acquired) {
+                    mutex.withLock {
+                        waitingCalls--
+                        totalCalls++
+                        rejectedCalls++
+                    }
+                    listeners.forEach { it.onCallRejected() }
+                    throw BulkheadTimeoutException("Timeout waiting for bulkhead permit after ${config.maxWaitDuration}")
+                }
+            } else {
+                semaphore.acquire()
+            }
 
-        // Execute the operation
+            // Move from waiting to active
+            mutex.withLock {
+                waitingCalls--
+                activeCalls++
+                totalCalls++
+            }
+
+            listeners.forEach { it.onCallEntered() }
+
+            return try {
+                val result = block()
+                mutex.withLock { successfulCalls++ }
+                listeners.forEach { it.onCallSucceeded() }
+                result
+            } catch (e: Throwable) {
+                mutex.withLock { failedCalls++ }
+                listeners.forEach { it.onCallFailed(e) }
+                throw e
+            } finally {
+                mutex.withLock {
+                    if (activeCalls > 0) activeCalls--
+                }
+                semaphore.release()
+                listeners.forEach { it.onCallExited() }
+            }
+        } catch (e: BulkheadFullException) {
+            throw e
+        } catch (e: BulkheadTimeoutException) {
+            throw e
+        } catch (e: Throwable) {
+            // If we failed before acquiring semaphore, decrement waiting
+            // But the above logic handles this in the timeout case already
+            throw e
+        }
+    }
+
+    public suspend fun <T> tryExecute(block: suspend () -> T): T? {
         return try {
-            block()
-        } finally {
-            // Always decrement active count and release permit
-            atomically {
-                val active = activeCallsVar.read()
-                if (active > 0) {
-                    activeCallsVar.write(active - 1)
-                }
-            }
-            semaphore.release()
-            logger.debug { "Released bulkhead permit" }
+            execute(block)
+        } catch (e: BulkheadFullException) {
+            null
+        } catch (e: BulkheadTimeoutException) {
+            null
         }
-    } catch (e: BulkheadTimeoutException) {
-        throw e
-    } catch (e: Exception) {
-        // We were still waiting, decrement waiting count
-        atomically {
-            val waiting = waitingCallsVar.read()
-            waitingCallsVar.write(maxOf(0, waiting - 1))
+    }
+
+    public suspend fun <T> executeOrFallback(fallback: suspend () -> T, block: suspend () -> T): T {
+        return try {
+            execute(block)
+        } catch (e: BulkheadFullException) {
+            fallback()
+        } catch (e: BulkheadTimeoutException) {
+            fallback()
         }
-        throw e
     }
 }
 
 /**
- * Tries to execute an operation with bulkhead protection, returning null if the bulkhead is full.
- *
- * @param config Configuration for bulkhead behavior
- * @param block The operation to execute
- * @return The result of the operation or null if bulkhead is full
+ * Registry for managing named bulkhead instances.
  */
-suspend fun <T> tryWithBulkhead(
+public class BulkheadRegistry {
+    private val bulkheads = mutableMapOf<String, Bulkhead>()
+
+    public fun getOrCreate(name: String, configure: BulkheadConfigBuilder.() -> Unit = {}): Bulkhead {
+        return bulkheads.getOrPut(name) {
+            val config = BulkheadConfigBuilder().apply(configure).build()
+            Bulkhead(config)
+        }
+    }
+
+    public fun get(name: String): Bulkhead? = bulkheads[name]
+
+    public fun remove(name: String): Bulkhead? = bulkheads.remove(name)
+
+    public fun getNames(): Set<String> = bulkheads.keys.toSet()
+
+    public suspend fun resetAllStatistics() {
+        bulkheads.values.forEach { it.resetStatistics() }
+    }
+
+    public suspend fun getAllStatistics(): Map<String, BulkheadStatistics> {
+        return bulkheads.mapValues { (_, bulkhead) -> bulkhead.statistics() }
+    }
+}
+
+// --- Free functions (kept for backward compatibility) ---
+
+public suspend fun <T> withBulkhead(
+    config: BulkheadConfig = BulkheadConfig(),
+    block: suspend () -> T,
+): T {
+    return Bulkhead(config).execute(block)
+}
+
+public suspend fun <T> tryWithBulkhead(
     config: BulkheadConfig = BulkheadConfig(),
     block: suspend () -> T,
 ): T? {
@@ -185,15 +313,7 @@ suspend fun <T> tryWithBulkhead(
     }
 }
 
-/**
- * Executes an operation with bulkhead protection and a fallback if the bulkhead is full.
- *
- * @param config Configuration for bulkhead behavior
- * @param fallback The fallback function to call if bulkhead is full
- * @param block The primary operation to execute
- * @return The result of the operation or fallback
- */
-suspend fun <T> withBulkheadOrFallback(
+public suspend fun <T> withBulkheadOrFallback(
     config: BulkheadConfig = BulkheadConfig(),
     fallback: suspend (Exception) -> T,
     block: suspend () -> T,
@@ -201,42 +321,29 @@ suspend fun <T> withBulkheadOrFallback(
     return try {
         withBulkhead(config, block)
     } catch (e: BulkheadFullException) {
-        logger.debug { "Bulkhead is full, using fallback" }
         fallback(e)
     } catch (e: BulkheadTimeoutException) {
-        logger.debug { "Bulkhead timeout, using fallback" }
         fallback(e)
     }
 }
 
 /**
- * Semaphore extension to support timeout-based acquisition.
+ * DSL for creating a configured Bulkhead instance.
  */
-private suspend fun tryAcquireSemaphore(semaphore: Semaphore, timeout: Duration): Boolean {
-    return kotlinx.coroutines.withTimeoutOrNull(timeout) {
-        semaphore.acquire()
-        true
-    } ?: false
-}
-
-/**
- * DSL for bulkhead configuration.
- */
-fun bulkhead(configure: BulkheadConfigBuilder.() -> Unit): BulkheadConfig {
-    val builder = BulkheadConfigBuilder()
-    builder.configure()
-    return builder.build()
+public fun bulkhead(configure: BulkheadConfigBuilder.() -> Unit): Bulkhead {
+    val config = BulkheadConfigBuilder().apply(configure).build()
+    return Bulkhead(config)
 }
 
 /**
  * Builder for bulkhead configuration.
  */
-class BulkheadConfigBuilder {
-    var maxConcurrentCalls: Int = 10
-    var maxWaitingCalls: Int = 10
-    var maxWaitDuration: Duration? = null
+public class BulkheadConfigBuilder {
+    public var maxConcurrentCalls: Int = 10
+    public var maxWaitingCalls: Int = 10
+    public var maxWaitDuration: Duration? = null
 
-    fun build(): BulkheadConfig {
+    public fun build(): BulkheadConfig {
         return BulkheadConfig(
             maxConcurrentCalls = maxConcurrentCalls,
             maxWaitingCalls = maxWaitingCalls,

@@ -15,6 +15,9 @@ jobs:
     name: Upgrade Dependencies
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: write
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -38,4 +41,4 @@ jobs:
           sudo mv nu-*-x86_64-unknown-linux-gnu/nu /usr/local/bin/
 
       - name: Upgrade dependencies
-        run: nu scripts/upgrade_deps.nu --commit --bot-name "gitea-actions[bot]" --bot-email "gitea-actions[bot]@noreply.gitea"
+        run: nu scripts/upgrade_deps.nu --commit --bot-name "github-actions[bot]" --bot-email "github-actions[bot]@users.noreply.github.com"
