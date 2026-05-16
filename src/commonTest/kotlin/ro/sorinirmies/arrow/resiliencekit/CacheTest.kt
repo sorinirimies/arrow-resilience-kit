@@ -18,7 +18,7 @@ class CacheTest {
     @JsName("cacheStoresAndRetrievesValues")
     @Test
     fun `cache stores and retrieves values`() = runTest {
-        val cache = Cache<String, String>()
+        val cache = Cache.create<String, String>()
 
         cache.put("key1", "value1")
         val result = cache.get("key1")
@@ -29,7 +29,7 @@ class CacheTest {
     @JsName("cacheReturnsNullForMissingKeys")
     @Test
     fun `cache returns null for missing keys`() = runTest {
-        val cache = Cache<String, String>()
+        val cache = Cache.create<String, String>()
 
         val result = cache.get("nonexistent")
 
@@ -39,7 +39,7 @@ class CacheTest {
     @JsName("cacheGetOrPutComputesValueOnMiss")
     @Test
     fun `cache getOrPut computes value on miss`() = runTest {
-        val cache = Cache<String, String>()
+        val cache = Cache.create<String, String>()
         var computed = false
 
         val result = cache.getOrPut("key1") {
@@ -54,7 +54,7 @@ class CacheTest {
     @JsName("cacheGetOrPutReturnsCachedValueOnHit")
     @Test
     fun `cache getOrPut returns cached value on hit`() = runTest {
-        val cache = Cache<String, String>()
+        val cache = Cache.create<String, String>()
         var computeCount = 0
 
         cache.put("key1", "cached")
@@ -71,7 +71,7 @@ class CacheTest {
     @JsName("cacheRemovesValues")
     @Test
     fun `cache removes values`() = runTest {
-        val cache = Cache<String, String>()
+        val cache = Cache.create<String, String>()
 
         cache.put("key1", "value1")
         val removed = cache.remove("key1")
@@ -84,7 +84,7 @@ class CacheTest {
     @JsName("cacheRemoveReturnsNullForMissingKeys")
     @Test
     fun `cache remove returns null for missing keys`() = runTest {
-        val cache = Cache<String, String>()
+        val cache = Cache.create<String, String>()
 
         val removed = cache.remove("nonexistent")
 
@@ -94,7 +94,7 @@ class CacheTest {
     @JsName("cacheContainsKeyChecksExistence")
     @Test
     fun `cache containsKey checks existence`() = runTest {
-        val cache = Cache<String, String>()
+        val cache = Cache.create<String, String>()
 
         cache.put("key1", "value1")
 
@@ -105,7 +105,7 @@ class CacheTest {
     @JsName("cacheTracksSize")
     @Test
     fun `cache tracks size`() = runTest {
-        val cache = Cache<String, String>()
+        val cache = Cache.create<String, String>()
 
         cache.size() shouldBe 0
 
@@ -122,7 +122,7 @@ class CacheTest {
     @JsName("cacheClearRemovesAllEntries")
     @Test
     fun `cache clear removes all entries`() = runTest {
-        val cache = Cache<String, String>()
+        val cache = Cache.create<String, String>()
 
         cache.put("key1", "value1")
         cache.put("key2", "value2")
@@ -137,7 +137,7 @@ class CacheTest {
     @Test
     fun `cache respects TTL`() = runTest {
         val testClock = TestClock()
-        val cache = Cache<String, String>(
+        val cache = Cache.create<String, String>(
             config = CacheConfig(
                 maxSize = 100,
                 ttl = 100.milliseconds
@@ -156,7 +156,7 @@ class CacheTest {
     @JsName("cacheWithNullTTLNeverExpires")
     @Test
     fun `cache with null TTL never expires`() = runTest {
-        val cache = Cache<String, String>(
+        val cache = Cache.create<String, String>(
             config = CacheConfig(
                 maxSize = 100,
                 ttl = null
@@ -172,7 +172,7 @@ class CacheTest {
     @Test
     fun `cache cleanUp removes expired entries`() = runTest {
         val testClock = TestClock()
-        val cache = Cache<String, String>(
+        val cache = Cache.create<String, String>(
             config = CacheConfig(
                 maxSize = 100,
                 ttl = 100.milliseconds
@@ -194,7 +194,7 @@ class CacheTest {
     @JsName("cacheEvictsEntriesWhenFullUsingLRU")
     @Test
     fun `cache evicts entries when full using LRU`() = runTest {
-        val cache = Cache<String, String>(
+        val cache = Cache.create<String, String>(
             config = CacheConfig(
                 maxSize = 3,
                 ttl = null,
@@ -221,7 +221,7 @@ class CacheTest {
     @JsName("cacheEvictsEntriesWhenFullUsingLFU")
     @Test
     fun `cache evicts entries when full using LFU`() = runTest {
-        val cache = Cache<String, String>(
+        val cache = Cache.create<String, String>(
             config = CacheConfig(
                 maxSize = 3,
                 ttl = null,
@@ -251,7 +251,7 @@ class CacheTest {
     @Test
     fun `cache evicts entries when full using FIFO`() = runTest {
         val testClock = TestClock()
-        val cache = Cache<String, String>(
+        val cache = Cache.create<String, String>(
             config = CacheConfig(
                 maxSize = 3,
                 ttl = null,
@@ -278,7 +278,7 @@ class CacheTest {
     @JsName("cacheTracksStatistics")
     @Test
     fun `cache tracks statistics`() = runTest {
-        val cache = Cache<String, String>()
+        val cache = Cache.create<String, String>()
 
         // Miss
         cache.get("key1")
@@ -297,7 +297,7 @@ class CacheTest {
     @JsName("cacheTracksEvictions")
     @Test
     fun `cache tracks evictions`() = runTest {
-        val cache = Cache<String, String>(
+        val cache = Cache.create<String, String>(
             config = CacheConfig(
                 maxSize = 2,
                 ttl = null
@@ -319,7 +319,7 @@ class CacheTest {
         var putKey: String? = null
         var putValue: String? = null
 
-        val cache = Cache<String, String>()
+        val cache = Cache.create<String, String>()
 
         cache.addListener(object : CacheListener<String, String> {
             override fun onPut(key: String, value: String) {
@@ -342,7 +342,7 @@ class CacheTest {
         var removeCalled = false
         var removeKey: String? = null
 
-        val cache = Cache<String, String>()
+        val cache = Cache.create<String, String>()
 
         cache.addListener(object : CacheListener<String, String> {
             override fun onRemove(key: String, value: String) {
@@ -365,7 +365,7 @@ class CacheTest {
         var evictionKey: String? = null
         var evictionReason: EvictionReason? = null
 
-        val cache = Cache<String, String>(
+        val cache = Cache.create<String, String>(
             config = CacheConfig(
                 maxSize = 1,
                 ttl = null
@@ -420,7 +420,7 @@ class CacheTest {
     @JsName("cacheKeysReturnsAllKeys")
     @Test
     fun `cache keys returns all keys`() = runTest {
-        val cache = Cache<String, String>()
+        val cache = Cache.create<String, String>()
 
         cache.put("key1", "value1")
         cache.put("key2", "value2")
@@ -434,7 +434,7 @@ class CacheTest {
     @Test
     fun `cache validKeys returns only non-expired keys`() = runTest {
         val testClock = TestClock()
-        val cache = Cache<String, String>(
+        val cache = Cache.create<String, String>(
             config = CacheConfig(
                 maxSize = 100,
                 ttl = 100.milliseconds
@@ -456,7 +456,7 @@ class CacheTest {
     @Test
     fun `cache validSize returns count of non-expired entries`() = runTest {
         val testClock = TestClock()
-        val cache = Cache<String, String>(
+        val cache = Cache.create<String, String>(
             config = CacheConfig(
                 maxSize = 100,
                 ttl = 100.milliseconds
@@ -477,7 +477,7 @@ class CacheTest {
     @JsName("cacheResetStatisticsClearsCounters")
     @Test
     fun `cache reset statistics clears counters`() = runTest {
-        val cache = Cache<String, String>()
+        val cache = Cache.create<String, String>()
 
         cache.put("key1", "value1")
         cache.get("key1")
@@ -496,7 +496,7 @@ class CacheTest {
     @JsName("cacheStatisticsCalculatesUtilizationRate")
     @Test
     fun `cache statistics calculates utilization rate`() = runTest {
-        val cache = Cache<String, String>(
+        val cache = Cache.create<String, String>(
             config = CacheConfig(maxSize = 10)
         )
 
@@ -515,7 +515,7 @@ class CacheTest {
     fun `loading cache loads value on miss`() = runTest {
         var loadCount = 0
 
-        val cache = LoadingCache<String, String>(
+        val cache = LoadingCache.create<String, String>(
             config = CacheConfig(maxSize = 100)
         ) { key ->
             loadCount++
@@ -533,7 +533,7 @@ class CacheTest {
     fun `loading cache returns cached value on hit`() = runTest {
         var loadCount = 0
 
-        val cache = LoadingCache<String, String>(
+        val cache = LoadingCache.create<String, String>(
             config = CacheConfig(maxSize = 100)
         ) { key ->
             loadCount++
@@ -549,7 +549,7 @@ class CacheTest {
     @JsName("loadingCacheAllowsManualPut")
     @Test
     fun `loading cache allows manual put`() = runTest {
-        val cache = LoadingCache<String, String>(
+        val cache = LoadingCache.create<String, String>(
             config = CacheConfig(maxSize = 100)
         ) { key ->
             "loaded-$key"
@@ -564,7 +564,7 @@ class CacheTest {
     @JsName("loadingCacheSupportsRemove")
     @Test
     fun `loading cache supports remove`() = runTest {
-        val cache = LoadingCache<String, String>(
+        val cache = LoadingCache.create<String, String>(
             config = CacheConfig(maxSize = 100)
         ) { key ->
             "loaded-$key"
@@ -579,7 +579,7 @@ class CacheTest {
     @JsName("loadingCacheSupportsClear")
     @Test
     fun `loading cache supports clear`() = runTest {
-        val cache = LoadingCache<String, String>(
+        val cache = LoadingCache.create<String, String>(
             config = CacheConfig(maxSize = 100)
         ) { key ->
             "loaded-$key"
@@ -596,7 +596,7 @@ class CacheTest {
     @JsName("loadingCacheTracksStatistics")
     @Test
     fun `loading cache tracks statistics`() = runTest {
-        val cache = LoadingCache<String, String>(
+        val cache = LoadingCache.create<String, String>(
             config = CacheConfig(maxSize = 100)
         ) { key ->
             "loaded-$key"
@@ -615,7 +615,7 @@ class CacheTest {
     @JsName("cacheRegistryManagesMultipleCaches")
     @Test
     fun `CacheRegistry manages multiple caches`() = runTest {
-        val registry = CacheRegistry()
+        val registry = CacheRegistry.create()
 
         val cache1 = registry.getOrCreate<String, String>("users") {
             maxSize = 100
@@ -637,7 +637,7 @@ class CacheTest {
     @JsName("cacheRegistryGetReturnsExistingCache")
     @Test
     fun `CacheRegistry get returns existing cache`() = runTest {
-        val registry = CacheRegistry()
+        val registry = CacheRegistry.create()
 
         registry.get<String, String>("nonexistent") shouldBe null
 
@@ -648,7 +648,7 @@ class CacheTest {
     @JsName("cacheRegistryRemoveRemovesCache")
     @Test
     fun `CacheRegistry remove removes cache`() = runTest {
-        val registry = CacheRegistry()
+        val registry = CacheRegistry.create()
 
         val cache = registry.getOrCreate<String, String>("test")
         val removed = registry.remove("test")
@@ -660,7 +660,7 @@ class CacheTest {
     @JsName("cacheRegistryClearAllClearsAllCaches")
     @Test
     fun `CacheRegistry clearAll clears all caches`() = runTest {
-        val registry = CacheRegistry()
+        val registry = CacheRegistry.create()
 
         val cache1 = registry.getOrCreate<String, String>("cache1")
         val cache2 = registry.getOrCreate<String, String>("cache2")
@@ -677,7 +677,7 @@ class CacheTest {
     @JsName("cacheHandlesConcurrentAccess")
     @Test
     fun `cache handles concurrent access`() = runTest {
-        val cache = Cache<Int, String>(
+        val cache = Cache.create<Int, String>(
             config = CacheConfig(maxSize = 100)
         )
 
@@ -698,7 +698,7 @@ class CacheTest {
     fun `cache listener can be removed`() = runTest {
         var putCount = 0
 
-        val cache = Cache<String, String>()
+        val cache = Cache.create<String, String>()
         val listener = object : CacheListener<String, String> {
             override fun onPut(key: String, value: String) {
                 putCount++
@@ -717,7 +717,7 @@ class CacheTest {
     @JsName("cacheInvalidateRemovesEntry")
     @Test
     fun `cache invalidate removes entry`() = runTest {
-        val cache = Cache<String, String>()
+        val cache = Cache.create<String, String>()
         cache.put("key1", "value1")
         cache.invalidate("key1")
         cache.get("key1") shouldBe null
@@ -726,7 +726,7 @@ class CacheTest {
     @JsName("cacheInvalidateAllRemovesEntries")
     @Test
     fun `cache invalidateAll removes multiple entries`() = runTest {
-        val cache = Cache<String, String>()
+        val cache = Cache.create<String, String>()
         cache.put("key1", "value1")
         cache.put("key2", "value2")
         cache.put("key3", "value3")

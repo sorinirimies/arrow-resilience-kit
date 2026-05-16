@@ -89,6 +89,7 @@ public class Saga<T> private constructor(
      * @return [SagaResult] containing the final result or compensation details
      */
     public suspend fun execute(): SagaResult<T> {
+        executedSteps.clear()
         logger.info { "Starting saga execution with ${steps.size} steps" }
         val startTime = clock.now()
 

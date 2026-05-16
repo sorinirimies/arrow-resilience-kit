@@ -3,8 +3,9 @@
 
 package ro.sorinirmies.arrow.resiliencekit
 
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
+import arrow.fx.stm.STM
+import arrow.fx.stm.TVar
+import arrow.fx.stm.atomically
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlin.time.Duration
@@ -18,14 +19,14 @@ import kotlin.time.Duration.Companion.minutes
  *
  * **Basic usage:**
  * ```kotlin
- * val cache = Cache<String, User>()
+ * val cache = Cache.create<String, User>()
  * cache.put("user-1", User("Alice"))
  * val user = cache.get("user-1") // User("Alice")
  * ```
  *
  * **With TTL and LRU eviction:**
  * ```kotlin
- * val cache = Cache<String, User>(config = CacheConfig(
+ * val cache = Cache.create<String, User>(config = CacheConfig(
  *     maxSize = 1000,
  *     ttl = 5.minutes,
  *     evictionStrategy = EvictionStrategy.LRU
@@ -41,7 +42,7 @@ import kotlin.time.Duration.Companion.minutes
  *
  * **Auto-loading cache:**
  * ```kotlin
- * val cache = LoadingCache<String, User>(
+ * val cache = LoadingCache.create<String, User>(
  *     config = CacheConfig(maxSize = 100)
  * ) { key ->
  *     userRepository.findById(key)
@@ -62,37 +63,59 @@ import kotlin.time.Duration.Companion.minutes
  * @param V Value type
  * @param config Configuration for cache behavior
  */
-public class Cache<K, V>(
-    private val config: CacheConfig = CacheConfig(),
-    private val clock: Clock = Clock.System
+public class Cache<K, V> private constructor(
+    private val config: CacheConfig,
+    private val clock: Clock,
+    private val entries: TVar<Map<K, CacheEntry<V>>>,
+    private val accessOrder: TVar<List<K>>,
+    private val hits: TVar<Long>,
+    private val misses: TVar<Long>,
+    private val evictions: TVar<Long>
 ) {
-    private val mutex = Mutex()
-    private val entries = mutableMapOf<K, CacheEntry<V>>()
-    private val accessOrder = mutableListOf<K>()
-    private var hits = 0L
-    private var misses = 0L
-    private var evictions = 0L
     private val listeners = mutableListOf<CacheListener<K, V>>()
+
+    public companion object {
+        /**
+         * Creates a new [Cache] instance.
+         * @param config Configuration for cache behavior
+         * @param clock Clock used for TTL calculations
+         * @return a new [Cache] instance
+         */
+        public suspend fun <K, V> create(
+            config: CacheConfig = CacheConfig(),
+            clock: Clock = Clock.System
+        ): Cache<K, V> {
+            val entries = TVar.new(emptyMap<K, CacheEntry<V>>())
+            val accessOrder = TVar.new(emptyList<K>())
+            val hits = TVar.new(0L)
+            val misses = TVar.new(0L)
+            val evictions = TVar.new(0L)
+            return Cache(config, clock, entries, accessOrder, hits, misses, evictions)
+        }
+    }
 
     /**
      * Gets a value from the cache by key.
      * @param key the cache key
      * @return the cached value or null if not found or expired
      */
-    public suspend fun get(key: K): V? = mutex.withLock {
-        val entry = entries[key]
+    public suspend fun get(key: K): V? = atomically {
+        val currentEntries = entries.read()
+        val entry = currentEntries[key]
         if (entry == null) {
-            misses++
+            misses.write(misses.read() + 1)
             null
         } else if (isExpired(entry)) {
-            misses++
+            entries.write(currentEntries - key)
+            accessOrder.write(accessOrder.read() - key)
+            misses.write(misses.read() + 1)
             null
         } else {
             val updated = entry.copy(lastAccessTime = clock.now(), accessCount = entry.accessCount + 1)
-            entries[key] = updated
-            accessOrder.remove(key)
-            accessOrder.add(key)
-            hits++
+            entries.write(currentEntries + (key to updated))
+            val order = accessOrder.read()
+            accessOrder.write(order - key + key)
+            hits.write(hits.read() + 1)
             updated.value
         }
     }
@@ -102,20 +125,51 @@ public class Cache<K, V>(
      * @param key the cache key
      * @param value the value to cache
      */
-    public suspend fun put(key: K, value: V): Unit = mutex.withLock {
-        if (entries.size >= config.maxSize && key !in entries) {
-            evictOne()
+    public suspend fun put(key: K, value: V) {
+        val listenersSnapshot = listeners.toList()
+        var evictedKey: K? = null
+        var evictedValue: V? = null
+        atomically {
+            val currentEntries = entries.read()
+            val currentOrder = accessOrder.read()
+
+            val afterEvict = if (currentEntries.size >= config.maxSize && key !in currentEntries) {
+                val result = evictOne(currentEntries, currentOrder)
+                // Track what was evicted for listener notification
+                val evictedKeys = currentEntries.keys - result.first.keys
+                if (evictedKeys.isNotEmpty()) {
+                    val ek = evictedKeys.first()
+                    evictedKey = ek
+                    evictedValue = currentEntries[ek]?.value
+                }
+                result
+            } else {
+                currentEntries to currentOrder
+            }
+
+            val entry = CacheEntry(
+                value = value,
+                createdAt = clock.now(),
+                lastAccessTime = clock.now(),
+                accessCount = 0
+            )
+            entries.write(afterEvict.first + (key to entry))
+            accessOrder.write(afterEvict.second - key + key)
         }
-        val entry = CacheEntry(
-            value = value,
-            createdAt = clock.now(),
-            lastAccessTime = clock.now(),
-            accessCount = 0
-        )
-        entries[key] = entry
-        accessOrder.remove(key)
-        accessOrder.add(key)
-        listeners.forEach { it.onPut(key, value) }
+        if (evictedKey != null && evictedValue != null) {
+            listenersSnapshot.forEach {
+                try {
+                    it.onEviction(evictedKey!!, evictedValue!!, EvictionReason.SIZE)
+                } catch (_: Exception) {
+                }
+            }
+        }
+        listenersSnapshot.forEach {
+            try {
+                it.onPut(key, value)
+            } catch (_: Exception) {
+            }
+        }
     }
 
     /**
@@ -136,13 +190,26 @@ public class Cache<K, V>(
      * @param key the cache key
      * @return the removed value or null if not found
      */
-    public suspend fun remove(key: K): V? = mutex.withLock {
-        val entry = entries.remove(key)
-        if (entry != null) {
-            accessOrder.remove(key)
-            listeners.forEach { it.onRemove(key, entry.value) }
+    public suspend fun remove(key: K): V? {
+        val listenersSnapshot = listeners.toList()
+        val removedEntry = atomically {
+            val currentEntries = entries.read()
+            val entry = currentEntries[key]
+            if (entry != null) {
+                entries.write(currentEntries - key)
+                accessOrder.write(accessOrder.read() - key)
+            }
+            entry
         }
-        entry?.value
+        if (removedEntry != null) {
+            listenersSnapshot.forEach {
+                try {
+                    it.onRemove(key, removedEntry.value)
+                } catch (_: Exception) {
+                }
+            }
+        }
+        return removedEntry?.value
     }
 
     /**
@@ -158,28 +225,54 @@ public class Cache<K, V>(
      * @param keys the keys to invalidate
      */
     public suspend fun invalidateAll(keys: Iterable<K>) {
-        mutex.withLock {
+        val listenersSnapshot = listeners.toList()
+        val removed = atomically {
             val keysSet = keys.toSet()
+            val currentEntries = entries.read()
+            val currentOrder = accessOrder.read()
+            val removedEntries = mutableListOf<Pair<K, CacheEntry<V>>>()
+            var newEntries = currentEntries
+            var newOrder = currentOrder
             for (k in keysSet) {
-                val entry = entries.remove(k)
+                val entry = newEntries[k]
                 if (entry != null) {
-                    accessOrder.remove(k)
-                    listeners.forEach { it.onRemove(k, entry.value) }
+                    newEntries = newEntries - k
+                    newOrder = newOrder - k
+                    removedEntries.add(k to entry)
+                }
+            }
+            entries.write(newEntries)
+            accessOrder.write(newOrder)
+            removedEntries
+        }
+        for ((k, entry) in removed) {
+            listenersSnapshot.forEach {
+                try {
+                    it.onRemove(k, entry.value)
+                } catch (_: Exception) {
                 }
             }
         }
     }
 
     /** Removes all entries from the cache. */
-    public suspend fun clear(): Unit = mutex.withLock {
-        entries.clear()
-        accessOrder.clear()
-        listeners.forEach { it.onClear() }
+    public suspend fun clear() {
+        val listenersSnapshot = listeners.toList()
+        atomically {
+            entries.write(emptyMap())
+            accessOrder.write(emptyList())
+        }
+        listenersSnapshot.forEach {
+            try {
+                it.onClear()
+            } catch (_: Exception) {
+            }
+        }
     }
 
     /** Returns the total number of entries in the cache (including expired). */
-    public suspend fun size(): Int = mutex.withLock {
-        entries.size
+    public suspend fun size(): Int = atomically {
+        entries.read().size
     }
 
     /**
@@ -187,58 +280,75 @@ public class Cache<K, V>(
      * @param key the cache key
      * @return true if a valid entry exists
      */
-    public suspend fun containsKey(key: K): Boolean = mutex.withLock {
-        val entry = entries[key]
+    public suspend fun containsKey(key: K): Boolean = atomically {
+        val entry = entries.read()[key]
         entry != null && !isExpired(entry)
     }
 
     /** Returns all non-expired keys in the cache. */
-    public suspend fun keys(): Set<K> = mutex.withLock {
-        entries.filterValues { !isExpired(it) }.keys.toSet()
+    public suspend fun keys(): Set<K> = atomically {
+        entries.read().filterValues { !isExpired(it) }.keys.toSet()
     }
 
     /** Returns all non-expired keys in the cache. Alias for [keys]. */
     public suspend fun validKeys(): Set<K> = keys()
 
     /** Returns the number of non-expired entries in the cache. */
-    public suspend fun validSize(): Int = mutex.withLock {
-        entries.values.count { !isExpired(it) }
+    public suspend fun validSize(): Int = atomically {
+        entries.read().values.count { !isExpired(it) }
     }
 
     /**
      * Removes all expired entries from the cache.
      * @return the number of entries removed
      */
-    public suspend fun cleanUp(): Int = mutex.withLock {
-        val expired = entries.filter { isExpired(it.value) }
-        for ((k, v) in expired) {
-            entries.remove(k)
-            accessOrder.remove(k)
-            listeners.forEach { it.onEviction(k, v.value, EvictionReason.EXPIRED) }
+    public suspend fun cleanUp(): Int {
+        val listenersSnapshot = listeners.toList()
+        val expired = atomically {
+            val currentEntries = entries.read()
+            val expiredEntries = currentEntries.filter { isExpired(it.value) }
+            if (expiredEntries.isNotEmpty()) {
+                val expiredKeys = expiredEntries.keys
+                entries.write(currentEntries - expiredKeys)
+                accessOrder.write(accessOrder.read().filter { it !in expiredKeys })
+            }
+            expiredEntries
         }
-        expired.size
+        for ((k, v) in expired) {
+            listenersSnapshot.forEach {
+                try {
+                    it.onEviction(k, v.value, EvictionReason.EXPIRED)
+                } catch (_: Exception) {
+                }
+            }
+        }
+        return expired.size
     }
 
     /** Returns a snapshot of the current cache statistics. */
-    public suspend fun statistics(): CacheStatistics = mutex.withLock {
-        val total = hits + misses
+    public suspend fun statistics(): CacheStatistics = atomically {
+        val h = hits.read()
+        val m = misses.read()
+        val e = evictions.read()
+        val s = entries.read().size
+        val total = h + m
         CacheStatistics(
-            hits = hits,
-            misses = misses,
-            evictions = evictions,
-            size = entries.size,
-            hitRate = if (total > 0) hits.toDouble() / total else 0.0,
-            missRate = if (total > 0) misses.toDouble() / total else 0.0,
-            utilizationRate = entries.size.toDouble() / config.maxSize,
-            currentSize = entries.size
+            hits = h,
+            misses = m,
+            evictions = e,
+            size = s,
+            hitRate = if (total > 0) h.toDouble() / total else 0.0,
+            missRate = if (total > 0) m.toDouble() / total else 0.0,
+            utilizationRate = s.toDouble() / config.maxSize,
+            currentSize = s
         )
     }
 
     /** Resets all statistics counters to zero. */
-    public suspend fun resetStatistics(): Unit = mutex.withLock {
-        hits = 0L
-        misses = 0L
-        evictions = 0L
+    public suspend fun resetStatistics(): Unit = atomically {
+        hits.write(0L)
+        misses.write(0L)
+        evictions.write(0L)
     }
 
     /**
@@ -262,23 +372,24 @@ public class Cache<K, V>(
         return clock.now() - entry.createdAt > ttl
     }
 
-    /** Must be called while holding mutex. */
-    private fun evictOne() {
-        if (entries.isEmpty()) return
+    /** Called inside an STM transaction. Returns updated (entries, accessOrder). */
+    private fun STM.evictOne(
+        currentEntries: Map<K, CacheEntry<V>>,
+        currentOrder: List<K>
+    ): Pair<Map<K, CacheEntry<V>>, List<K>> {
+        if (currentEntries.isEmpty()) return currentEntries to currentOrder
 
         val keyToEvict = when (config.evictionStrategy) {
-            EvictionStrategy.LRU -> accessOrder.firstOrNull()
-            EvictionStrategy.LFU -> entries.minByOrNull { it.value.accessCount }?.key
-            EvictionStrategy.FIFO -> entries.minByOrNull { it.value.createdAt }?.key
+            EvictionStrategy.LRU -> currentOrder.firstOrNull()
+            EvictionStrategy.LFU -> currentEntries.minByOrNull { it.value.accessCount }?.key
+            EvictionStrategy.FIFO -> currentEntries.minByOrNull { it.value.createdAt }?.key
         }
 
-        keyToEvict?.let { key ->
-            val entry = entries.remove(key)
-            accessOrder.remove(key)
-            evictions++
-            if (entry != null) {
-                listeners.forEach { it.onEviction(key, entry.value, EvictionReason.SIZE) }
-            }
+        return if (keyToEvict != null) {
+            evictions.write(evictions.read() + 1)
+            (currentEntries - keyToEvict) to (currentOrder - keyToEvict)
+        } else {
+            currentEntries to currentOrder
         }
     }
 }
@@ -389,10 +500,10 @@ public class CacheConfigBuilder {
  * @param configure configuration block
  * @return a new [Cache] instance
  */
-public fun <K, V> cache(configure: CacheConfigBuilder.() -> Unit): Cache<K, V> {
+public suspend fun <K, V> cache(configure: CacheConfigBuilder.() -> Unit): Cache<K, V> {
     val builder = CacheConfigBuilder()
     builder.configure()
-    return Cache(builder.build())
+    return Cache.create(builder.build())
 }
 
 /**
@@ -403,11 +514,25 @@ public fun <K, V> cache(configure: CacheConfigBuilder.() -> Unit): Cache<K, V> {
  * @param config Configuration for cache behavior
  * @param loader function to load a value when not found in the cache
  */
-public class LoadingCache<K, V>(
-    config: CacheConfig = CacheConfig(),
+public class LoadingCache<K, V> private constructor(
+    private val delegate: Cache<K, V>,
     private val loader: suspend (K) -> V
 ) {
-    private val delegate = Cache<K, V>(config)
+    public companion object {
+        /**
+         * Creates a new [LoadingCache] instance.
+         * @param config Configuration for cache behavior
+         * @param loader function to load a value when not found in the cache
+         * @return a new [LoadingCache] instance
+         */
+        public suspend fun <K, V> create(
+            config: CacheConfig = CacheConfig(),
+            loader: suspend (K) -> V
+        ): LoadingCache<K, V> {
+            val delegate = Cache.create<K, V>(config)
+            return LoadingCache(delegate, loader)
+        }
+    }
 
     /**
      * Gets a value from the cache, auto-loading it via [loader] on miss.
@@ -443,8 +568,16 @@ public class LoadingCache<K, V>(
 }
 
 /** Registry for managing named cache instances. */
-public class CacheRegistry {
-    private val caches = mutableMapOf<String, Cache<*, *>>()
+public class CacheRegistry private constructor(
+    private val caches: TVar<Map<String, Cache<*, *>>>
+) {
+    public companion object {
+        /** Creates a new [CacheRegistry] instance. */
+        public suspend fun create(): CacheRegistry {
+            val caches = TVar.new(emptyMap<String, Cache<*, *>>())
+            return CacheRegistry(caches)
+        }
+    }
 
     /**
      * Gets or creates a cache with the given name.
@@ -453,10 +586,18 @@ public class CacheRegistry {
      * @return the existing or newly created cache
      */
     @Suppress("UNCHECKED_CAST")
-    public fun <K, V> getOrCreate(name: String, configure: CacheConfigBuilder.() -> Unit = {}): Cache<K, V> {
-        return caches.getOrPut(name) {
-            cache<K, V>(configure)
-        } as Cache<K, V>
+    public suspend fun <K, V> getOrCreate(name: String, configure: CacheConfigBuilder.() -> Unit = {}): Cache<K, V> {
+        val existing = atomically { caches.read()[name] }
+        if (existing != null) return existing as Cache<K, V>
+        val newCache = cache<K, V>(configure)
+        atomically {
+            val current = caches.read()
+            if (name !in current) {
+                caches.write(current + (name to newCache))
+            }
+        }
+        // Re-read in case another coroutine created it first
+        return atomically { caches.read()[name] as Cache<K, V> }
     }
 
     /**
@@ -465,8 +606,8 @@ public class CacheRegistry {
      * @return the cache or null if not found
      */
     @Suppress("UNCHECKED_CAST")
-    public fun <K, V> get(name: String): Cache<K, V>? {
-        return caches[name] as? Cache<K, V>
+    public suspend fun <K, V> get(name: String): Cache<K, V>? = atomically {
+        caches.read()[name] as? Cache<K, V>
     }
 
     /**
@@ -474,15 +615,21 @@ public class CacheRegistry {
      * @param name the cache name
      * @return the removed cache or null if not found
      */
-    public fun remove(name: String): Cache<*, *>? {
-        return caches.remove(name)
+    public suspend fun remove(name: String): Cache<*, *>? = atomically {
+        val current = caches.read()
+        val removed = current[name]
+        if (removed != null) {
+            caches.write(current - name)
+        }
+        removed
     }
 
     /** Returns the names of all registered caches. */
-    public fun getNames(): Set<String> = caches.keys.toSet()
+    public suspend fun getNames(): Set<String> = atomically { caches.read().keys.toSet() }
 
     /** Clears all entries from all registered caches. */
     public suspend fun clearAll() {
-        caches.values.forEach { it.clear() }
+        val snapshot = atomically { caches.read().values.toList() }
+        snapshot.forEach { it.clear() }
     }
 }

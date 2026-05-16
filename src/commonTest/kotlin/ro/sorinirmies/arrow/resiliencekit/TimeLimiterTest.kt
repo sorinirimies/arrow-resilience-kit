@@ -21,7 +21,7 @@ class TimeLimiterTest {
     @JsName("timeLimiterAllowsCallsWithinTimeout")
     @Test
     fun `time limiter allows calls within timeout`() = runTest {
-        val timeLimiter = TimeLimiter(
+        val timeLimiter = TimeLimiter.create(
             config = TimeLimiterConfig(
                 timeout = 1.seconds
             )
@@ -40,7 +40,7 @@ class TimeLimiterTest {
     @JsName("timeLimiterThrowsExceptionOnTimeout")
     @Test
     fun `time limiter throws exception on timeout`() = runTest {
-        val timeLimiter = TimeLimiter(
+        val timeLimiter = TimeLimiter.create(
             config = TimeLimiterConfig(
                 timeout = 50.milliseconds
             )
@@ -57,7 +57,7 @@ class TimeLimiterTest {
     @JsName("executeOrNullReturnsNullOnTimeout")
     @Test
     fun `executeOrNull returns null on timeout`() = runTest {
-        val timeLimiter = TimeLimiter(
+        val timeLimiter = TimeLimiter.create(
             config = TimeLimiterConfig(
                 timeout = 50.milliseconds
             )
@@ -74,7 +74,7 @@ class TimeLimiterTest {
     @JsName("executeOrNullReturnsValueOnSuccess")
     @Test
     fun `executeOrNull returns value on success`() = runTest {
-        val timeLimiter = TimeLimiter(
+        val timeLimiter = TimeLimiter.create(
             config = TimeLimiterConfig(
                 timeout = 1.seconds
             )
@@ -90,7 +90,7 @@ class TimeLimiterTest {
     @JsName("executeOrFallbackUsesFallbackOnTimeout")
     @Test
     fun `executeOrFallback uses fallback on timeout`() = runTest {
-        val timeLimiter = TimeLimiter(
+        val timeLimiter = TimeLimiter.create(
             config = TimeLimiterConfig(
                 timeout = 50.milliseconds
             )
@@ -109,7 +109,7 @@ class TimeLimiterTest {
     @JsName("executeOrFallbackExecutesPrimaryWhenWithinTimeout")
     @Test
     fun `executeOrFallback executes primary when within timeout`() = runTest {
-        val timeLimiter = TimeLimiter(
+        val timeLimiter = TimeLimiter.create(
             config = TimeLimiterConfig(
                 timeout = 1.seconds
             )
@@ -127,7 +127,7 @@ class TimeLimiterTest {
     @JsName("executeOrDefaultUsesDefaultOnTimeout")
     @Test
     fun `executeOrDefault uses default on timeout`() = runTest {
-        val timeLimiter = TimeLimiter(
+        val timeLimiter = TimeLimiter.create(
             config = TimeLimiterConfig(
                 timeout = 50.milliseconds
             )
@@ -146,7 +146,7 @@ class TimeLimiterTest {
     @JsName("executeWithRetryRetriesOnTimeout")
     @Test
     fun `executeWithRetry retries on timeout`() = runTest {
-        val timeLimiter = TimeLimiter(
+        val timeLimiter = TimeLimiter.create(
             config = TimeLimiterConfig(
                 timeout = 50.milliseconds
             )
@@ -168,7 +168,7 @@ class TimeLimiterTest {
     @JsName("executeWithRetrySucceedsOnRetry")
     @Test
     fun `executeWithRetry succeeds on retry`() = runTest {
-        val timeLimiter = TimeLimiter(
+        val timeLimiter = TimeLimiter.create(
             config = TimeLimiterConfig(
                 timeout = 100.milliseconds
             )
@@ -193,7 +193,7 @@ class TimeLimiterTest {
     @JsName("customTimeoutOverridesConfigTimeout")
     @Test
     fun `custom timeout overrides config timeout`() = runTest {
-        val timeLimiter = TimeLimiter(
+        val timeLimiter = TimeLimiter.create(
             config = TimeLimiterConfig(
                 timeout = 1.seconds
             )
@@ -210,7 +210,7 @@ class TimeLimiterTest {
     @JsName("timeLimiterTracksStatistics")
     @Test
     fun `time limiter tracks statistics`() = runTest {
-        val timeLimiter = TimeLimiter(
+        val timeLimiter = TimeLimiter.create(
             config = TimeLimiterConfig(
                 timeout = 100.milliseconds
             )
@@ -230,7 +230,7 @@ class TimeLimiterTest {
     @JsName("timeLimiterTracksTimeouts")
     @Test
     fun `time limiter tracks timeouts`() = runTest {
-        val timeLimiter = TimeLimiter(
+        val timeLimiter = TimeLimiter.create(
             config = TimeLimiterConfig(
                 timeout = 50.milliseconds
             )
@@ -255,7 +255,7 @@ class TimeLimiterTest {
     @JsName("timeLimiterTracksFailures")
     @Test
     fun `time limiter tracks failures`() = runTest {
-        val timeLimiter = TimeLimiter(
+        val timeLimiter = TimeLimiter.create(
             config = TimeLimiterConfig(
                 timeout = 1.seconds
             )
@@ -282,7 +282,7 @@ class TimeLimiterTest {
         var onSuccessCalled = false
         var duration = 0L
 
-        val timeLimiter = TimeLimiter(
+        val timeLimiter = TimeLimiter.create(
             config = TimeLimiterConfig(timeout = 1.seconds)
         )
 
@@ -305,7 +305,7 @@ class TimeLimiterTest {
     fun `time limiter listener is notified of timeout`() = runTest {
         var onTimeoutCalled = false
 
-        val timeLimiter = TimeLimiter(
+        val timeLimiter = TimeLimiter.create(
             config = TimeLimiterConfig(timeout = 50.milliseconds)
         )
 
@@ -332,7 +332,7 @@ class TimeLimiterTest {
     fun `time limiter listener is notified of failure`() = runTest {
         var onFailureCalled = false
 
-        val timeLimiter = TimeLimiter(
+        val timeLimiter = TimeLimiter.create(
             config = TimeLimiterConfig(timeout = 1.seconds)
         )
 
@@ -379,7 +379,7 @@ class TimeLimiterTest {
     @JsName("executeAllExecutesMultipleOperationsWithTimeout")
     @Test
     fun `executeAll executes multiple operations with timeout`() = runTest {
-        val timeLimiter = TimeLimiter(
+        val timeLimiter = TimeLimiter.create(
             config = TimeLimiterConfig(timeout = 100.milliseconds)
         )
 
@@ -402,7 +402,7 @@ class TimeLimiterTest {
     @JsName("resetStatisticsClearsCounters")
     @Test
     fun `reset statistics clears counters`() = runTest {
-        val timeLimiter = TimeLimiter()
+        val timeLimiter = TimeLimiter.create()
 
         timeLimiter.execute { "success" }
 
@@ -421,7 +421,7 @@ class TimeLimiterTest {
     @JsName("timeLimiterRegistryManagesMultipleLimiters")
     @Test
     fun `TimeLimiterRegistry manages multiple limiters`() = runTest {
-        val registry = TimeLimiterRegistry()
+        val registry = TimeLimiterRegistry.create()
 
         val fastLimiter = registry.getOrCreate("fast") {
             timeout = 100.milliseconds
@@ -440,7 +440,7 @@ class TimeLimiterTest {
     @JsName("timeLimiterRegistryGetReturnsExistingLimiter")
     @Test
     fun `TimeLimiterRegistry get returns existing limiter`() = runTest {
-        val registry = TimeLimiterRegistry()
+        val registry = TimeLimiterRegistry.create()
 
         registry.get("nonexistent") shouldBe null
 
@@ -451,7 +451,7 @@ class TimeLimiterTest {
     @JsName("timeLimiterRegistryRemoveRemovesLimiter")
     @Test
     fun `TimeLimiterRegistry remove removes limiter`() = runTest {
-        val registry = TimeLimiterRegistry()
+        val registry = TimeLimiterRegistry.create()
 
         val limiter = registry.getOrCreate("test")
         val removed = registry.remove("test")
@@ -463,7 +463,7 @@ class TimeLimiterTest {
     @JsName("timeLimiterRegistryResetAllStatisticsResetsAllLimiters")
     @Test
     fun `TimeLimiterRegistry resetAllStatistics resets all limiters`() = runTest {
-        val registry = TimeLimiterRegistry()
+        val registry = TimeLimiterRegistry.create()
 
         val limiter = registry.getOrCreate("test")
         limiter.execute { "success" }
@@ -480,7 +480,7 @@ class TimeLimiterTest {
     @JsName("timeLimiterRegistryGetAllStatisticsReturnsStatsForAllLimiters")
     @Test
     fun `TimeLimiterRegistry getAllStatistics returns stats for all limiters`() = runTest {
-        val registry = TimeLimiterRegistry()
+        val registry = TimeLimiterRegistry.create()
 
         val limiter1 = registry.getOrCreate("limiter1")
         val limiter2 = registry.getOrCreate("limiter2")
@@ -540,7 +540,7 @@ class TimeLimiterTest {
     @JsName("timeLimiterHandlesConcurrentCalls")
     @Test
     fun `time limiter handles concurrent calls`() = runTest {
-        val timeLimiter = TimeLimiter(
+        val timeLimiter = TimeLimiter.create(
             config = TimeLimiterConfig(timeout = 200.milliseconds)
         )
 
@@ -567,7 +567,7 @@ class TimeLimiterTest {
     @JsName("timeLimiterCalculatesAverageTimeoutDuration")
     @Test
     fun `time limiter calculates average timeout duration`() = runTest {
-        val timeLimiter = TimeLimiter(
+        val timeLimiter = TimeLimiter.create(
             config = TimeLimiterConfig(timeout = 50.milliseconds)
         )
 
@@ -591,7 +591,7 @@ class TimeLimiterTest {
     @JsName("executeRaceReturnsFirstResult")
     @Test
     fun `executeRace returns first completing result`() = runTest {
-        val timeLimiter = TimeLimiter(config = TimeLimiterConfig(timeout = 1.seconds))
+        val timeLimiter = TimeLimiter.create(config = TimeLimiterConfig(timeout = 1.seconds))
 
         val result = timeLimiter.executeRace(
             blocks = listOf(
