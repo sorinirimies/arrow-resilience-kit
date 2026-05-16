@@ -1,19 +1,8 @@
 # Module Arrow Resilience Kit
+Kotlin Multiplatform resilience patterns built on Arrow-kt. Coroutine-first, composable, and safe for concurrent use across JVM, JS, and Native.
 
-A comprehensive resilience patterns library for Kotlin Multiplatform using Arrow-kt.
+# Package ro.sorinirmies.arrow.resiliencekit
+Core resilience patterns: Bulkhead, Cache, CircuitBreaker, RateLimiter, RetryRepeat, Saga, TimeLimiter. Each with DSL builders and named registries.
 
-This library provides production-ready implementations of common resilience patterns including retry, circuit breaker, bulkhead, rate limiter, time limiter, cache, and saga patterns.
-
-## Resilience Patterns
-
-The library includes the following resilience patterns:
-
-- Retry and Repeat: Automatic retry with exponential backoff, linear backoff, and custom strategies
-- Circuit Breaker: Prevent cascading failures with configurable thresholds and half-open states
-- Bulkhead: Resource isolation and concurrency limiting using semaphores
-- Rate Limiter: Control request rates with token bucket algorithm
-- Time Limiter: Timeout handling with fallback support
-- Cache: Thread-safe caching with TTL and size limits
-- Saga: Distributed transaction coordination with automatic compensation
-
-All patterns are implemented using Arrow's functional programming constructs and Software Transactional Memory (STM) for safe concurrent access.
+# Package ro.sorinirmies.arrow.resiliencekit.stm
+Lock-free composable transactional primitives built on Arrow STM: StmCounter, StmGauge, StmStateMachine, StmSemaphore, StmRateWindow, and TVar extension functions.

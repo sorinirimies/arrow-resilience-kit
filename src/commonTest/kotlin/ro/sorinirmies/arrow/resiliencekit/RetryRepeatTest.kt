@@ -6,7 +6,7 @@ package ro.sorinirmies.arrow.resiliencekit
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.comparables.shouldBeGreaterThan
-import io.kotest.matchers.comparables.shouldBeLessThan
+
 import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.test.runTest
@@ -428,7 +428,7 @@ class RetryRepeatTest {
         val result = repeatOrElse(
             times = 3,
             delay = 10.milliseconds,
-            onError = { error, attempt ->
+            onError = { _, _ ->
                 errorHandlerCalled = true
                 "fallback"
             }
@@ -586,5 +586,44 @@ class RetryRepeatTest {
         }
 
         counter shouldBe 6
+    }
+
+    @JsName("retryWithConstantDelaySucceeds")
+    @Test
+    fun `retryWithConstantDelay retries and succeeds`() = runTest {
+        var attempts = 0
+        val result = retryWithConstantDelay(retries = 3, delay = 10.milliseconds) {
+            attempts++
+            if (attempts < 3) throw RuntimeException("Retry")
+            "success"
+        }
+        result shouldBe "success"
+        attempts shouldBe 3
+    }
+
+    @JsName("retryWithConstantDelayExhaustsRetries")
+    @Test
+    fun `retryWithConstantDelay throws after exhausting retries`() = runTest {
+        shouldThrow<RuntimeException> {
+            retryWithConstantDelay(retries = 2, delay = 10.milliseconds) {
+                throw RuntimeException("Always fails")
+            }
+        }
+    }
+
+    @JsName("retryResultGetOrNullReturnsValue")
+    @Test
+    fun `RetryResult getOrNull returns value on success`() = runTest {
+        val result = retryWithHistory(retries = 0) { "value" }
+        result.getOrNull() shouldBe "value"
+    }
+
+    @JsName("retryResultGetOrNullReturnsNullOnFailure")
+    @Test
+    fun `RetryResult getOrNull returns null on failure`() = runTest {
+        val result = retryWithHistory(retries = 0) {
+            throw RuntimeException("fail")
+        }
+        result.getOrNull() shouldBe null
     }
 }

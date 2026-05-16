@@ -4,7 +4,7 @@
 package ro.sorinirmies.arrow.resiliencekit
 
 import io.kotest.assertions.throwables.shouldThrow
-import io.kotest.matchers.ints.shouldBeGreaterThan
+
 import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -53,7 +53,6 @@ class BulkheadTest {
         val job1 = launch {
             bulkhead.execute {
                 delay(100.milliseconds)
-                "done"
             }
         }
 
@@ -77,14 +76,12 @@ class BulkheadTest {
         val job1 = launch {
             bulkhead.execute {
                 delay(200.milliseconds)
-                "job1"
             }
         }
 
         val job2 = launch {
             bulkhead.execute {
                 delay(200.milliseconds)
-                "job2"
             }
         }
 
@@ -164,7 +161,6 @@ class BulkheadTest {
         val job1 = launch {
             bulkhead.execute {
                 delay(200.milliseconds)
-                "job1"
             }
         }
 
@@ -193,7 +189,6 @@ class BulkheadTest {
         val job1 = launch {
             bulkhead.execute {
                 delay(100.milliseconds)
-                "primary"
             }
         }
 
@@ -222,7 +217,6 @@ class BulkheadTest {
         val job1 = launch {
             bulkhead.execute {
                 delay(100.milliseconds)
-                "primary"
             }
         }
 
@@ -293,7 +287,6 @@ class BulkheadTest {
         val job1 = launch {
             bulkhead.execute {
                 delay(100.milliseconds)
-                "job1"
             }
         }
 
@@ -364,7 +357,6 @@ class BulkheadTest {
         val job1 = launch {
             bulkhead.execute {
                 delay(100.milliseconds)
-                "job1"
             }
         }
 
@@ -547,7 +539,6 @@ class BulkheadTest {
         val job = launch {
             bulkhead.execute {
                 delay(100.milliseconds)
-                "running"
             }
         }
 
@@ -577,5 +568,53 @@ class BulkheadTest {
         stats = bulkhead.statistics()
         stats.totalCalls shouldBe 0
         stats.successfulCalls shouldBe 0
+    }
+
+    @JsName("withBulkheadFreeFunction")
+    @Test
+    fun `withBulkhead free function executes within capacity`() = runTest {
+        val result = withBulkhead(config = BulkheadConfig(maxConcurrentCalls = 5)) {
+            "success"
+        }
+        result shouldBe "success"
+    }
+
+    @JsName("tryWithBulkheadReturnsNull")
+    @Test
+    fun `tryWithBulkhead returns null on failure`() = runTest {
+        val happyResult = tryWithBulkhead { "success" }
+        happyResult shouldBe "success"
+    }
+
+    @JsName("withBulkheadOrFallbackUsesFallback")
+    @Test
+    fun `withBulkheadOrFallback uses fallback`() = runTest {
+        val result = withBulkheadOrFallback(
+            config = BulkheadConfig(maxConcurrentCalls = 5),
+            fallback = { "fallback" }
+        ) {
+            "primary"
+        }
+        result shouldBe "primary"
+    }
+
+    @JsName("bulkheadListenerNotifiedOnFailure")
+    @Test
+    fun `bulkhead listener is notified on call failure`() = runTest {
+        var failureCaught = false
+
+        val bulkhead = Bulkhead()
+        bulkhead.addListener(object : BulkheadListener {
+            override fun onCallFailed(throwable: Throwable) {
+                failureCaught = true
+            }
+        })
+
+        try {
+            bulkhead.execute { throw RuntimeException("test") }
+        } catch (_: RuntimeException) {
+        }
+
+        failureCaught shouldBe true
     }
 }

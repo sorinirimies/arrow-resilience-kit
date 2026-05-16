@@ -70,6 +70,13 @@ jobs:
         with:
           cache-read-only: false
 
+      - name: Cache Kotlin/Native
+        uses: actions/cache@v4
+        with:
+          path: ~/.konan
+          key: konan-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml') }}
+          restore-keys: konan-${{ runner.os }}-
+
       - name: Validate Gradle wrapper
         uses: gradle/actions/wrapper-validation@v3
 

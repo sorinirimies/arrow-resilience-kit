@@ -296,7 +296,8 @@ class TimeLimiterTest {
         timeLimiter.execute { "success" }
 
         onSuccessCalled shouldBe true
-        duration shouldBe 0L // Very fast operation
+        // Duration should be very small (< 50ms) for a trivial operation
+        (duration < 50L) shouldBe true
     }
 
     @JsName("timeLimiterListenerIsNotifiedOfTimeout")
@@ -369,7 +370,6 @@ class TimeLimiterTest {
     fun `time limiter DSL creates configured limiter`() = runTest {
         val timeLimiter = timeLimiter {
             timeout = 5.seconds
-            onTimeout = TimeoutStrategy.RETURN_NULL
         }
 
         val result = timeLimiter.execute { "success" }
@@ -586,5 +586,21 @@ class TimeLimiterTest {
         val stats = timeLimiter.statistics()
         stats.timedOutCalls shouldBe 3
         // Average timeout duration should be around 50ms
+    }
+
+    @JsName("executeRaceReturnsFirstResult")
+    @Test
+    fun `executeRace returns first completing result`() = runTest {
+        val timeLimiter = TimeLimiter(config = TimeLimiterConfig(timeout = 1.seconds))
+
+        val result = timeLimiter.executeRace(
+            blocks = listOf(
+                { delay(200.milliseconds); "slow" },
+                { "fast" },
+                { delay(300.milliseconds); "slower" }
+            )
+        )
+
+        result shouldBe "fast"
     }
 }

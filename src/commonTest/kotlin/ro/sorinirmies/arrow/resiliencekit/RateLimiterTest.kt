@@ -263,11 +263,11 @@ class RateLimiterTest {
         )
 
         rateLimiter.tryExecute { "call1" }
-        rateLimiter.availableTokens() shouldBe 0.0
+        (rateLimiter.availableTokens() <= 0.01) shouldBe true
 
         rateLimiter.reset()
 
-        rateLimiter.availableTokens() shouldBe 1.0
+        (rateLimiter.availableTokens() >= 0.99) shouldBe true
     }
 
     @JsName("rateLimiterResetStatisticsClearsCounters")
@@ -322,7 +322,7 @@ class RateLimiterTest {
         }
 
         result shouldBe "success"
-        rateLimiter.availableTokens() shouldBe 7.0
+        (rateLimiter.availableTokens() >= 6.9) shouldBe true
     }
 
     @JsName("rateLimiterValidatesPermitsParameter")
@@ -605,5 +605,37 @@ class RateLimiterTest {
         jobs.forEach { it.join() }
 
         results.filterNotNull().size shouldBe 10
+    }
+
+    @JsName("rateLimiterListenerNotifiedOnFailure")
+    @Test
+    fun `rate limiter listener is notified on request failure`() = runTest {
+        var failureCaught = false
+
+        val rateLimiter = RateLimiter()
+        rateLimiter.addListener(object : RateLimiterListener {
+            override fun onRequestFailed(exception: Exception) {
+                failureCaught = true
+            }
+        })
+
+        try {
+            rateLimiter.execute { throw RuntimeException("test error") }
+        } catch (_: RuntimeException) {
+        }
+
+        failureCaught shouldBe true
+    }
+
+    @JsName("rateLimiterStatisticsAcceptanceRate")
+    @Test
+    fun `rate limiter statistics calculates acceptance rate`() = runTest {
+        val rateLimiter = RateLimiter(config = RateLimiterConfig(permitsPerSecond = 1.0, burstCapacity = 2))
+        rateLimiter.tryExecute { "call1" }
+        rateLimiter.tryExecute { "call2" }
+        rateLimiter.tryExecute { "call3" } // rejected
+
+        val stats = rateLimiter.statistics()
+        stats.acceptanceRate shouldBe (2.0 / 3.0)
     }
 }

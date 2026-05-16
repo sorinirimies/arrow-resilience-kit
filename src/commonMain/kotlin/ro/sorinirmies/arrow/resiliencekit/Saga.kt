@@ -9,8 +9,6 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.datetime.Clock
 import mu.KotlinLogging
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 
 private val logger = KotlinLogging.logger {}
 
@@ -510,6 +508,9 @@ public data class ParallelSagaResult<T>(
     public val failedSagas: Int,
     public val duration: Duration,
 ) {
+    /** Ratio of successful sagas from 0.0 to 1.0. */
     public val successRate: Double = if (totalSagas > 0) successfulSagas.toDouble() / totalSagas else 0.0
+
+    /** Whether all sagas completed successfully. */
     public val allSuccessful: Boolean = failedSagas == 0
 }

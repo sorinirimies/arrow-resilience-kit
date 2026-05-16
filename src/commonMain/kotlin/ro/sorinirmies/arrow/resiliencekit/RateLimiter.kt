@@ -133,7 +133,12 @@ public class RateLimiter(
             kotlinx.coroutines.delay(waitTime)
         }
 
-        return block()
+        return try {
+            block()
+        } catch (e: Exception) {
+            listeners.forEach { it.onRequestFailed(e) }
+            throw e
+        }
     }
 
     /**
@@ -160,6 +165,7 @@ public class RateLimiter(
         return try {
             block()
         } catch (e: Exception) {
+            listeners.forEach { it.onRequestFailed(e) }
             throw e
         }
     }
@@ -298,6 +304,7 @@ public data class RateLimiterStatistics(
     public val acceptedRequests: Long,
     public val rejectedRequests: Long,
 ) {
+    /** Acceptance rate as a ratio from 0.0 to 1.0. */
     public val acceptanceRate: Double
         get() = if (totalRequests > 0) {
             acceptedRequests.toDouble() / totalRequests
@@ -305,6 +312,7 @@ public data class RateLimiterStatistics(
             0.0
         }
 
+    /** Rejection rate as a ratio from 0.0 to 1.0. */
     public val rejectionRate: Double
         get() = if (totalRequests > 0) {
             rejectedRequests.toDouble() / totalRequests
@@ -354,9 +362,13 @@ public fun rateLimiter(configure: RateLimiterConfigBuilder.() -> Unit): RateLimi
  * Builder for rate limiter configuration.
  */
 public class RateLimiterConfigBuilder {
+    /** Number of permits to add per second. */
     public var permitsPerSecond: Double = 10.0
+
+    /** Maximum number of permits that can be accumulated. */
     public var burstCapacity: Int = 10
 
+    /** Builds the [RateLimiterConfig] from the current builder state. */
     public fun build(): RateLimiterConfig {
         return RateLimiterConfig(
             permitsPerSecond = permitsPerSecond,
@@ -532,6 +544,7 @@ public data class SlidingWindowStatistics(
     public val acceptedRequests: Long,
     public val rejectedRequests: Long,
 ) {
+    /** Acceptance rate as a ratio from 0.0 to 1.0. */
     public val acceptanceRate: Double
         get() = if (totalRequests > 0) {
             acceptedRequests.toDouble() / totalRequests
@@ -539,6 +552,7 @@ public data class SlidingWindowStatistics(
             0.0
         }
 
+    /** Rejection rate as a ratio from 0.0 to 1.0. */
     public val rejectionRate: Double
         get() = if (totalRequests > 0) {
             rejectedRequests.toDouble() / totalRequests
