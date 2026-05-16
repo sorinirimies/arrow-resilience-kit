@@ -354,8 +354,13 @@ public data class CircuitBreakerConfig(
  * Circuit breaker state.
  */
 public enum class CircuitBreakerState {
+    /** Normal operation — calls are allowed through. */
     Closed,
+
+    /** Circuit is broken — calls fail immediately without execution. */
     Open,
+
+    /** Testing recovery — a limited number of calls are allowed through. */
     HalfOpen
 }
 
@@ -387,11 +392,19 @@ public fun circuitBreaker(configure: CircuitBreakerConfigBuilder.() -> Unit): Ci
  * Builder for circuit breaker configuration.
  */
 public class CircuitBreakerConfigBuilder {
+    /** Number of consecutive failures before opening the circuit. */
     public var failureThreshold: Int = 5
+
+    /** Duration to wait before transitioning from Open to Half-Open. */
     public var resetTimeout: Duration = 30.seconds
+
+    /** Number of successes needed in Half-Open state to close the circuit. */
     public var halfOpenSuccessThreshold: Int = 2
+
+    /** Maximum number of calls allowed in Half-Open state. */
     public var halfOpenMaxCalls: Int = 3
 
+    /** Builds the [CircuitBreakerConfig] from the current builder state. */
     public fun build(): CircuitBreakerConfig {
         return CircuitBreakerConfig(
             failureThreshold = failureThreshold,
@@ -408,6 +421,12 @@ public class CircuitBreakerConfigBuilder {
 public class CircuitBreakerRegistry {
     private val breakers = mutableMapOf<String, CircuitBreaker>()
 
+    /**
+     * Gets or creates a circuit breaker with the given name.
+     * @param name unique identifier for the circuit breaker
+     * @param configure optional configuration block
+     * @return the existing or newly created circuit breaker
+     */
     public fun getOrCreate(
         name: String,
         configure: (CircuitBreakerConfigBuilder.() -> Unit)? = null,
@@ -421,22 +440,35 @@ public class CircuitBreakerRegistry {
         }
     }
 
+    /**
+     * Gets an existing circuit breaker by name.
+     * @param name the circuit breaker name
+     * @return the circuit breaker or null if not found
+     */
     public fun get(name: String): CircuitBreaker? {
         return breakers[name]
     }
 
+    /**
+     * Removes a circuit breaker from the registry.
+     * @param name the circuit breaker name
+     * @return the removed circuit breaker or null if not found
+     */
     public fun remove(name: String): CircuitBreaker? {
         return breakers.remove(name)
     }
 
+    /** Resets all circuit breakers in the registry to closed state. */
     public suspend fun resetAll() {
         breakers.values.forEach { it.reset() }
     }
 
+    /** Returns the names of all registered circuit breakers. */
     public fun getNames(): Set<String> {
         return breakers.keys.toSet()
     }
 
+    /** Returns statistics for all registered circuit breakers, keyed by name. */
     public suspend fun getStatistics(): Map<String, CircuitBreakerStats> {
         return breakers.mapValues { (_, breaker) ->
             CircuitBreakerStats(
@@ -452,7 +484,10 @@ public class CircuitBreakerRegistry {
  * Statistics for a circuit breaker.
  */
 public data class CircuitBreakerStats(
+    /** Current state of the circuit breaker. */
     public val state: CircuitBreakerState,
+    /** Current failure count. */
     public val failures: Int,
+    /** Current success count (relevant in half-open state). */
     public val successes: Int,
 )

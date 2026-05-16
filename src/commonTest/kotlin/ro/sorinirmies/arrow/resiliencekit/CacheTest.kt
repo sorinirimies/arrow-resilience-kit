@@ -713,4 +713,26 @@ class CacheTest {
         cache.put("key2", "value2")
         putCount shouldBe 1 // Should not increase
     }
+
+    @JsName("cacheInvalidateRemovesEntry")
+    @Test
+    fun `cache invalidate removes entry`() = runTest {
+        val cache = Cache<String, String>()
+        cache.put("key1", "value1")
+        cache.invalidate("key1")
+        cache.get("key1") shouldBe null
+    }
+
+    @JsName("cacheInvalidateAllRemovesEntries")
+    @Test
+    fun `cache invalidateAll removes multiple entries`() = runTest {
+        val cache = Cache<String, String>()
+        cache.put("key1", "value1")
+        cache.put("key2", "value2")
+        cache.put("key3", "value3")
+        cache.invalidateAll(listOf("key1", "key3"))
+        cache.get("key1") shouldBe null
+        cache.get("key2") shouldBe "value2"
+        cache.get("key3") shouldBe null
+    }
 }

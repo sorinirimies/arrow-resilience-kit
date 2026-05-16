@@ -61,7 +61,7 @@ repositories {
 implementation("ro.sorinirmies.arrow:arrow-resilience-kit:0.2.0")
 ```
 
-> Requires a GitHub Personal Access Token with `read:packages` scope. See [INSTALLATION.md](INSTALLATION.md) for full details.
+> Requires a GitHub Personal Access Token with `read:packages` scope.
 
 ## Quick Start
 
@@ -356,27 +356,10 @@ val rl = rateLimiter {
 
 val tl = timeLimiter {
     timeout = 15.seconds
-    onTimeout = TimeoutStrategy.RETURN_NULL
 }
 ```
 
 Named registries (`CircuitBreakerRegistry`, `BulkheadRegistry`, `RateLimiterRegistry`, `TimeLimiterRegistry`, `CacheRegistry`) let you manage instances by name and collect statistics across all instances.
-
-## Publishing
-
-### Maven Central
-
-Publishing to Maven Central is handled via the release CI workflow. See [RELEASE.md](RELEASE.md) for the full process.
-
-### JitPack
-
-JitPack builds are automatic — any tag or commit on GitHub is available at:
-
-```/dev/null/jitpack.txt#L1
-https://jitpack.io/#sorinirimies/arrow-resilience-kit
-```
-
-The `jitpack.yml` in the repo root configures the JitPack build.
 
 ## Dependencies
 

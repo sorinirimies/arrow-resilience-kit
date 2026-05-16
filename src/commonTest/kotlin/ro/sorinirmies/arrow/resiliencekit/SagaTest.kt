@@ -34,7 +34,6 @@ class SagaTest {
         val result = saga.execute()
 
         result.shouldBeInstanceOf<SagaResult.Success<String>>()
-        result as SagaResult.Success
         result.executedSteps shouldBe 3
         step1Executed shouldBe true
         step2Executed shouldBe true
@@ -67,7 +66,6 @@ class SagaTest {
         val result = saga.execute()
 
         result.shouldBeInstanceOf<SagaResult.Failure<String>>()
-        result as SagaResult.Failure
         result.compensatedSteps shouldBe 2
         step1Compensated shouldBe true
         step2Compensated shouldBe true
@@ -136,7 +134,6 @@ class SagaTest {
         val result = saga.execute()
 
         result.shouldBeInstanceOf<SagaResult.Failure<String>>()
-        result as SagaResult.Failure
         result.compensatedSteps shouldBe 2 // Only steps 1 and 3
         step1Compensated shouldBe true
         step3Compensated shouldBe true
@@ -181,7 +178,6 @@ class SagaTest {
         val result = saga.execute()
 
         result.shouldBeInstanceOf<SagaResult.Failure<String>>()
-        result as SagaResult.Failure
         result.hasCompensationErrors shouldBe true
         result.compensationErrors shouldHaveSize 1
         // All steps should have attempted compensation
@@ -229,7 +225,6 @@ class SagaTest {
         val result = saga.execute()
 
         result.shouldBeInstanceOf<SagaResult.Failure<String>>()
-        result as SagaResult.Failure
         result.hasCompensationErrors shouldBe true
         // Step 1 should not have been compensated due to step 2 failure
         step1Compensated shouldBe false
@@ -274,7 +269,6 @@ class SagaTest {
         val result = saga.execute()
 
         result.shouldBeInstanceOf<SagaResult.Failure<String>>()
-        result as SagaResult.Failure
         result.error.cause shouldBe expectedError
     }
 
@@ -296,7 +290,6 @@ class SagaTest {
         val result = saga.execute()
 
         result.shouldBeInstanceOf<SagaResult.Failure<String>>()
-        result as SagaResult.Failure
         result.compensationErrors shouldHaveSize 1
         result.compensationErrors[0].stepName shouldBe "Step 1"
     }
@@ -377,7 +370,6 @@ class SagaTest {
         val result = saga.execute()
 
         result.shouldBeInstanceOf<SagaResult.Success<String>>()
-        result as SagaResult.Success
         result.isSuccess shouldBe true
         result.executedSteps shouldBe 3
         result.duration.inWholeMilliseconds shouldBeGreaterThan 0L
@@ -396,7 +388,6 @@ class SagaTest {
         val result = saga.execute()
 
         result.shouldBeInstanceOf<SagaResult.Failure<String>>()
-        result as SagaResult.Failure
         result.isSuccess shouldBe false
         result.compensatedSteps shouldBe 3
         result.compensationErrors shouldHaveSize 0
@@ -577,5 +568,15 @@ class SagaTest {
         result.shouldBeInstanceOf<SagaResult.Success<String>>()
         retriedStepAttempts shouldBe 2
         timedStepExecuted shouldBe true
+    }
+
+    @JsName("sagaBuilderCompanionCreatesBuilder")
+    @Test
+    fun `Saga builder companion creates builder`() {
+        val builder = Saga.builder<String>()
+        // Just verify it doesn't throw
+        shouldThrow<IllegalArgumentException> {
+            builder.build() // Should throw because no steps added
+        }
     }
 }

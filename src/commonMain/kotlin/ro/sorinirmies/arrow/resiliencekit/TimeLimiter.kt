@@ -72,15 +72,6 @@ public class TimeLimiter(
     private var totalTimeoutDuration = 0L
     private val listeners = mutableListOf<TimeLimiterListener>()
 
-    public companion object {
-        /**
-         * Creates a new TimeLimiter instance with the given configuration.
-         */
-        public suspend fun create(config: TimeLimiterConfig = TimeLimiterConfig()): TimeLimiter {
-            return TimeLimiter(config)
-        }
-    }
-
     /**
      * Adds a listener for time limiter events.
      */
@@ -339,37 +330,15 @@ public class TimeLimiter(
  * Configuration for time limiter behavior.
  *
  * @property timeout Default timeout duration (default: 30 seconds)
- * @property onTimeout Strategy for handling timeouts (default: THROW)
  */
 public data class TimeLimiterConfig(
     public val timeout: Duration = 30.seconds,
-    public val onTimeout: TimeoutStrategy = TimeoutStrategy.THROW,
 ) {
     init {
         require(timeout > Duration.ZERO) {
             "timeout must be > 0, but was $timeout"
         }
     }
-}
-
-/**
- * Strategy for handling timeouts.
- */
-public enum class TimeoutStrategy {
-    /**
-     * Throw TimeoutCancellationException (default behavior).
-     */
-    THROW,
-
-    /**
-     * Return null when timeout occurs.
-     */
-    RETURN_NULL,
-
-    /**
-     * Use a fallback value when timeout occurs.
-     */
-    FALLBACK,
 }
 
 /**
@@ -388,6 +357,7 @@ public data class TimeLimiterStatistics(
     public val failedCalls: Long,
     public val averageTimeoutDuration: Duration,
 ) {
+    /** Ratio of successful calls from 0.0 to 1.0. */
     public val successRate: Double
         get() = if (totalCalls > 0) {
             successfulCalls.toDouble() / totalCalls
@@ -395,6 +365,7 @@ public data class TimeLimiterStatistics(
             0.0
         }
 
+    /** Ratio of timed-out calls from 0.0 to 1.0. */
     public val timeoutRate: Double
         get() = if (totalCalls > 0) {
             timedOutCalls.toDouble() / totalCalls
@@ -402,6 +373,7 @@ public data class TimeLimiterStatistics(
             0.0
         }
 
+    /** Ratio of failed calls (non-timeout) from 0.0 to 1.0. */
     public val failureRate: Double
         get() = if (totalCalls > 0) {
             failedCalls.toDouble() / totalCalls
@@ -443,7 +415,6 @@ public interface TimeLimiterListener {
  * ```
  * val timeLimiter = timeLimiter {
  *     timeout = 10.seconds
- *     onTimeout = TimeoutStrategy.RETURN_NULL
  * }
  * ```
  */
@@ -457,13 +428,13 @@ public fun timeLimiter(configure: TimeLimiterConfigBuilder.() -> Unit): TimeLimi
  * Builder for time limiter configuration.
  */
 public class TimeLimiterConfigBuilder {
+    /** Default timeout duration for operations. */
     public var timeout: Duration = 30.seconds
-    public var onTimeout: TimeoutStrategy = TimeoutStrategy.THROW
 
+    /** Builds the [TimeLimiterConfig] from the current builder state. */
     public fun build(): TimeLimiterConfig {
         return TimeLimiterConfig(
             timeout = timeout,
-            onTimeout = onTimeout,
         )
     }
 }

@@ -38,7 +38,6 @@
  */
 package ro.sorinirmies.arrow.resiliencekit
 
-import arrow.core.Either
 import arrow.resilience.Schedule
 import arrow.resilience.retry
 import arrow.resilience.retryOrElse
@@ -608,12 +607,22 @@ public data class RetryResult<R>(
     public val attempts: List<AttemptResult<R>>,
     public val totalDuration: Duration,
 ) {
+    /** Whether the retry operation succeeded. */
     public val isSuccess: Boolean get() = finalResult.isSuccess
+
+    /** Whether the retry operation failed. */
     public val isFailure: Boolean get() = finalResult.isFailure
+
+    /** Total number of attempts made. */
     public val attemptCount: Int get() = attempts.size
 
+    /** Returns the successful result or null if the operation failed. */
     public fun getOrNull(): R? = finalResult.getOrNull()
+
+    /** Returns the successful result or throws the failure exception. */
     public fun getOrThrow(): R = finalResult.getOrThrow()
+
+    /** Returns the failure exception or null if the operation succeeded. */
     public fun exceptionOrNull(): Throwable? = finalResult.exceptionOrNull()
 }
 
@@ -630,10 +639,16 @@ public data class AttemptResult<R>(
     public val result: Result<R>,
     public val duration: Duration,
 ) {
+    /** Whether this attempt succeeded. */
     public val isSuccess: Boolean get() = result.isSuccess
+
+    /** Whether this attempt failed. */
     public val isFailure: Boolean get() = result.isFailure
 
+    /** Returns the successful result or null if the attempt failed. */
     public fun getOrNull(): R? = result.getOrNull()
+
+    /** Returns the failure exception or null if the attempt succeeded. */
     public fun exceptionOrNull(): Throwable? = result.exceptionOrNull()
 }
 
