@@ -1,23 +1,22 @@
 #!/usr/bin/env nu
 # Validate that a tag follows the vX.Y.Z pattern
 export def validate [tag: string]: nothing -> record<tag: string, version: string> {
-    if not ($tag | str contains 'v') or ($tag | str length) < 6 {
-        error make {msg: $"Tag '($tag)' does not match vX.Y.Z pattern"}
+    # Only accept bare version numbers like "0.3.0", reject "v0.3.0"
+    if ($tag | str starts-with "v") {
+        error make {msg: $"Version '($tag)' should not have a 'v' prefix. Use '($tag | str substring 1..)' instead."}
     }
-    let version = ($tag | str substring 1..)
-    let parts = ($version | split row '.')
+    let parts = ($tag | split row '.')
     if ($parts | length) != 3 {
-        error make {msg: $"Tag '($tag)' does not match vX.Y.Z pattern"}
+        error make {msg: $"Version '($tag)' does not match X.Y.Z pattern"}
     }
-    # Validate each part is numeric
     for part in $parts {
         try {
             $part | into int | ignore
         } catch {
-            error make {msg: $"Tag '($tag)' contains non-numeric part: ($part)"}
+            error make {msg: $"Version '($tag)' contains non-numeric part: ($part)"}
         }
     }
-    {tag: $tag, version: $version}
+    {tag: $tag, version: $tag}
 }
 
 def main [tag: string] {
