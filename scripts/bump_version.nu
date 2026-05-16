@@ -7,9 +7,12 @@ def main [version: string] {
         exit 1
     }
 
-    print $"╔══════════════════════════════════════╗"
-    print $"║  Bumping to version ($version)       ║"
-    print $"╚══════════════════════════════════════╝"
+    let label = $"Bumping to version ($version)"
+    let pad = ($label | str length) + 4
+    let bar = ("═" | fill -c '═' -w $pad)
+    print $"╔($bar)╗"
+    print $"║  ($label)  ║"
+    print $"╚($bar)╝"
 
     # Update build.gradle.kts
     let content = (open build.gradle.kts)

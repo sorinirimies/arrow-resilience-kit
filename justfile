@@ -299,9 +299,9 @@ push:
 push-all:
     #!/usr/bin/env sh
     failed=""
-    for remote in $(git remote); do
+    for remote in github gitea gitea_starscream; do
         echo "▸ Pushing to $remote..."
-        git push "$remote" --all || failed="$failed $remote"
+        git push "$remote" main || failed="$failed $remote"
     done
     [ -z "$failed" ] || echo "⚠️  Failed:$failed"
 
@@ -309,7 +309,7 @@ push-all:
 push-all-force:
     #!/usr/bin/env sh
     failed=""
-    for remote in $(git remote); do
+    for remote in github gitea gitea_starscream; do
         echo "▸ Force-pushing to $remote..."
         git push --force "$remote" main || failed="$failed $remote"
     done
@@ -318,7 +318,7 @@ push-all-force:
 # Push tags to all remotes
 push-tags-all:
     #!/usr/bin/env sh
-    for remote in $(git remote); do
+    for remote in github gitea gitea_starscream; do
         echo "▸ Pushing tags to $remote..."
         git push "$remote" --tags || true
     done
@@ -334,7 +334,7 @@ push-gitea-starscream:
 # Pull from all remotes
 pull-all:
     #!/usr/bin/env sh
-    for remote in $(git remote); do
+    for remote in github gitea gitea_starscream; do
         echo "▸ Pulling from $remote..."
         git pull "$remote" main || true
     done
