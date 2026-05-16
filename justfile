@@ -299,29 +299,49 @@ push:
 push-all:
     #!/usr/bin/env sh
     failed=""
-    for remote in github gitea gitea_starscream; do
-        echo "▸ Pushing to $remote..."
-        git push "$remote" main || failed="$failed $remote"
-    done
-    [ -z "$failed" ] || echo "⚠️  Failed:$failed"
+    echo "▸ Pushing to github..."
+    git push github main             || failed="$failed github"
+    echo "▸ Pushing to gitea..."
+    git push gitea main              || failed="$failed gitea"
+    echo "▸ Pushing to gitea_starscream..."
+    git push gitea_starscream main   || failed="$failed gitea_starscream"
+    if [ -n "$failed" ]; then
+        echo "⚠️  Failed to push to:$failed"
+    else
+        echo "✅ Pushed to GitHub, Gitea, and Gitea Starscream!"
+    fi
 
 # Force-push to all remotes
 push-all-force:
     #!/usr/bin/env sh
     failed=""
-    for remote in github gitea gitea_starscream; do
-        echo "▸ Force-pushing to $remote..."
-        git push --force "$remote" main || failed="$failed $remote"
-    done
-    [ -z "$failed" ] || echo "⚠️  Failed:$failed"
+    echo "▸ Force-pushing to github..."
+    git push --force github main             || failed="$failed github"
+    echo "▸ Force-pushing to gitea..."
+    git push --force gitea main              || failed="$failed gitea"
+    echo "▸ Force-pushing to gitea_starscream..."
+    git push --force gitea_starscream main   || failed="$failed gitea_starscream"
+    if [ -n "$failed" ]; then
+        echo "⚠️  Failed to force-push to:$failed"
+    else
+        echo "✅ Force-pushed to GitHub, Gitea, and Gitea Starscream!"
+    fi
 
 # Push tags to all remotes
 push-tags-all:
     #!/usr/bin/env sh
-    for remote in github gitea gitea_starscream; do
-        echo "▸ Pushing tags to $remote..."
-        git push "$remote" --tags || true
-    done
+    failed=""
+    echo "▸ Pushing tags to github..."
+    git push github --tags             || failed="$failed github"
+    echo "▸ Pushing tags to gitea..."
+    git push gitea --tags              || failed="$failed gitea"
+    echo "▸ Pushing tags to gitea_starscream..."
+    git push gitea_starscream --tags   || failed="$failed gitea_starscream"
+    if [ -n "$failed" ]; then
+        echo "⚠️  Failed to push tags to:$failed"
+    else
+        echo "✅ Tags pushed to GitHub, Gitea, and Gitea Starscream!"
+    fi
 
 # Push to Gitea
 push-gitea:
@@ -334,10 +354,18 @@ push-gitea-starscream:
 # Pull from all remotes
 pull-all:
     #!/usr/bin/env sh
-    for remote in github gitea gitea_starscream; do
-        echo "▸ Pulling from $remote..."
-        git pull "$remote" main || true
-    done
+    failed=""
+    echo "▸ Pulling from github..."
+    git pull github main             || failed="$failed github"
+    echo "▸ Pulling from gitea..."
+    git pull gitea main              || failed="$failed gitea"
+    echo "▸ Pulling from gitea_starscream..."
+    git pull gitea_starscream main   || failed="$failed gitea_starscream"
+    if [ -n "$failed" ]; then
+        echo "⚠️  Failed to pull from:$failed"
+    else
+        echo "✅ Pulled from GitHub, Gitea, and Gitea Starscream!"
+    fi
 
 # Force sync Gitea mirrors
 sync-gitea:
