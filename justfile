@@ -234,36 +234,44 @@ dependencies:
 
 # ── Release ────────────────────────────────────────────────────
 
-# Full release: bump + push with tags to GitHub
+# Release to GitHub — triggers GitHub Release workflow
 release VERSION: (bump VERSION)
-    @echo "Pushing release v{{ VERSION }} to GitHub…"
-    git push --follow-tags github main
-    @echo "✅ Release v{{ VERSION }} pushed — workflow will trigger automatically."
+    @echo "▸ Pushing to github..."
+    git push github main
+    git push github --tags
+    @echo "✅ Release {{ VERSION }} pushed to GitHub — workflow will trigger automatically."
 
-# Release to Gitea only
+# Release to Gitea — triggers Gitea Release workflow
 release-gitea VERSION: (bump VERSION)
-    @echo "Pushing release v{{ VERSION }} to Gitea…"
-    git push --follow-tags gitea main
-    @echo "✅ Release v{{ VERSION }} live on Gitea."
+    @echo "▸ Pushing to gitea..."
+    git push gitea main
+    git push gitea --tags
+    @echo "✅ Release {{ VERSION }} pushed to Gitea — workflow will trigger automatically."
 
-# Release to Gitea Starscream only
+# Release to Gitea Starscream — triggers Gitea Starscream Release workflow
 release-gitea-starscream VERSION: (bump VERSION)
-    @echo "Pushing release v{{ VERSION }} to Gitea Starscream…"
-    git push --follow-tags gitea_starscream main
-    @echo "✅ Release v{{ VERSION }} live on Gitea Starscream."
+    @echo "▸ Pushing to gitea_starscream..."
+    git push gitea_starscream main
+    git push gitea_starscream --tags
+    @echo "✅ Release {{ VERSION }} pushed to Gitea Starscream — workflow will trigger automatically."
 
-# Release to all remotes
+# Release to all remotes — triggers all Release workflows
 release-all VERSION: (bump VERSION)
     #!/usr/bin/env sh
-    echo "Pushing release v{{ VERSION }} to all remotes…"
     failed=""
-    git push --follow-tags github main             || failed="$failed github"
-    git push --follow-tags gitea main              || failed="$failed gitea"
-    git push --follow-tags gitea_starscream main   || failed="$failed gitea_starscream"
+    echo "▸ Pushing to github..."
+    git push github main             || failed="$failed github"
+    git push github --tags           || failed="$failed github-tags"
+    echo "▸ Pushing to gitea..."
+    git push gitea main              || failed="$failed gitea"
+    git push gitea --tags            || failed="$failed gitea-tags"
+    echo "▸ Pushing to gitea_starscream..."
+    git push gitea_starscream main   || failed="$failed gitea_starscream"
+    git push gitea_starscream --tags || failed="$failed gitea_starscream-tags"
     if [ -n "$failed" ]; then
-        echo "⚠️  Release v{{ VERSION }} failed to push to:$failed"
+        echo "⚠️  Release {{ VERSION }} failed to push to:$failed"
     else
-        echo "✅ Release v{{ VERSION }} pushed to all remotes!"
+        echo "✅ Release {{ VERSION }} pushed to GitHub, Gitea, and Gitea Starscream!"
     fi
 
 # Create a Gitea release for a tag
