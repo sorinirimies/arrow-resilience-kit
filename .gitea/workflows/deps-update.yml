@@ -39,3 +39,7 @@ jobs:
 
       - name: Upgrade dependencies
         run: nu scripts/upgrade_deps.nu --commit --bot-name "gitea-actions[bot]" --bot-email "gitea-actions[bot]@noreply.gitea"
+
+      - name: Cleanup workspace
+        if: always()
+        run: nu scripts/cleanup.nu --ci

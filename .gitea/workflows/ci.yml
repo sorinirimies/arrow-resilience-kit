@@ -43,6 +43,18 @@ jobs:
       - name: Build project
         run: ./gradlew assemble --no-daemon --stacktrace
 
+      - name: Cleanup workspace
+        if: always()
+        run: |
+          if command -v nu > /dev/null 2>&1; then
+            nu scripts/cleanup.nu --ci
+          else
+            ./gradlew --stop 2>/dev/null || true
+            rm -rf build kotlin-js-store
+            rm -rf .gradle/buildOutputCleanup .gradle/expanded .gradle/kotlin .gradle/vcs-1 .gradle/file-system.probe
+            find .gradle -maxdepth 1 -type d -regex '.*/[0-9].*' -exec rm -rf {} + 2>/dev/null || true
+          fi
+
   # ── 2. Test ──────────────────────────────────────────────────────────────────
   test:
     name: test
@@ -78,6 +90,18 @@ jobs:
             **/build/reports/
           retention-days: 7
 
+      - name: Cleanup workspace
+        if: always()
+        run: |
+          if command -v nu > /dev/null 2>&1; then
+            nu scripts/cleanup.nu --ci
+          else
+            ./gradlew --stop 2>/dev/null || true
+            rm -rf build kotlin-js-store
+            rm -rf .gradle/buildOutputCleanup .gradle/expanded .gradle/kotlin .gradle/vcs-1 .gradle/file-system.probe
+            find .gradle -maxdepth 1 -type d -regex '.*/[0-9].*' -exec rm -rf {} + 2>/dev/null || true
+          fi
+
   # ── 3. Lint ──────────────────────────────────────────────────────────────────
   lint:
     name: lint
@@ -103,6 +127,18 @@ jobs:
       - name: Run detekt / check
         run: ./gradlew check --no-daemon --stacktrace
 
+      - name: Cleanup workspace
+        if: always()
+        run: |
+          if command -v nu > /dev/null 2>&1; then
+            nu scripts/cleanup.nu --ci
+          else
+            ./gradlew --stop 2>/dev/null || true
+            rm -rf build kotlin-js-store
+            rm -rf .gradle/buildOutputCleanup .gradle/expanded .gradle/kotlin .gradle/vcs-1 .gradle/file-system.probe
+            find .gradle -maxdepth 1 -type d -regex '.*/[0-9].*' -exec rm -rf {} + 2>/dev/null || true
+          fi
+
   # ── 4. Documentation ────────────────────────────────────────────────────────
   doc:
     name: doc
@@ -127,3 +163,15 @@ jobs:
 
       - name: Generate Dokka documentation
         run: ./gradlew dokkaHtml --no-daemon --stacktrace
+
+      - name: Cleanup workspace
+        if: always()
+        run: |
+          if command -v nu > /dev/null 2>&1; then
+            nu scripts/cleanup.nu --ci
+          else
+            ./gradlew --stop 2>/dev/null || true
+            rm -rf build kotlin-js-store
+            rm -rf .gradle/buildOutputCleanup .gradle/expanded .gradle/kotlin .gradle/vcs-1 .gradle/file-system.probe
+            find .gradle -maxdepth 1 -type d -regex '.*/[0-9].*' -exec rm -rf {} + 2>/dev/null || true
+          fi
