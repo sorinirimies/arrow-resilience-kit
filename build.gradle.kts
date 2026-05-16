@@ -54,7 +54,11 @@ kotlin {
     }
 
     js(IR) {
-        browser()
+        browser {
+            testTask {
+                enabled = false // No browser available in CI; use Node.js tests only
+            }
+        }
         nodejs()
     }
 
