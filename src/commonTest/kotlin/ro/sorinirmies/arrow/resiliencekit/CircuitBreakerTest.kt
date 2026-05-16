@@ -17,14 +17,14 @@ class CircuitBreakerTest {
     @JsName("circuitBreakerStartsInClosedState")
     @Test
     fun `circuit breaker starts in closed state`() = runTest {
-        val breaker = CircuitBreaker()
+        val breaker = CircuitBreaker.create()
         breaker.currentState() shouldBe CircuitBreakerState.Closed
     }
 
     @JsName("circuitBreakerAllowsCallsInClosedState")
     @Test
     fun `circuit breaker allows calls in closed state`() = runTest {
-        val breaker = CircuitBreaker()
+        val breaker = CircuitBreaker.create()
         var executed = false
 
         val result = breaker.execute {
@@ -40,7 +40,7 @@ class CircuitBreakerTest {
     @JsName("circuitBreakerOpensAfterThresholdFailures")
     @Test
     fun `circuit breaker opens after threshold failures`() = runTest {
-        val breaker = CircuitBreaker(
+        val breaker = CircuitBreaker.create(
             config = CircuitBreakerConfig(
                 failureThreshold = 3,
                 resetTimeout = 1.seconds
@@ -63,7 +63,7 @@ class CircuitBreakerTest {
     @JsName("circuitBreakerRejectsCallsWhenOpen")
     @Test
     fun `circuit breaker rejects calls when open`() = runTest {
-        val breaker = CircuitBreaker(
+        val breaker = CircuitBreaker.create(
             config = CircuitBreakerConfig(failureThreshold = 1)
         )
 
@@ -84,7 +84,7 @@ class CircuitBreakerTest {
     @Test
     fun `circuit breaker transitions to half-open after reset timeout`() = runTest {
         val testClock = TestClock()
-        val breaker = CircuitBreaker(
+        val breaker = CircuitBreaker.create(
             config = CircuitBreakerConfig(
                 failureThreshold = 1,
                 resetTimeout = 50.milliseconds,
@@ -119,7 +119,7 @@ class CircuitBreakerTest {
     @Test
     fun `circuit breaker closes from half-open after success threshold`() = runTest {
         val testClock = TestClock()
-        val breaker = CircuitBreaker(
+        val breaker = CircuitBreaker.create(
             config = CircuitBreakerConfig(
                 failureThreshold = 1,
                 resetTimeout = 50.milliseconds,
@@ -148,7 +148,7 @@ class CircuitBreakerTest {
     @Test
     fun `circuit breaker reopens from half-open on failure`() = runTest {
         val testClock = TestClock()
-        val breaker = CircuitBreaker(
+        val breaker = CircuitBreaker.create(
             config = CircuitBreakerConfig(
                 failureThreshold = 1,
                 resetTimeout = 50.milliseconds,
@@ -175,7 +175,7 @@ class CircuitBreakerTest {
     @JsName("executeOrFallbackUsesFallbackWhenCircuitIsOpen")
     @Test
     fun `executeOrFallback uses fallback when circuit is open`() = runTest {
-        val breaker = CircuitBreaker(
+        val breaker = CircuitBreaker.create(
             config = CircuitBreakerConfig(failureThreshold = 1)
         )
 
@@ -201,7 +201,7 @@ class CircuitBreakerTest {
     @JsName("executeOrFallbackExecutesPrimaryWhenCircuitIsClosed")
     @Test
     fun `executeOrFallback executes primary when circuit is closed`() = runTest {
-        val breaker = CircuitBreaker()
+        val breaker = CircuitBreaker.create()
 
         var fallbackUsed = false
         val result = breaker.executeOrFallback(
@@ -220,7 +220,7 @@ class CircuitBreakerTest {
     @JsName("manualResetClosesTheCircuit")
     @Test
     fun `manual reset closes the circuit`() = runTest {
-        val breaker = CircuitBreaker(
+        val breaker = CircuitBreaker.create(
             config = CircuitBreakerConfig(failureThreshold = 1)
         )
 
@@ -241,7 +241,7 @@ class CircuitBreakerTest {
     @JsName("manualTripOpensTheCircuit")
     @Test
     fun `manual trip opens the circuit`() = runTest {
-        val breaker = CircuitBreaker()
+        val breaker = CircuitBreaker.create()
         breaker.currentState() shouldBe CircuitBreakerState.Closed
 
         breaker.trip()
@@ -252,7 +252,7 @@ class CircuitBreakerTest {
     @JsName("circuitBreakerResetsFailureCountOnSuccessInClosedState")
     @Test
     fun `circuit breaker resets failure count on success in closed state`() = runTest {
-        val breaker = CircuitBreaker(
+        val breaker = CircuitBreaker.create(
             config = CircuitBreakerConfig(failureThreshold = 3)
         )
 
@@ -277,7 +277,7 @@ class CircuitBreakerTest {
     fun `circuit breaker listener is notified of state changes`() = runTest {
         val stateChanges = mutableListOf<Pair<CircuitBreakerState, CircuitBreakerState>>()
 
-        val breaker = CircuitBreaker(
+        val breaker = CircuitBreaker.create(
             config = CircuitBreakerConfig(failureThreshold = 1)
         )
 
@@ -346,7 +346,7 @@ class CircuitBreakerTest {
     @JsName("circuitBreakerRegistryManagesMultipleBreakers")
     @Test
     fun `CircuitBreakerRegistry manages multiple breakers`() = runTest {
-        val registry = CircuitBreakerRegistry()
+        val registry = CircuitBreakerRegistry.create()
 
         val breaker1 = registry.getOrCreate("service1") {
             failureThreshold = 5
@@ -370,7 +370,7 @@ class CircuitBreakerTest {
     @JsName("circuitBreakerRegistryGetReturnsExistingBreaker")
     @Test
     fun `CircuitBreakerRegistry get returns existing breaker`() = runTest {
-        val registry = CircuitBreakerRegistry()
+        val registry = CircuitBreakerRegistry.create()
 
         registry.get("nonexistent") shouldBe null
 
@@ -381,7 +381,7 @@ class CircuitBreakerTest {
     @JsName("circuitBreakerRegistryRemoveRemovesBreaker")
     @Test
     fun `CircuitBreakerRegistry remove removes breaker`() = runTest {
-        val registry = CircuitBreakerRegistry()
+        val registry = CircuitBreakerRegistry.create()
 
         val breaker = registry.getOrCreate("test")
         val removed = registry.remove("test")
@@ -393,7 +393,7 @@ class CircuitBreakerTest {
     @JsName("circuitBreakerRegistryResetAllResetsAllBreakers")
     @Test
     fun `CircuitBreakerRegistry resetAll resets all breakers`() = runTest {
-        val registry = CircuitBreakerRegistry()
+        val registry = CircuitBreakerRegistry.create()
 
         val breaker1 = registry.getOrCreate("service1") {
             failureThreshold = 1
@@ -424,7 +424,7 @@ class CircuitBreakerTest {
     @JsName("circuitBreakerRegistryGetStatisticsReturnsStatsForAllBreakers")
     @Test
     fun `CircuitBreakerRegistry getStatistics returns stats for all breakers`() = runTest {
-        val registry = CircuitBreakerRegistry()
+        val registry = CircuitBreakerRegistry.create()
 
         val breaker1 = registry.getOrCreate("service1") {
             failureThreshold = 3
@@ -448,7 +448,7 @@ class CircuitBreakerTest {
     @Test
     fun `circuit breaker handles concurrent calls in half-open state`() = runTest {
         val testClock = TestClock()
-        val breaker = CircuitBreaker(
+        val breaker = CircuitBreaker.create(
             config = CircuitBreakerConfig(
                 failureThreshold = 1,
                 resetTimeout = 50.milliseconds,

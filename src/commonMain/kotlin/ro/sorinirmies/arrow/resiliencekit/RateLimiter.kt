@@ -3,8 +3,8 @@
 
 package ro.sorinirmies.arrow.resiliencekit
 
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
+import arrow.fx.stm.TVar
+import arrow.fx.stm.atomically
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import mu.KotlinLogging
@@ -35,7 +35,7 @@ private val logger = KotlinLogging.logger {}
  *
  * **Basic usage:**
  * ```kotlin
- * val limiter = RateLimiter(config = RateLimiterConfig(
+ * val limiter = RateLimiter.create(config = RateLimiterConfig(
  *     permitsPerSecond = 10.0,
  *     burstCapacity = 20
  * ))
@@ -54,7 +54,7 @@ private val logger = KotlinLogging.logger {}
  *
  * **Sliding window variant:**
  * ```kotlin
- * val limiter = SlidingWindowRateLimiter(config = SlidingWindowConfig(
+ * val limiter = SlidingWindowRateLimiter.create(config = SlidingWindowConfig(
  *     maxRequests = 100,
  *     windowDuration = 1.minutes
  * ))
@@ -62,17 +62,33 @@ private val logger = KotlinLogging.logger {}
  *
  * @param config Configuration for rate limiter behavior
  */
-public class RateLimiter(
-    private val config: RateLimiterConfig = RateLimiterConfig(),
-    internal val clock: Clock = Clock.System,
+public class RateLimiter private constructor(
+    private val config: RateLimiterConfig,
+    internal val clock: Clock,
+    private val tokens: TVar<Double>,
+    private val lastRefillTime: TVar<Instant>,
+    private val totalRequests: TVar<Long>,
+    private val acceptedRequests: TVar<Long>,
+    private val rejectedRequests: TVar<Long>,
 ) {
-    private val mutex = Mutex()
-    private var tokens: Double = config.burstCapacity.toDouble()
-    private var lastRefillTime: Instant = clock.now()
-    private var totalRequests: Long = 0L
-    private var acceptedRequests: Long = 0L
-    private var rejectedRequests: Long = 0L
     private val listeners = mutableListOf<RateLimiterListener>()
+
+    public companion object {
+        /**
+         * Creates a new [RateLimiter] instance.
+         */
+        public suspend fun create(
+            config: RateLimiterConfig = RateLimiterConfig(),
+            clock: Clock = Clock.System,
+        ): RateLimiter {
+            val tokens = TVar.new(config.burstCapacity.toDouble())
+            val lastRefillTime = TVar.new(clock.now())
+            val totalRequests = TVar.new(0L)
+            val acceptedRequests = TVar.new(0L)
+            val rejectedRequests = TVar.new(0L)
+            return RateLimiter(config, clock, tokens, lastRefillTime, totalRequests, acceptedRequests, rejectedRequests)
+        }
+    }
 
     /**
      * Adds a listener for rate limiter events.
@@ -84,20 +100,20 @@ public class RateLimiter(
     /**
      * Gets the current number of available tokens.
      */
-    public suspend fun availableTokens(): Double = mutex.withLock {
+    public suspend fun availableTokens(): Double = atomically {
         doRefillTokens()
-        tokens
+        tokens.read()
     }
 
     /**
      * Gets the current statistics.
      */
-    public suspend fun statistics(): RateLimiterStatistics = mutex.withLock {
+    public suspend fun statistics(): RateLimiterStatistics = atomically {
         RateLimiterStatistics(
-            availableTokens = tokens,
-            totalRequests = totalRequests,
-            acceptedRequests = acceptedRequests,
-            rejectedRequests = rejectedRequests,
+            availableTokens = tokens.read(),
+            totalRequests = totalRequests.read(),
+            acceptedRequests = acceptedRequests.read(),
+            rejectedRequests = rejectedRequests.read(),
         )
     }
 
@@ -136,7 +152,12 @@ public class RateLimiter(
         return try {
             block()
         } catch (e: Exception) {
-            listeners.forEach { it.onRequestFailed(e) }
+            listeners.toList().forEach {
+                try {
+                    it.onRequestFailed(e)
+                } catch (_: Exception) {
+                }
+            }
             throw e
         }
     }
@@ -165,7 +186,12 @@ public class RateLimiter(
         return try {
             block()
         } catch (e: Exception) {
-            listeners.forEach { it.onRequestFailed(e) }
+            listeners.toList().forEach {
+                try {
+                    it.onRequestFailed(e)
+                } catch (_: Exception) {
+                }
+            }
             throw e
         }
     }
@@ -195,24 +221,35 @@ public class RateLimiter(
     public suspend fun tryAcquire(permits: Int = 1): Boolean {
         require(permits > 0) { "permits must be > 0, but was $permits" }
 
-        val acquired = mutex.withLock {
-            totalRequests++
+        val acquired = atomically {
+            totalRequests.write(totalRequests.read() + 1)
             doRefillTokens()
 
-            if (tokens >= permits) {
-                tokens -= permits
-                acceptedRequests++
+            val currentTokens = tokens.read()
+            if (currentTokens >= permits) {
+                tokens.write(currentTokens - permits)
+                acceptedRequests.write(acceptedRequests.read() + 1)
                 true
             } else {
-                rejectedRequests++
+                rejectedRequests.write(rejectedRequests.read() + 1)
                 false
             }
         }
 
         if (acquired) {
-            listeners.forEach { it.onRequestAccepted() }
+            listeners.toList().forEach {
+                try {
+                    it.onRequestAccepted()
+                } catch (_: Exception) {
+                }
+            }
         } else {
-            listeners.forEach { it.onRequestRejected() }
+            listeners.toList().forEach {
+                try {
+                    it.onRequestRejected()
+                } catch (_: Exception) {
+                }
+            }
         }
 
         return acquired
@@ -222,10 +259,10 @@ public class RateLimiter(
      * Resets all statistics counters.
      */
     public suspend fun resetStatistics(): Unit {
-        mutex.withLock {
-            totalRequests = 0L
-            acceptedRequests = 0L
-            rejectedRequests = 0L
+        atomically {
+            totalRequests.write(0L)
+            acceptedRequests.write(0L)
+            rejectedRequests.write(0L)
         }
     }
 
@@ -233,30 +270,33 @@ public class RateLimiter(
      * Resets the rate limiter to initial state.
      */
     public suspend fun reset(): Unit {
-        mutex.withLock {
-            tokens = config.burstCapacity.toDouble()
-            lastRefillTime = Clock.System.now()
-            totalRequests = 0L
-            acceptedRequests = 0L
-            rejectedRequests = 0L
+        atomically {
+            tokens.write(config.burstCapacity.toDouble())
+            lastRefillTime.write(clock.now())
+            totalRequests.write(0L)
+            acceptedRequests.write(0L)
+            rejectedRequests.write(0L)
         }
     }
 
     /**
      * Refills tokens based on elapsed time.
-     * Must be called while holding the mutex.
+     * Must be called within an STM transaction.
      */
-    private fun doRefillTokens() {
+    private fun arrow.fx.stm.STM.doRefillTokens() {
         val now = clock.now()
-        val elapsed = now - lastRefillTime
+        val elapsed = now - lastRefillTime.read()
 
         if (elapsed > Duration.ZERO) {
             val tokensToAdd = elapsed.inWholeMilliseconds * config.permitsPerSecond / 1000.0
-            tokens = minOf(
-                tokens + tokensToAdd,
-                config.burstCapacity.toDouble()
+            val currentTokens = tokens.read()
+            tokens.write(
+                minOf(
+                    currentTokens + tokensToAdd,
+                    config.burstCapacity.toDouble()
+                )
             )
-            lastRefillTime = now
+            lastRefillTime.write(now)
         }
     }
 
@@ -352,10 +392,10 @@ public interface RateLimiterListener {
  * }
  * ```
  */
-public fun rateLimiter(configure: RateLimiterConfigBuilder.() -> Unit): RateLimiter {
+public suspend fun rateLimiter(configure: RateLimiterConfigBuilder.() -> Unit): RateLimiter {
     val builder = RateLimiterConfigBuilder()
     builder.configure()
-    return RateLimiter(builder.build())
+    return RateLimiter.create(builder.build())
 }
 
 /**
@@ -392,7 +432,7 @@ public class RateLimiterConfigBuilder {
  *
  * Example usage:
  * ```
- * val rateLimiter = SlidingWindowRateLimiter(
+ * val rateLimiter = SlidingWindowRateLimiter.create(
  *     config = SlidingWindowConfig(
  *         maxRequests = 100,
  *         windowDuration = 1.minutes
@@ -400,34 +440,55 @@ public class RateLimiterConfigBuilder {
  * )
  * ```
  */
-public class SlidingWindowRateLimiter(
-    private val config: SlidingWindowConfig = SlidingWindowConfig(),
-    internal val clock: Clock = Clock.System,
+public class SlidingWindowRateLimiter private constructor(
+    private val config: SlidingWindowConfig,
+    internal val clock: Clock,
+    private val requestTimestamps: TVar<List<Instant>>,
+    private val totalRequests: TVar<Long>,
+    private val acceptedRequests: TVar<Long>,
+    private val rejectedRequests: TVar<Long>,
 ) {
-    private val mutex = Mutex()
-    private var requestTimestamps: MutableList<Instant> = mutableListOf()
-    private var totalRequests: Long = 0L
-    private var acceptedRequests: Long = 0L
-    private var rejectedRequests: Long = 0L
+    public companion object {
+        /**
+         * Creates a new [SlidingWindowRateLimiter] instance.
+         */
+        public suspend fun create(
+            config: SlidingWindowConfig = SlidingWindowConfig(),
+            clock: Clock = Clock.System,
+        ): SlidingWindowRateLimiter {
+            val requestTimestamps = TVar.new(emptyList<Instant>())
+            val totalRequests = TVar.new(0L)
+            val acceptedRequests = TVar.new(0L)
+            val rejectedRequests = TVar.new(0L)
+            return SlidingWindowRateLimiter(
+                config,
+                clock,
+                requestTimestamps,
+                totalRequests,
+                acceptedRequests,
+                rejectedRequests
+            )
+        }
+    }
 
     /**
      * Gets the current number of requests in the window.
      */
-    public suspend fun currentRequests(): Int = mutex.withLock {
+    public suspend fun currentRequests(): Int = atomically {
         doCleanupOldRequests()
-        requestTimestamps.size
+        requestTimestamps.read().size
     }
 
     /**
      * Gets the current statistics.
      */
-    public suspend fun statistics(): SlidingWindowStatistics = mutex.withLock {
+    public suspend fun statistics(): SlidingWindowStatistics = atomically {
         doCleanupOldRequests()
         SlidingWindowStatistics(
-            currentRequests = requestTimestamps.size,
-            totalRequests = totalRequests,
-            acceptedRequests = acceptedRequests,
-            rejectedRequests = rejectedRequests,
+            currentRequests = requestTimestamps.read().size,
+            totalRequests = totalRequests.read(),
+            acceptedRequests = acceptedRequests.read(),
+            rejectedRequests = rejectedRequests.read(),
         )
     }
 
@@ -471,17 +532,18 @@ public class SlidingWindowRateLimiter(
      * @return true if permit was acquired, false otherwise
      */
     public suspend fun tryAcquire(): Boolean {
-        return mutex.withLock {
-            totalRequests++
+        return atomically {
+            totalRequests.write(totalRequests.read() + 1)
             doCleanupOldRequests()
 
-            if (requestTimestamps.size < config.maxRequests) {
+            val timestamps = requestTimestamps.read()
+            if (timestamps.size < config.maxRequests) {
                 val now = clock.now()
-                requestTimestamps.add(now)
-                acceptedRequests++
+                requestTimestamps.write(timestamps + now)
+                acceptedRequests.write(acceptedRequests.read() + 1)
                 true
             } else {
-                rejectedRequests++
+                rejectedRequests.write(rejectedRequests.read() + 1)
                 false
             }
         }
@@ -491,22 +553,23 @@ public class SlidingWindowRateLimiter(
      * Resets the rate limiter to initial state.
      */
     public suspend fun reset(): Unit {
-        mutex.withLock {
-            requestTimestamps.clear()
-            totalRequests = 0L
-            acceptedRequests = 0L
-            rejectedRequests = 0L
+        atomically {
+            requestTimestamps.write(emptyList())
+            totalRequests.write(0L)
+            acceptedRequests.write(0L)
+            rejectedRequests.write(0L)
         }
     }
 
     /**
      * Removes requests older than the window duration.
-     * Must be called while holding the mutex.
+     * Must be called within an STM transaction.
      */
-    private fun doCleanupOldRequests() {
+    private fun arrow.fx.stm.STM.doCleanupOldRequests() {
         val now = clock.now()
         val cutoffTime = now - config.windowDuration
-        requestTimestamps.removeAll { it < cutoffTime }
+        val timestamps = requestTimestamps.read()
+        requestTimestamps.write(timestamps.filter { it >= cutoffTime })
     }
 }
 
@@ -574,7 +637,7 @@ public class RateLimitExceededException(
  *
  * Example usage:
  * ```
- * val registry = RateLimiterRegistry()
+ * val registry = RateLimiterRegistry.create()
  *
  * val apiLimiter = registry.getOrCreate("api") {
  *     permitsPerSecond = 100.0
@@ -582,21 +645,45 @@ public class RateLimitExceededException(
  * }
  * ```
  */
-public class RateLimiterRegistry {
-    private val limiters = mutableMapOf<String, RateLimiter>()
+public class RateLimiterRegistry private constructor(
+    private val limiters: TVar<Map<String, RateLimiter>>,
+) {
+    public companion object {
+        /**
+         * Creates a new [RateLimiterRegistry] instance.
+         */
+        public suspend fun create(): RateLimiterRegistry {
+            val limiters = TVar.new(emptyMap<String, RateLimiter>())
+            return RateLimiterRegistry(limiters)
+        }
+    }
 
     /**
      * Gets an existing rate limiter or creates a new one.
      */
-    public fun getOrCreate(
+    public suspend fun getOrCreate(
         name: String,
         configure: (RateLimiterConfigBuilder.() -> Unit)? = null,
     ): RateLimiter {
-        return limiters.getOrPut(name) {
-            if (configure != null) {
-                rateLimiter(configure)
+        // First check if it already exists
+        val existing = atomically { limiters.read()[name] }
+        if (existing != null) return existing
+
+        // Create outside the transaction, then atomically insert if still absent
+        val newLimiter = if (configure != null) {
+            rateLimiter(configure)
+        } else {
+            RateLimiter.create()
+        }
+
+        return atomically {
+            val current = limiters.read()
+            val existingInTx = current[name]
+            if (existingInTx != null) {
+                existingInTx
             } else {
-                RateLimiter()
+                limiters.write(current + (name to newLimiter))
+                newLimiter
             }
         }
     }
@@ -604,36 +691,39 @@ public class RateLimiterRegistry {
     /**
      * Gets an existing rate limiter by name.
      */
-    public fun get(name: String): RateLimiter? {
-        return limiters[name]
-    }
+    public suspend fun get(name: String): RateLimiter? = atomically { limiters.read()[name] }
 
     /**
      * Removes a rate limiter from the registry.
      */
-    public fun remove(name: String): RateLimiter? {
-        return limiters.remove(name)
+    public suspend fun remove(name: String): RateLimiter? = atomically {
+        val current = limiters.read()
+        val removed = current[name]
+        if (removed != null) {
+            limiters.write(current - name)
+        }
+        removed
     }
 
     /**
      * Resets all rate limiters in the registry.
      */
     public suspend fun resetAll(): Unit {
-        limiters.values.forEach { it.reset() }
+        val snapshot = atomically { limiters.read().values.toList() }
+        snapshot.forEach { it.reset() }
     }
 
     /**
      * Gets all rate limiter names in the registry.
      */
-    public fun getNames(): Set<String> {
-        return limiters.keys.toSet()
-    }
+    public suspend fun getNames(): Set<String> = atomically { limiters.read().keys }
 
     /**
      * Gets statistics for all rate limiters.
      */
     public suspend fun getAllStatistics(): Map<String, RateLimiterStatistics> {
-        return limiters.mapValues { (_, limiter) ->
+        val snapshot = atomically { limiters.read() }
+        return snapshot.mapValues { (_, limiter) ->
             limiter.statistics()
         }
     }

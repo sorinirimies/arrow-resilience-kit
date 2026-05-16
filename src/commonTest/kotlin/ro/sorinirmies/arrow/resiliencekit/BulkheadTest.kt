@@ -21,7 +21,7 @@ class BulkheadTest {
     @JsName("bulkheadAllowsCallsWithinCapacity")
     @Test
     fun `bulkhead allows calls within capacity`() = runTest {
-        val bulkhead = Bulkhead(
+        val bulkhead = Bulkhead.create(
             config = BulkheadConfig(
                 maxConcurrentCalls = 5,
                 maxWaitingCalls = 0
@@ -41,7 +41,7 @@ class BulkheadTest {
     @JsName("bulkheadTracksActiveCalls")
     @Test
     fun `bulkhead tracks active calls`() = runTest {
-        val bulkhead = Bulkhead(
+        val bulkhead = Bulkhead.create(
             config = BulkheadConfig(
                 maxConcurrentCalls = 2,
                 maxWaitingCalls = 5
@@ -66,7 +66,7 @@ class BulkheadTest {
     @JsName("bulkheadRejectsCallsWhenFull")
     @Test
     fun `bulkhead rejects calls when full`() = runTest {
-        val bulkhead = Bulkhead(
+        val bulkhead = Bulkhead.create(
             config = BulkheadConfig(
                 maxConcurrentCalls = 2,
                 maxWaitingCalls = 0
@@ -101,7 +101,7 @@ class BulkheadTest {
     @JsName("bulkheadAllowsWaitingCallsUpToLimit")
     @Test
     fun `bulkhead allows waiting calls up to limit`() = runTest {
-        val bulkhead = Bulkhead(
+        val bulkhead = Bulkhead.create(
             config = BulkheadConfig(
                 maxConcurrentCalls = 1,
                 maxWaitingCalls = 2
@@ -150,7 +150,7 @@ class BulkheadTest {
     @JsName("bulkheadWithTimeoutRejectsCallsAfterWaitTimeout")
     @Test
     fun `bulkhead with timeout rejects calls after wait timeout`() = runTest {
-        val bulkhead = Bulkhead(
+        val bulkhead = Bulkhead.create(
             config = BulkheadConfig(
                 maxConcurrentCalls = 1,
                 maxWaitingCalls = 5,
@@ -179,7 +179,7 @@ class BulkheadTest {
     @JsName("executeOrFallbackUsesFallbackWhenFull")
     @Test
     fun `executeOrFallback uses fallback when full`() = runTest {
-        val bulkhead = Bulkhead(
+        val bulkhead = Bulkhead.create(
             config = BulkheadConfig(
                 maxConcurrentCalls = 1,
                 maxWaitingCalls = 0
@@ -207,7 +207,7 @@ class BulkheadTest {
     @JsName("tryExecuteReturnsNullWhenFull")
     @Test
     fun `tryExecute returns null when full`() = runTest {
-        val bulkhead = Bulkhead(
+        val bulkhead = Bulkhead.create(
             config = BulkheadConfig(
                 maxConcurrentCalls = 1,
                 maxWaitingCalls = 0
@@ -233,7 +233,7 @@ class BulkheadTest {
     @JsName("bulkheadTracksStatistics")
     @Test
     fun `bulkhead tracks statistics`() = runTest {
-        val bulkhead = Bulkhead(
+        val bulkhead = Bulkhead.create(
             config = BulkheadConfig(
                 maxConcurrentCalls = 2,
                 maxWaitingCalls = 1
@@ -253,7 +253,7 @@ class BulkheadTest {
     @JsName("bulkheadTracksFailedCalls")
     @Test
     fun `bulkhead tracks failed calls`() = runTest {
-        val bulkhead = Bulkhead(
+        val bulkhead = Bulkhead.create(
             config = BulkheadConfig(
                 maxConcurrentCalls = 5,
                 maxWaitingCalls = 0
@@ -277,7 +277,7 @@ class BulkheadTest {
     @JsName("bulkheadTracksRejectedCalls")
     @Test
     fun `bulkhead tracks rejected calls`() = runTest {
-        val bulkhead = Bulkhead(
+        val bulkhead = Bulkhead.create(
             config = BulkheadConfig(
                 maxConcurrentCalls = 1,
                 maxWaitingCalls = 0
@@ -311,7 +311,7 @@ class BulkheadTest {
         var callExited = false
         var callSucceeded = false
 
-        val bulkhead = Bulkhead(
+        val bulkhead = Bulkhead.create(
             config = BulkheadConfig(maxConcurrentCalls = 5)
         )
 
@@ -341,7 +341,7 @@ class BulkheadTest {
     fun `bulkhead listener is notified of rejection`() = runTest {
         var callRejected = false
 
-        val bulkhead = Bulkhead(
+        val bulkhead = Bulkhead.create(
             config = BulkheadConfig(
                 maxConcurrentCalls = 1,
                 maxWaitingCalls = 0
@@ -404,7 +404,7 @@ class BulkheadTest {
     @JsName("bulkheadRegistryManagesMultipleBulkheads")
     @Test
     fun `BulkheadRegistry manages multiple bulkheads`() = runTest {
-        val registry = BulkheadRegistry()
+        val registry = BulkheadRegistry.create()
 
         val bulkhead1 = registry.getOrCreate("service1") {
             maxConcurrentCalls = 5
@@ -423,7 +423,7 @@ class BulkheadTest {
     @JsName("bulkheadRegistryGetReturnsExistingBulkhead")
     @Test
     fun `BulkheadRegistry get returns existing bulkhead`() = runTest {
-        val registry = BulkheadRegistry()
+        val registry = BulkheadRegistry.create()
 
         registry.get("nonexistent") shouldBe null
 
@@ -434,7 +434,7 @@ class BulkheadTest {
     @JsName("bulkheadRegistryRemoveRemovesBulkhead")
     @Test
     fun `BulkheadRegistry remove removes bulkhead`() = runTest {
-        val registry = BulkheadRegistry()
+        val registry = BulkheadRegistry.create()
 
         val bulkhead = registry.getOrCreate("test")
         val removed = registry.remove("test")
@@ -446,7 +446,7 @@ class BulkheadTest {
     @JsName("bulkheadRegistryResetAllStatisticsResetsAllBulkheads")
     @Test
     fun `BulkheadRegistry resetAllStatistics resets all bulkheads`() = runTest {
-        val registry = BulkheadRegistry()
+        val registry = BulkheadRegistry.create()
 
         val bulkhead = registry.getOrCreate("test")
         bulkhead.execute { "success" }
@@ -463,7 +463,7 @@ class BulkheadTest {
     @JsName("bulkheadRegistryGetAllStatisticsReturnsStatsForAllBulkheads")
     @Test
     fun `BulkheadRegistry getAllStatistics returns stats for all bulkheads`() = runTest {
-        val registry = BulkheadRegistry()
+        val registry = BulkheadRegistry.create()
 
         val bulkhead1 = registry.getOrCreate("service1")
         val bulkhead2 = registry.getOrCreate("service2")
@@ -481,7 +481,7 @@ class BulkheadTest {
     @JsName("bulkheadStatisticsCalculatesUtilizationRate")
     @Test
     fun `bulkhead statistics calculates utilization rate`() = runTest {
-        val bulkhead = Bulkhead(
+        val bulkhead = Bulkhead.create(
             config = BulkheadConfig(
                 maxConcurrentCalls = 10,
                 maxWaitingCalls = 5
@@ -497,7 +497,7 @@ class BulkheadTest {
     @JsName("bulkheadHandlesConcurrentAccessCorrectly")
     @Test
     fun `bulkhead handles concurrent access correctly`() = runTest {
-        val bulkhead = Bulkhead(
+        val bulkhead = Bulkhead.create(
             config = BulkheadConfig(
                 maxConcurrentCalls = 5,
                 maxWaitingCalls = 10
@@ -526,7 +526,7 @@ class BulkheadTest {
     @JsName("bulkheadAvailableCapacityIsCorrect")
     @Test
     fun `bulkhead available capacity is correct`() = runTest {
-        val bulkhead = Bulkhead(
+        val bulkhead = Bulkhead.create(
             config = BulkheadConfig(
                 maxConcurrentCalls = 5,
                 maxWaitingCalls = 0
@@ -556,7 +556,7 @@ class BulkheadTest {
     @JsName("bulkheadResetStatisticsClearsCounters")
     @Test
     fun `bulkhead reset statistics clears counters`() = runTest {
-        val bulkhead = Bulkhead()
+        val bulkhead = Bulkhead.create()
 
         bulkhead.execute { "success" }
 
@@ -579,16 +579,16 @@ class BulkheadTest {
         result shouldBe "success"
     }
 
-    @JsName("tryWithBulkheadReturnsNull")
+    @JsName("tryWithBulkheadExecutesSuccessfully")
     @Test
-    fun `tryWithBulkhead returns null on failure`() = runTest {
+    fun `tryWithBulkhead executes successfully`() = runTest {
         val happyResult = tryWithBulkhead { "success" }
         happyResult shouldBe "success"
     }
 
-    @JsName("withBulkheadOrFallbackUsesFallback")
+    @JsName("withBulkheadOrFallbackExecutesPrimaryWhenNotFull")
     @Test
-    fun `withBulkheadOrFallback uses fallback`() = runTest {
+    fun `withBulkheadOrFallback executes primary when not full`() = runTest {
         val result = withBulkheadOrFallback(
             config = BulkheadConfig(maxConcurrentCalls = 5),
             fallback = { "fallback" }
@@ -603,7 +603,7 @@ class BulkheadTest {
     fun `bulkhead listener is notified on call failure`() = runTest {
         var failureCaught = false
 
-        val bulkhead = Bulkhead()
+        val bulkhead = Bulkhead.create()
         bulkhead.addListener(object : BulkheadListener {
             override fun onCallFailed(throwable: Throwable) {
                 failureCaught = true

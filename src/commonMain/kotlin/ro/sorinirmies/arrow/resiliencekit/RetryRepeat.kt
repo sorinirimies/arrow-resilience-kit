@@ -109,7 +109,13 @@ public suspend fun <R> retryWithExponentialBackoff(
         base = base,
         factor = factor,
     ).jittered() and Schedule.recurs(retries)
-    return retrySchedule.retry(block)
+    return retrySchedule.retry {
+        try {
+            block()
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        }
+    }
 }
 
 /**
@@ -142,7 +148,13 @@ public suspend fun <R> retryWithConstantDelay(
     require(delay >= Duration.ZERO) { "delay must be >= 0, but was $delay" }
 
     val retrySchedule = Schedule.spaced<Throwable>(delay) and Schedule.recurs(retries)
-    return retrySchedule.retry(block)
+    return retrySchedule.retry {
+        try {
+            block()
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        }
+    }
 }
 
 /**
@@ -181,6 +193,8 @@ public suspend fun <R> retryWithFibonacci(
     while (true) {
         try {
             return block()
+        } catch (exception: kotlinx.coroutines.CancellationException) {
+            throw exception
         } catch (exception: Exception) {
             if (attempt >= retries) {
                 logger.warn(exception) { "All retry attempts exhausted after $attempt attempts" }
@@ -283,6 +297,8 @@ public suspend fun <R> retryIf(
     while (attempt <= retries) {
         try {
             return block()
+        } catch (exception: kotlinx.coroutines.CancellationException) {
+            throw exception
         } catch (exception: Exception) {
             lastException = exception
 
@@ -346,6 +362,8 @@ public suspend fun <R> retryWithHistory(
         val attemptResult = try {
             val result = block()
             Result.success(result)
+        } catch (exception: kotlinx.coroutines.CancellationException) {
+            throw exception
         } catch (exception: Exception) {
             Result.failure(exception)
         }
@@ -687,6 +705,8 @@ public suspend fun <R> retryWithCappedBackoff(
     while (true) {
         try {
             return block()
+        } catch (exception: kotlinx.coroutines.CancellationException) {
+            throw exception
         } catch (exception: Exception) {
             if (attempt >= retries) {
                 logger.warn(exception) { "All retry attempts exhausted after $attempt attempts" }

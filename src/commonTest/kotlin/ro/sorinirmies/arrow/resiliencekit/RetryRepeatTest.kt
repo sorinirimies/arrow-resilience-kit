@@ -514,7 +514,7 @@ class RetryRepeatTest {
 
         result.isSuccess shouldBe true
         result.attempts.forEach { attempt ->
-            attempt.duration shouldBeGreaterThan kotlin.time.Duration.ZERO.minus(1.milliseconds)
+            (attempt.duration >= kotlin.time.Duration.ZERO) shouldBe true
         }
     }
 

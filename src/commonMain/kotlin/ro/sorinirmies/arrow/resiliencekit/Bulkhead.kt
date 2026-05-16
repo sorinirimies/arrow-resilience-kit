@@ -3,9 +3,9 @@
 
 package ro.sorinirmies.arrow.resiliencekit
 
-import kotlinx.coroutines.sync.Mutex
+import arrow.fx.stm.TVar
+import arrow.fx.stm.atomically
 import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withLock
 import kotlin.time.Duration
 
 /**
@@ -95,7 +95,7 @@ public interface BulkheadListener {
  *
  * **Basic usage:**
  * ```kotlin
- * val bulkhead = Bulkhead(config = BulkheadConfig(maxConcurrentCalls = 5))
+ * val bulkhead = Bulkhead.create(config = BulkheadConfig(maxConcurrentCalls = 5))
  *
  * val result = bulkhead.execute {
  *     callExternalService()
@@ -104,7 +104,7 @@ public interface BulkheadListener {
  *
  * **With waiting queue:**
  * ```kotlin
- * val bulkhead = Bulkhead(config = BulkheadConfig(
+ * val bulkhead = Bulkhead.create(config = BulkheadConfig(
  *     maxConcurrentCalls = 10,
  *     maxWaitingCalls = 20,
  *     maxWaitDuration = 5.seconds
@@ -145,17 +145,42 @@ public interface BulkheadListener {
  * println("Utilization: ${stats.utilizationRate * 100}%")
  * ```
  */
-public class Bulkhead(public val config: BulkheadConfig = BulkheadConfig()) {
+public class Bulkhead private constructor(
+    public val config: BulkheadConfig,
+    private val semaphore: Semaphore,
+    private val activeCallsVar: TVar<Int>,
+    private val waitingCallsVar: TVar<Int>,
+    private val totalCallsVar: TVar<Long>,
+    private val successfulCallsVar: TVar<Long>,
+    private val failedCallsVar: TVar<Long>,
+    private val rejectedCallsVar: TVar<Long>,
+    internal val clock: kotlinx.datetime.Clock = kotlinx.datetime.Clock.System,
+) {
 
-    private val semaphore = Semaphore(config.maxConcurrentCalls)
-    private val mutex = Mutex()
-    private var activeCalls = 0
-    private var waitingCalls = 0
-    private var totalCalls = 0L
-    private var successfulCalls = 0L
-    private var failedCalls = 0L
-    private var rejectedCalls = 0L
     private val listeners = mutableListOf<BulkheadListener>()
+
+    public companion object {
+        /**
+         * Creates a new [Bulkhead] instance with the given configuration.
+         * @param config bulkhead configuration
+         * @param clock clock used for timing (defaults to system clock)
+         * @return a new [Bulkhead] instance
+         */
+        public suspend fun create(
+            config: BulkheadConfig = BulkheadConfig(),
+            clock: kotlinx.datetime.Clock = kotlinx.datetime.Clock.System,
+        ): Bulkhead = Bulkhead(
+            config = config,
+            semaphore = Semaphore(config.maxConcurrentCalls),
+            activeCallsVar = TVar.new(0),
+            waitingCallsVar = TVar.new(0),
+            totalCallsVar = TVar.new(0L),
+            successfulCallsVar = TVar.new(0L),
+            failedCallsVar = TVar.new(0L),
+            rejectedCallsVar = TVar.new(0L),
+            clock = clock,
+        )
+    }
 
     /**
      * Adds a listener for bulkhead events.
@@ -166,26 +191,27 @@ public class Bulkhead(public val config: BulkheadConfig = BulkheadConfig()) {
     }
 
     /** Returns the current number of active calls. */
-    public suspend fun activeCalls(): Int = mutex.withLock { activeCalls }
+    public suspend fun activeCalls(): Int = atomically { activeCallsVar.read() }
 
     /** Returns a snapshot of the current bulkhead statistics. */
-    public suspend fun statistics(): BulkheadStatistics = mutex.withLock {
+    public suspend fun statistics(): BulkheadStatistics = atomically {
+        val active = activeCallsVar.read()
         BulkheadStatistics(
-            totalCalls = totalCalls,
-            successfulCalls = successfulCalls,
-            failedCalls = failedCalls,
-            rejectedCalls = rejectedCalls,
-            availableCapacity = config.maxConcurrentCalls - activeCalls,
-            utilizationRate = activeCalls.toDouble() / config.maxConcurrentCalls,
+            totalCalls = totalCallsVar.read(),
+            successfulCalls = successfulCallsVar.read(),
+            failedCalls = failedCallsVar.read(),
+            rejectedCalls = rejectedCallsVar.read(),
+            availableCapacity = config.maxConcurrentCalls - active,
+            utilizationRate = active.toDouble() / config.maxConcurrentCalls,
         )
     }
 
     /** Resets all statistics counters to zero. */
-    public suspend fun resetStatistics(): Unit = mutex.withLock {
-        totalCalls = 0L
-        successfulCalls = 0L
-        failedCalls = 0L
-        rejectedCalls = 0L
+    public suspend fun resetStatistics(): Unit = atomically {
+        totalCallsVar.write(0L)
+        successfulCallsVar.write(0L)
+        failedCallsVar.write(0L)
+        rejectedCallsVar.write(0L)
     }
 
     /**
@@ -197,9 +223,11 @@ public class Bulkhead(public val config: BulkheadConfig = BulkheadConfig()) {
      */
     public suspend fun <T> execute(block: suspend () -> T): T {
         // Check if we can accept this call (waiting queue check)
-        val canAccept = mutex.withLock {
-            if (activeCalls < config.maxConcurrentCalls || waitingCalls < config.maxWaitingCalls) {
-                waitingCalls++
+        val canAccept = atomically {
+            val active = activeCallsVar.read()
+            val waiting = waitingCallsVar.read()
+            if (active < config.maxConcurrentCalls || waiting < config.maxWaitingCalls) {
+                waitingCallsVar.write(waiting + 1)
                 true
             } else {
                 false
@@ -207,11 +235,16 @@ public class Bulkhead(public val config: BulkheadConfig = BulkheadConfig()) {
         }
 
         if (!canAccept) {
-            mutex.withLock {
-                totalCalls++
-                rejectedCalls++
+            atomically {
+                totalCallsVar.write(totalCallsVar.read() + 1)
+                rejectedCallsVar.write(rejectedCallsVar.read() + 1)
             }
-            listeners.forEach { it.onCallRejected() }
+            listeners.toList().forEach {
+                try {
+                    it.onCallRejected()
+                } catch (_: Exception) {
+                }
+            }
             throw BulkheadFullException("Bulkhead is full. Max concurrent: ${config.maxConcurrentCalls}, Max waiting: ${config.maxWaitingCalls}")
         }
 
@@ -222,12 +255,17 @@ public class Bulkhead(public val config: BulkheadConfig = BulkheadConfig()) {
                 true
             } ?: false
             if (!acquired) {
-                mutex.withLock {
-                    waitingCalls--
-                    totalCalls++
-                    rejectedCalls++
+                atomically {
+                    waitingCallsVar.write(waitingCallsVar.read() - 1)
+                    totalCallsVar.write(totalCallsVar.read() + 1)
+                    rejectedCallsVar.write(rejectedCallsVar.read() + 1)
                 }
-                listeners.forEach { it.onCallRejected() }
+                listeners.toList().forEach {
+                    try {
+                        it.onCallRejected()
+                    } catch (_: Exception) {
+                    }
+                }
                 throw BulkheadTimeoutException("Timeout waiting for bulkhead permit after ${config.maxWaitDuration}")
             }
         } else {
@@ -235,29 +273,50 @@ public class Bulkhead(public val config: BulkheadConfig = BulkheadConfig()) {
         }
 
         // Move from waiting to active
-        mutex.withLock {
-            waitingCalls--
-            activeCalls++
-            totalCalls++
+        atomically {
+            waitingCallsVar.write(waitingCallsVar.read() - 1)
+            activeCallsVar.write(activeCallsVar.read() + 1)
+            totalCallsVar.write(totalCallsVar.read() + 1)
         }
 
-        listeners.forEach { it.onCallEntered() }
+        listeners.toList().forEach {
+            try {
+                it.onCallEntered()
+            } catch (_: Exception) {
+            }
+        }
 
         return try {
             val result = block()
-            mutex.withLock { successfulCalls++ }
-            listeners.forEach { it.onCallSucceeded() }
+            atomically { successfulCallsVar.write(successfulCallsVar.read() + 1) }
+            listeners.toList().forEach {
+                try {
+                    it.onCallSucceeded()
+                } catch (_: Exception) {
+                }
+            }
             result
         } catch (e: Throwable) {
-            mutex.withLock { failedCalls++ }
-            listeners.forEach { it.onCallFailed(e) }
+            atomically { failedCallsVar.write(failedCallsVar.read() + 1) }
+            listeners.toList().forEach {
+                try {
+                    it.onCallFailed(e)
+                } catch (_: Exception) {
+                }
+            }
             throw e
         } finally {
-            mutex.withLock {
-                if (activeCalls > 0) activeCalls--
+            atomically {
+                val active = activeCallsVar.read()
+                if (active > 0) activeCallsVar.write(active - 1)
             }
             semaphore.release()
-            listeners.forEach { it.onCallExited() }
+            listeners.toList().forEach {
+                try {
+                    it.onCallExited()
+                } catch (_: Exception) {
+                }
+            }
         }
     }
 
@@ -296,8 +355,16 @@ public class Bulkhead(public val config: BulkheadConfig = BulkheadConfig()) {
 /**
  * Registry for managing named bulkhead instances.
  */
-public class BulkheadRegistry {
-    private val bulkheads = mutableMapOf<String, Bulkhead>()
+public class BulkheadRegistry private constructor(
+    private val bulkheadsVar: TVar<Map<String, Bulkhead>>,
+) {
+
+    public companion object {
+        /**
+         * Creates a new empty [BulkheadRegistry].
+         */
+        public suspend fun create(): BulkheadRegistry = BulkheadRegistry(TVar.new(emptyMap()))
+    }
 
     /**
      * Gets or creates a bulkhead with the given name.
@@ -305,11 +372,13 @@ public class BulkheadRegistry {
      * @param configure optional configuration block
      * @return the existing or newly created bulkhead
      */
-    public fun getOrCreate(name: String, configure: BulkheadConfigBuilder.() -> Unit = {}): Bulkhead {
-        return bulkheads.getOrPut(name) {
-            val config = BulkheadConfigBuilder().apply(configure).build()
-            Bulkhead(config)
-        }
+    public suspend fun getOrCreate(name: String, configure: BulkheadConfigBuilder.() -> Unit = {}): Bulkhead {
+        val existing = atomically { bulkheadsVar.read()[name] }
+        if (existing != null) return existing
+        val config = BulkheadConfigBuilder().apply(configure).build()
+        val bulkhead = Bulkhead.create(config)
+        atomically { bulkheadsVar.write(bulkheadsVar.read() + (name to bulkhead)) }
+        return bulkhead
     }
 
     /**
@@ -317,26 +386,33 @@ public class BulkheadRegistry {
      * @param name the bulkhead name
      * @return the bulkhead or null if not found
      */
-    public fun get(name: String): Bulkhead? = bulkheads[name]
+    public suspend fun get(name: String): Bulkhead? = atomically { bulkheadsVar.read()[name] }
 
     /**
      * Removes a bulkhead from the registry.
      * @param name the bulkhead name
      * @return the removed bulkhead or null if not found
      */
-    public fun remove(name: String): Bulkhead? = bulkheads.remove(name)
+    public suspend fun remove(name: String): Bulkhead? = atomically {
+        val map = bulkheadsVar.read()
+        val removed = map[name]
+        bulkheadsVar.write(map - name)
+        removed
+    }
 
     /** Returns the names of all registered bulkheads. */
-    public fun getNames(): Set<String> = bulkheads.keys.toSet()
+    public suspend fun getNames(): Set<String> = atomically { bulkheadsVar.read().keys }
 
     /** Resets statistics for all registered bulkheads. */
     public suspend fun resetAllStatistics() {
-        bulkheads.values.forEach { it.resetStatistics() }
+        val snapshot = atomically { bulkheadsVar.read().values.toList() }
+        snapshot.forEach { it.resetStatistics() }
     }
 
     /** Returns statistics for all registered bulkheads, keyed by name. */
     public suspend fun getAllStatistics(): Map<String, BulkheadStatistics> {
-        return bulkheads.mapValues { (_, bulkhead) -> bulkhead.statistics() }
+        val snapshot = atomically { bulkheadsVar.read().toMap() }
+        return snapshot.mapValues { (_, bulkhead) -> bulkhead.statistics() }
     }
 }
 
@@ -352,7 +428,7 @@ public suspend fun <T> withBulkhead(
     config: BulkheadConfig = BulkheadConfig(),
     block: suspend () -> T,
 ): T {
-    return Bulkhead(config).execute(block)
+    return Bulkhead.create(config).execute(block)
 }
 
 /**
@@ -398,9 +474,9 @@ public suspend fun <T> withBulkheadOrFallback(
 /**
  * DSL for creating a configured Bulkhead instance.
  */
-public fun bulkhead(configure: BulkheadConfigBuilder.() -> Unit): Bulkhead {
+public suspend fun bulkhead(configure: BulkheadConfigBuilder.() -> Unit): Bulkhead {
     val config = BulkheadConfigBuilder().apply(configure).build()
-    return Bulkhead(config)
+    return Bulkhead.create(config)
 }
 
 /**

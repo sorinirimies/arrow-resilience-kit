@@ -141,7 +141,7 @@ tasks.dokkaHtml.configure {
                     "customStyleSheets": [],
                     "customAssets": [],
                     "separateInheritedMembers": false,
-                    "footerMessage": "© 2025 Arrow Resilience Kit"
+                    "footerMessage": "© 2026 Arrow Resilience Kit"
                 }
             """
         )
