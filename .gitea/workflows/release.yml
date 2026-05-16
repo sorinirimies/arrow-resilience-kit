@@ -44,6 +44,10 @@ jobs:
         env:
           TAG: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}
 
+      - name: Cleanup workspace
+        if: always()
+        run: nu scripts/cleanup.nu --ci
+
   # ── 1. Quality gate ──────────────────────────────────────────────────────────
   test:
     name: Build & Test
@@ -75,6 +79,10 @@ jobs:
       - name: Run all tests
         run: ./gradlew allTests --no-daemon --stacktrace
 
+      - name: Cleanup workspace
+        if: always()
+        run: nu scripts/cleanup.nu --ci
+
   # ── 2. Create Release ────────────────────────────────────────────────────────
   release:
     name: Create Gitea Release
@@ -105,6 +113,10 @@ jobs:
           --gitea-url "${{ github.server_url }}"
           --repo "${{ github.repository }}"
           --token "${{ secrets.GITHUB_TOKEN }}"
+
+      - name: Cleanup workspace
+        if: always()
+        run: nu scripts/cleanup.nu --ci
 
   # ── 3. Publish to GitHub Packages ───────────────────────────────────────────
   publish:
@@ -147,6 +159,10 @@ jobs:
         if: env.HAS_TOKEN == 'true'
         run: echo "✅ Published ${{ needs.validate.outputs.tag }} to GitHub Packages."
 
+      - name: Cleanup workspace
+        if: always()
+        run: nu scripts/cleanup.nu --ci
+
   # ── 4. Publish to Maven Central ─────────────────────────────────────────────
   publish-maven-central:
     name: Publish to Maven Central
@@ -185,3 +201,7 @@ jobs:
       - name: Publish complete
         if: env.HAS_MAVEN == 'true'
         run: echo "✅ Published ${{ needs.validate.outputs.tag }} to Maven Central."
+
+      - name: Cleanup workspace
+        if: always()
+        run: nu scripts/cleanup.nu --ci

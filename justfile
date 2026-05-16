@@ -368,14 +368,20 @@ sync-all-gitea:
 # ── Housekeeping ───────────────────────────────────────────────
 
 # Clean build artifacts
-clean:
-    ./gradlew clean --no-daemon
+clean: _check-nu
+    @nu scripts/cleanup.nu
 
-# Deep clean (includes .gradle cache)
-clean-all:
-    ./gradlew clean --no-daemon
-    rm -rf .gradle build
-    @echo "✅ Deep clean complete!"
+# Deep clean (includes .gradle project cache)
+clean-all: _check-nu
+    @nu scripts/cleanup.nu --deep
+
+# CI cleanup (deep + stop daemon)
+clean-ci: _check-nu
+    @nu scripts/cleanup.nu --ci
+
+# Show what would be cleaned (dry run)
+clean-dry: _check-nu
+    @nu scripts/cleanup.nu --dry-run
 
 # Stop Gradle daemon
 daemon-stop:
