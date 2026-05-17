@@ -2,7 +2,6 @@
 
 [![CI](https://github.com/sorinirimies/arrow-resilience-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/sorinirimies/arrow-resilience-kit/actions/workflows/ci.yml)
 [![Release](https://github.com/sorinirimies/arrow-resilience-kit/actions/workflows/release.yml/badge.svg)](https://github.com/sorinirimies/arrow-resilience-kit/actions/workflows/release.yml)
-[![Maven Central](https://img.shields.io/maven-central/v/ro.sorinirmies.arrow/arrow-resilience-kit)](https://central.sonatype.com/artifact/ro.sorinirmies.arrow/arrow-resilience-kit)
 [![JitPack](https://jitpack.io/v/sorinirimies/arrow-resilience-kit.svg)](https://jitpack.io/#sorinirimies/arrow-resilience-kit)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -21,16 +20,6 @@ Arrow Resilience Kit is a Kotlin Multiplatform library that provides production-
 | **Group ID** | `ro.sorinirmies.arrow` |
 | **Artifact ID** | `arrow-resilience-kit` |
 | **Version** | `0.2.0` |
-
-### Maven Central
-
-```arrow-resilience-kit/build.gradle.kts#L1-L5
-repositories {
-    mavenCentral()
-}
-
-implementation("ro.sorinirmies.arrow:arrow-resilience-kit:0.2.0")
-```
 
 ### JitPack
 

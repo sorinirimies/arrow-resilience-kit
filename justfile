@@ -155,10 +155,6 @@ publish-local:
     ./gradlew publishToMavenLocal --no-daemon
     @echo "✅ Published to ~/.m2/repository"
 
-# Publish to Maven Central
-publish-central: _check-nu
-    @nu scripts/publish.nu --target maven-central
-
 # Publish to GitHub Packages
 publish-github: _check-nu
     @nu scripts/publish.nu --target github

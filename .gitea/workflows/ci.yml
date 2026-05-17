@@ -94,16 +94,6 @@ jobs:
       - name: Run tests (JVM + JS)
         run: ./gradlew jvmTest jsNodeTest --no-daemon --stacktrace
 
-      - name: Upload test results
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: test-results
-          path: |
-            **/build/test-results/
-            **/build/reports/
-          retention-days: 7
-
       - name: Cleanup workspace
         if: always()
         run: |
