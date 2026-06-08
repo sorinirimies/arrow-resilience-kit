@@ -230,40 +230,32 @@ dependencies:
 
 # ── Release ────────────────────────────────────────────────────
 
-# Release to GitHub — triggers GitHub Release workflow
+# Bump, commit, tag, then push to GitHub — triggers Release workflow
 release VERSION: (bump VERSION)
-    @echo "▸ Pushing to github..."
-    git push github main
-    git push github --tags
+    @echo "Pushing release {{ VERSION }} to GitHub…"
+    git push --follow-tags github main
     @echo "✅ Release {{ VERSION }} pushed to GitHub — workflow will trigger automatically."
 
-# Release to Gitea — triggers Gitea Release workflow
+# Bump, commit, tag, then push to Gitea only
 release-gitea VERSION: (bump VERSION)
-    @echo "▸ Pushing to gitea..."
-    git push gitea main
-    git push gitea --tags
-    @echo "✅ Release {{ VERSION }} pushed to Gitea — workflow will trigger automatically."
+    @echo "Pushing release {{ VERSION }} to Gitea…"
+    git push --follow-tags gitea main
+    @echo "✅ Release {{ VERSION }} live on Gitea."
 
-# Release to Gitea Starscream — triggers Gitea Starscream Release workflow
+# Bump, commit, tag, then push to Gitea Starscream only
 release-gitea-starscream VERSION: (bump VERSION)
-    @echo "▸ Pushing to gitea_starscream..."
-    git push gitea_starscream main
-    git push gitea_starscream --tags
-    @echo "✅ Release {{ VERSION }} pushed to Gitea Starscream — workflow will trigger automatically."
+    @echo "Pushing release {{ VERSION }} to Gitea Starscream…"
+    git push --follow-tags gitea_starscream main
+    @echo "✅ Release {{ VERSION }} live on Gitea Starscream."
 
-# Release to all remotes — triggers all Release workflows
+# Bump, commit, tag, then push to all remotes (continues on failure)
 release-all VERSION: (bump VERSION)
     #!/usr/bin/env sh
+    echo "Pushing release {{ VERSION }} to all remotes…"
     failed=""
-    echo "▸ Pushing to github..."
-    git push github main             || failed="$failed github"
-    git push github --tags           || failed="$failed github-tags"
-    echo "▸ Pushing to gitea..."
-    git push gitea main              || failed="$failed gitea"
-    git push gitea --tags            || failed="$failed gitea-tags"
-    echo "▸ Pushing to gitea_starscream..."
-    git push gitea_starscream main   || failed="$failed gitea_starscream"
-    git push gitea_starscream --tags || failed="$failed gitea_starscream-tags"
+    git push --follow-tags github main             || failed="$failed github"
+    git push --follow-tags gitea main              || failed="$failed gitea"
+    git push --follow-tags gitea_starscream main   || failed="$failed gitea_starscream"
     if [ -n "$failed" ]; then
         echo "⚠️  Release {{ VERSION }} failed to push to:$failed"
     else
@@ -274,11 +266,11 @@ release-all VERSION: (bump VERSION)
 create-gitea-release TAG: _check-nu
     @nu scripts/create_gitea_release.nu {{ TAG }}
 
-# Retrigger release workflow
+# Manually re-trigger the Release workflow for an existing tag via the gh CLI
 release-retrigger TAG: _check-gh
-    @echo "Dispatching Release workflow for tag {{ TAG }}…"
+    @echo "Manually dispatching Release workflow for tag {{ TAG }}…"
     gh workflow run release.yml --field tag={{ TAG }}
-    @echo "✅ Dispatched — check Actions for progress."
+    @echo "✅ Dispatched — check progress at: https://github.com/sorinirimies/arrow-resilience-kit/actions"
 
 # Push latest commit + tags to every remote (no bump)
 push-release-all: check-all
@@ -295,11 +287,19 @@ push-release-all: check-all
 
 # ── Git Remotes ────────────────────────────────────────────────
 
-# Push to GitHub (origin)
+# Push the current branch to GitHub
 push:
     git push github main
 
-# Push to all remotes
+# Push the current branch to Gitea
+push-gitea:
+    git push gitea main
+
+# Push the current branch to Gitea Starscream
+push-gitea-starscream:
+    git push gitea_starscream main
+
+# Push the current branch to all remotes (continues on failure)
 push-all:
     #!/usr/bin/env sh
     failed=""
@@ -331,7 +331,11 @@ push-all-force:
         echo "✅ Force-pushed to GitHub, Gitea, and Gitea Starscream!"
     fi
 
-# Push tags to all remotes
+# Push all tags to GitHub
+push-tags:
+    git push github --tags
+
+# Push all tags to all remotes (continues on failure)
 push-tags-all:
     #!/usr/bin/env sh
     failed=""
@@ -347,15 +351,19 @@ push-tags-all:
         echo "✅ Tags pushed to GitHub, Gitea, and Gitea Starscream!"
     fi
 
-# Push to Gitea
-push-gitea:
-    git push gitea main
+# Pull the current branch from GitHub
+pull:
+    git pull github main
 
-# Push to Gitea Starscream
-push-gitea-starscream:
-    git push gitea_starscream main
+# Pull the current branch from Gitea
+pull-gitea:
+    git pull gitea main
 
-# Pull from all remotes
+# Pull the current branch from Gitea Starscream
+pull-gitea-starscream:
+    git pull gitea_starscream main
+
+# Pull the current branch from all remotes (continues on failure)
 pull-all:
     #!/usr/bin/env sh
     failed=""
@@ -371,19 +379,19 @@ pull-all:
         echo "✅ Pulled from GitHub, Gitea, and Gitea Starscream!"
     fi
 
-# Force sync Gitea mirrors
+# Force-sync Gitea with GitHub
 sync-gitea:
     git push gitea main --force
     git push gitea --tags --force
-    @echo "✅ Gitea force-synced."
+    @echo "✅ Gitea force-synced with GitHub."
 
-# Force sync Gitea Starscream
+# Force-sync Gitea Starscream with GitHub
 sync-gitea-starscream:
     git push gitea_starscream main --force
     git push gitea_starscream --tags --force
-    @echo "✅ Gitea Starscream force-synced."
+    @echo "✅ Gitea Starscream force-synced with GitHub."
 
-# Force sync all Gitea instances
+# Force-sync all Gitea instances with GitHub (continues on failure)
 sync-all-gitea:
     #!/usr/bin/env sh
     failed=""
@@ -394,7 +402,7 @@ sync-all-gitea:
     if [ -n "$failed" ]; then
         echo "⚠️  Failed to sync:$failed"
     else
-        echo "✅ All Gitea instances force-synced."
+        echo "✅ All Gitea instances force-synced with GitHub."
     fi
 
 # ── Housekeeping ───────────────────────────────────────────────
@@ -432,16 +440,44 @@ setup:
     @echo "║   Setting up arrow-resilience-kit          ║"
     @echo "╚════════════════════════════════════════════╝"
     @echo ""
-    @echo "1. Installing Gradle wrapper dependencies…"
+    @echo "1. Configuring git remotes…"
+    @just setup-remotes
+    @echo ""
+    @echo "2. Installing Gradle wrapper dependencies…"
     ./gradlew --version
     @echo ""
-    @echo "2. Downloading dependencies…"
+    @echo "3. Downloading dependencies…"
     ./gradlew dependencies --quiet --no-daemon
     @echo ""
-    @echo "3. Building project…"
+    @echo "4. Building project…"
     ./gradlew build --no-daemon
     @echo ""
     @echo "✅ Setup complete!"
+
+# Configure all git remotes (idempotent)
+setup-remotes:
+    #!/usr/bin/env sh
+    set -eu
+    add_or_update() {
+        name="$1"; url="$2"
+        if git remote get-url "$name" > /dev/null 2>&1; then
+            current=$(git remote get-url "$name")
+            if [ "$current" = "$url" ]; then
+                echo "  ✓ $name already set"
+            else
+                git remote set-url "$name" "$url"
+                echo "  ↻ $name updated → $url"
+            fi
+        else
+            git remote add "$name" "$url"
+            echo "  + $name added → $url"
+        fi
+    }
+    add_or_update gitea_starscream "gitea@192.168.1.44:sorin/arrow-resilience-kit.git"
+    add_or_update gitea            "ssh://git@192.168.1.204:30009/sorin/arrow-resilience-kit.git"
+    add_or_update github           "https://github.com/sorinirimies/arrow-resilience-kit"
+    echo "  ── Current remotes ──"
+    git remote -v
 
 # Verify project structure
 verify:
