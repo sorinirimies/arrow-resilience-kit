@@ -49,7 +49,7 @@ info:
     @echo "  Version:   $(just version)"
     @echo "  Platforms: JVM, JS, Linux x64, macOS x64, macOS ARM64"
     @echo ""
-    @echo "  GitHub:           git@github.com:sorinirimies/arrow-resilience-kit.git"
+    @echo "  GitHub:            git@github.com:sorinirimies/arrow-resilience-kit.git"
     @echo "  Gitea:            ssh://git@192.168.1.204:30009/sorin/arrow-resilience-kit.git"
     @echo "  Gitea Starscream: gitea@192.168.1.44:sorin/arrow-resilience-kit.git"
 
@@ -475,7 +475,7 @@ setup-remotes:
     }
     add_or_update gitea_starscream "gitea@192.168.1.44:sorin/arrow-resilience-kit.git"
     add_or_update gitea            "ssh://git@192.168.1.204:30009/sorin/arrow-resilience-kit.git"
-    add_or_update github           "https://github.com/sorinirimies/arrow-resilience-kit"
+    add_or_update github           "git@github.com:sorinirimies/arrow-resilience-kit.git"
     echo "  ── Current remotes ──"
     git remote -v
 
