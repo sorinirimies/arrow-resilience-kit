@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## 0.4.0 - 2026-09-11
 ### ♻️ Refactor
 - Refactor to use STM for concurrency and add create() constructors
 ### ✨ Features
@@ -29,6 +29,8 @@ All notable changes to this project will be documented in this file.
 - Update release tasks to push tags and improve output
 ### 🔧 Chores
 - chore: bump version to 0.3.1
+- chore: bump version to 0.4.0
+**Full Changelog**: https://github.com/sorinirimies/arrow-resilience-kit/compare/v0.2.0...0.4.0
 ## 0.2.0 - 2025-11-30
 ### ♻️ Refactor
 - Refactor to use suspend factory methods for resource classes
