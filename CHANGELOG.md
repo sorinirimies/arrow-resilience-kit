@@ -5,6 +5,8 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 ### ♻️ Refactor
 - Refactor to use STM for concurrency and add create() constructors
+### ✨ Features
+- feat: remove v-prefix from release tags and add automated release + deps-update workflows
 ### ➕ Added
 - Add Gitea and GitHub Actions workflows and update release process
 - Add Nushell scripts, update workflows, and modernize dependencies
@@ -19,8 +21,14 @@ All notable changes to this project will be documented in this file.
 - Disable browser tests in JS target for CI compatibility
 - Simplify contributing guide and remove extra docs
 - Remove v prefix from version tags and update validation logic
+- Remove Maven Central publishing and test results upload
+- Refine release/git tasks and add remote setup automation
+- Use SSH URL for GitHub remote setup
 ### 🔄 Updated
 - Update push/pull scripts to use fixed remote list
+- Update release tasks to push tags and improve output
+### 🔧 Chores
+- chore: bump version to 0.3.1
 ## 0.2.0 - 2025-11-30
 ### ♻️ Refactor
 - Refactor to use suspend factory methods for resource classes
@@ -59,4 +67,3 @@ All notable changes to this project will be documented in this file.
 - chore: bump version to 0.1.2
 - chore: remove unused listener methods and parameters
 - chore: bump version to 0.2.0
-**Full Changelog**: https://github.com/sorinirimies/arrow-resilience-kit/compare/v0.1.2...v0.2.0

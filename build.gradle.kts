@@ -15,7 +15,7 @@ plugins {
 apply(from = "gradle/publishing.gradle.kts")
 
 group = "ro.sorinirmies.arrow"
-version = "0.3.1"
+version = "0.4.0"
 
 repositories {
     mavenCentral()
