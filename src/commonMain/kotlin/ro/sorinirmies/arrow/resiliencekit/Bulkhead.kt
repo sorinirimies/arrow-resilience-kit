@@ -154,7 +154,7 @@ public class Bulkhead private constructor(
     private val successfulCallsVar: TVar<Long>,
     private val failedCallsVar: TVar<Long>,
     private val rejectedCallsVar: TVar<Long>,
-    internal val clock: kotlinx.datetime.Clock = kotlinx.datetime.Clock.System,
+    internal val clock: kotlin.time.Clock = kotlin.time.Clock.System,
 ) {
 
     private val listeners = mutableListOf<BulkheadListener>()
@@ -168,7 +168,7 @@ public class Bulkhead private constructor(
          */
         public suspend fun create(
             config: BulkheadConfig = BulkheadConfig(),
-            clock: kotlinx.datetime.Clock = kotlinx.datetime.Clock.System,
+            clock: kotlin.time.Clock = kotlin.time.Clock.System,
         ): Bulkhead = Bulkhead(
             config = config,
             semaphore = Semaphore(config.maxConcurrentCalls),

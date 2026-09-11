@@ -45,15 +45,19 @@ tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
 }
 
 kotlin {
+    jvmToolchain(17)
+
+    compilerOptions {
+        optIn.add("kotlin.time.ExperimentalTime")
+    }
+
     jvm {
-        jvmToolchain(17)
-        withJava()
         testRuns["test"].executionTask.configure {
             useJUnitPlatform()
         }
     }
 
-    js(IR) {
+    js {
         browser {
             testTask {
                 enabled = false // No browser available in CI; use Node.js tests only

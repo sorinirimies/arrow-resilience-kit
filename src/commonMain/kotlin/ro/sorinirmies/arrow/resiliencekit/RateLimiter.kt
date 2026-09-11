@@ -5,8 +5,8 @@ package ro.sorinirmies.arrow.resiliencekit
 
 import arrow.fx.stm.TVar
 import arrow.fx.stm.atomically
-import kotlinx.datetime.Clock
-import kotlinx.datetime.Instant
+import kotlin.time.Clock
+import kotlin.time.Instant
 import mu.KotlinLogging
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds

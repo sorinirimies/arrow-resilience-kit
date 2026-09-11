@@ -6,7 +6,7 @@ package ro.sorinirmies.arrow.resiliencekit
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
-import kotlinx.datetime.Clock
+import kotlin.time.Clock
 import mu.KotlinLogging
 import kotlin.time.Duration
 
@@ -137,7 +137,7 @@ public class Saga<T> private constructor(
 
     private suspend fun compensate(
         originalError: Exception,
-        startTime: kotlinx.datetime.Instant,
+        startTime: kotlin.time.Instant,
     ): SagaResult<T> {
         val compensationErrors = mutableListOf<CompensationError>()
         var compensatedCount = 0

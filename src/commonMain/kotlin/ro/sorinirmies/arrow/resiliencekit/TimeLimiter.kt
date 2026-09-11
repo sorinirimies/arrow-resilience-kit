@@ -133,14 +133,14 @@ public class TimeLimiter private constructor(
 
         atomically { totalCalls.write(totalCalls.read() + 1) }
 
-        val startTime = kotlinx.datetime.Clock.System.now()
+        val startTime = kotlin.time.Clock.System.now()
 
         return try {
             val result = withTimeout(effectiveTimeout) {
                 block()
             }
 
-            val durationMs = (kotlinx.datetime.Clock.System.now() - startTime).inWholeMilliseconds
+            val durationMs = (kotlin.time.Clock.System.now() - startTime).inWholeMilliseconds
             atomically { successfulCalls.write(successfulCalls.read() + 1) }
             listeners.toList().forEach {
                 try {
@@ -151,7 +151,7 @@ public class TimeLimiter private constructor(
 
             result
         } catch (e: TimeoutCancellationException) {
-            val duration = kotlinx.datetime.Clock.System.now() - startTime
+            val duration = kotlin.time.Clock.System.now() - startTime
             atomically {
                 timedOutCalls.write(timedOutCalls.read() + 1)
                 totalTimeoutDuration.write(totalTimeoutDuration.read() + duration.inWholeMilliseconds)
@@ -192,7 +192,7 @@ public class TimeLimiter private constructor(
 
         atomically { totalCalls.write(totalCalls.read() + 1) }
 
-        val startTime = kotlinx.datetime.Clock.System.now()
+        val startTime = kotlin.time.Clock.System.now()
 
         return try {
             val result = withTimeoutOrNull(effectiveTimeout) {
@@ -200,7 +200,7 @@ public class TimeLimiter private constructor(
             }
 
             if (result != null) {
-                val durationMs = (kotlinx.datetime.Clock.System.now() - startTime).inWholeMilliseconds
+                val durationMs = (kotlin.time.Clock.System.now() - startTime).inWholeMilliseconds
                 atomically { successfulCalls.write(successfulCalls.read() + 1) }
                 listeners.toList().forEach {
                     try {
@@ -209,7 +209,7 @@ public class TimeLimiter private constructor(
                     }
                 }
             } else {
-                val duration = kotlinx.datetime.Clock.System.now() - startTime
+                val duration = kotlin.time.Clock.System.now() - startTime
                 atomically {
                     timedOutCalls.write(timedOutCalls.read() + 1)
                     totalTimeoutDuration.write(totalTimeoutDuration.read() + duration.inWholeMilliseconds)

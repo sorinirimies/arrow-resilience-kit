@@ -50,7 +50,7 @@ public class StmCounter private constructor(private val tvar: TVar<Long>) {
     }
 
     /** Reads the current counter value within an STM transaction. */
-    public fun STM.get(): Long = tvar.read()
+    public fun STM.current(): Long = tvar.read()
 
     /** Sets the counter to [value] within an STM transaction. */
     public fun STM.set(value: Long) {
@@ -106,7 +106,7 @@ public class StmCounter private constructor(private val tvar: TVar<Long>) {
  *     with(gauge) {
  *         println("Min: ${min()}") // 0.0
  *         println("Max: ${max()}") // 10.0
- *         println("Current: ${get()}") // 8.0
+ *         println("Current: ${current()}") // 8.0
  *     }
  * }
  * ```
@@ -130,7 +130,7 @@ public class StmGauge private constructor(
     }
 
     /** Reads the current gauge value within an STM transaction. */
-    public fun STM.get(): Double = valueTVar.read()
+    public fun STM.current(): Double = valueTVar.read()
 
     /**
      * Sets the gauge to [value] within an STM transaction.

@@ -65,7 +65,7 @@ class StmHelpersTest {
     @Test
     fun `counter get reads current value`() = runTest {
         val counter = StmCounter.create(7L)
-        val value = atomically { with(counter) { get() } }
+        val value: Long = atomically { with(counter) { current() } }
         value shouldBe 7L
     }
 
