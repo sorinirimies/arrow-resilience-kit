@@ -33,8 +33,8 @@ def main [version: string] {
     # Git commit and tag
     run-external "git" "add" "-A"
     run-external "git" "commit" "-m" $"chore: bump version to ($version)"
-    run-external "git" "tag" "-a" $"v($version)" "-m" $"Release v($version)"
+    run-external "git" "tag" "-a" $"($version)" "-m" $"Release ($version)"
 
-    print $"✅ Version bumped to ($version) and tagged v($version)"
+    print $"✅ Version bumped to ($version) and tagged ($version)"
     print "Run 'just push --follow-tags' to publish"
 }

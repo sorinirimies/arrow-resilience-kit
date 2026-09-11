@@ -15,6 +15,10 @@ jobs:
     name: Upgrade Dependencies
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: write
+      actions: write
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -37,8 +41,33 @@ jobs:
           curl -sSfL https://github.com/nushell/nushell/releases/latest/download/nu-*-x86_64-unknown-linux-gnu.tar.gz | tar xz
           sudo mv nu-*-x86_64-unknown-linux-gnu/nu /usr/local/bin/
 
+      - name: Record HEAD before upgrade
+        id: before
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
       - name: Upgrade dependencies
         run: nu scripts/upgrade_deps.nu --commit --bot-name "gitea-actions[bot]" --bot-email "gitea-actions[bot]@noreply.gitea"
+
+      - name: Check whether dependencies changed
+        id: diff
+        run: |
+          after="$(git rev-parse HEAD)"
+          if [ "$after" != "${{ steps.before.outputs.sha }}" ]; then
+            echo "updated=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "updated=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Bumps a patch version, tags it, and dispatches the Release workflow —
+      # so a dependency upgrade automatically produces a new build/release.
+      - name: Auto-release new version
+        if: steps.diff.outputs.updated == 'true'
+        run: >
+          nu scripts/auto_release.nu
+          --platform gitea
+          --repo "${{ github.repository }}"
+          --token "${{ secrets.GITHUB_TOKEN }}"
+          --gitea-url "${{ github.server_url }}"
 
       - name: Cleanup workspace
         if: always()

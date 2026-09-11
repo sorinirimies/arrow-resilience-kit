@@ -3,13 +3,13 @@ name: Release
 on:
   push:
     tags:
-      - "v*"
+      - "[0-9]*"
   # Manual fallback — trigger from the GitHub Actions UI if the tag push
   # ever silently skips or a re-run is needed without re-pushing the tag.
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag to release (e.g. v0.2.0) — must already exist on the repo"
+        description: "Tag to release (e.g. 0.2.0) — must already exist on the repo"
         required: true
         default: ""
 
