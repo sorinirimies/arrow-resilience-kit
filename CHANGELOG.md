@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+### 🐛 Bug Fixes
+- fix(ci): install nushell fallback in release test job cleanup step
+- fix(ci): pin known-good gradle-wrapper.jar checksum for wrapper-validation
+## 0.4.2 - 2026-09-12
+### ➕ Added
+- Add .codegraph ignore rules for local data
+### 🐛 Bug Fixes
+- fix(ci): resolve nushell release asset by exact version instead of unsupported glob
+### 🔧 Chores
+- chore: bump version to 0.4.2
+**Full Changelog**: https://github.com/sorinirimies/arrow-resilience-kit/compare/0.4.1...0.4.2
+## 0.4.1 - 2026-09-11
+### 🔧 Chores
+- chore: bump version to 0.4.1
+**Full Changelog**: https://github.com/sorinirimies/arrow-resilience-kit/compare/0.4.0...0.4.1
 ## 0.4.0 - 2026-09-11
 ### ♻️ Refactor
 - Refactor to use STM for concurrency and add create() constructors
