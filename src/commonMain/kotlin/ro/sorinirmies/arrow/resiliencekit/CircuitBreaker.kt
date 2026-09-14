@@ -5,6 +5,7 @@ package ro.sorinirmies.arrow.resiliencekit
 
 import arrow.fx.stm.TVar
 import arrow.fx.stm.atomically
+import kotlinx.serialization.Serializable
 import kotlin.time.Clock
 import kotlin.time.Instant
 import mu.KotlinLogging
@@ -378,6 +379,7 @@ public data class CircuitBreakerConfig(
 /**
  * Circuit breaker state.
  */
+@Serializable
 public enum class CircuitBreakerState {
     /** Normal operation — calls are allowed through. */
     Closed,
@@ -532,6 +534,7 @@ public class CircuitBreakerRegistry private constructor(
 /**
  * Statistics for a circuit breaker.
  */
+@Serializable
 public data class CircuitBreakerStats(
     /** Current state of the circuit breaker. */
     public val state: CircuitBreakerState,

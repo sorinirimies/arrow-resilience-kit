@@ -11,8 +11,16 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
 import mu.KotlinLogging
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -398,11 +406,13 @@ public data class TimeLimiterConfig(
  * @property failedCalls Total number of failed calls
  * @property averageTimeoutDuration Average duration of timed-out calls
  */
+@Serializable
 public data class TimeLimiterStatistics(
     public val totalCalls: Long,
     public val successfulCalls: Long,
     public val timedOutCalls: Long,
     public val failedCalls: Long,
+    @Serializable(with = DurationMillisSerializer::class)
     public val averageTimeoutDuration: Duration,
 ) {
     /** Ratio of successful calls from 0.0 to 1.0. */
@@ -621,4 +631,21 @@ public suspend fun <T> withTimeLimitOrDefault(
 ): T {
     return TimeLimiter.create(TimeLimiterConfig(timeout = timeout))
         .executeOrDefault(default = default, block = block)
+}
+
+/**
+ * Serializes [Duration] as whole milliseconds (a [Long]) for [TimeLimiterStatistics].
+ * `kotlin.time.Duration` has no built-in `@Serializable` support at the
+ * kotlinx-serialization version this module targets, so statistics that
+ * carry a duration use this explicit serializer instead.
+ */
+public object DurationMillisSerializer : KSerializer<Duration> {
+    override val descriptor: SerialDescriptor =
+        PrimitiveSerialDescriptor("ro.sorinirmies.arrow.resiliencekit.DurationMillis", PrimitiveKind.LONG)
+
+    override fun serialize(encoder: Encoder, value: Duration) {
+        encoder.encodeLong(value.inWholeMilliseconds)
+    }
+
+    override fun deserialize(decoder: Decoder): Duration = decoder.decodeLong().milliseconds
 }

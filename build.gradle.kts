@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
+    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.dokka)
     alias(libs.plugins.detekt)
     `maven-publish`
@@ -69,6 +70,9 @@ kotlin {
     linuxX64()
     macosX64()
     macosArm64()
+    iosX64()
+    iosArm64()
+    iosSimulatorArm64()
 
     sourceSets {
         val commonMain by getting {
@@ -78,6 +82,7 @@ kotlin {
                 api(libs.arrow.fx.coroutines)
                 api(libs.arrow.fx.stm)
                 api(libs.arrow.resilience)
+                api(libs.kotlinx.serialization.json)
                 implementation(libs.kotlinx.datetime)
                 implementation(libs.kotlin.logging)
             }
@@ -91,10 +96,17 @@ kotlin {
             }
         }
 
-        val jvmMain by getting
+        val jvmMain by getting {
+            dependencies {
+                // Optional: only needed if you use MicrometerBridge. compileOnly so
+                // consumers who don't touch it aren't forced to pull Micrometer in.
+                compileOnly(libs.micrometer.core)
+            }
+        }
         val jvmTest by getting {
             dependencies {
                 implementation(libs.logback.classic)
+                implementation(libs.micrometer.core)
             }
         }
     }

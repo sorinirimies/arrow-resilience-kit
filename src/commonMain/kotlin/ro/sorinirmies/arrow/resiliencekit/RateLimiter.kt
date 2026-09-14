@@ -5,6 +5,7 @@ package ro.sorinirmies.arrow.resiliencekit
 
 import arrow.fx.stm.TVar
 import arrow.fx.stm.atomically
+import kotlinx.serialization.Serializable
 import kotlin.time.Clock
 import kotlin.time.Instant
 import mu.KotlinLogging
@@ -338,6 +339,7 @@ public data class RateLimiterConfig(
  * @property acceptedRequests Total number of accepted requests
  * @property rejectedRequests Total number of rejected requests
  */
+@Serializable
 public data class RateLimiterStatistics(
     public val availableTokens: Double,
     public val totalRequests: Long,
@@ -601,6 +603,7 @@ public data class SlidingWindowConfig(
  * @property acceptedRequests Total number of accepted requests
  * @property rejectedRequests Total number of rejected requests
  */
+@Serializable
 public data class SlidingWindowStatistics(
     public val currentRequests: Int,
     public val totalRequests: Long,

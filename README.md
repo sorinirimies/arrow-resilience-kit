@@ -7,9 +7,9 @@
 
 ## Overview
 
-Arrow Resilience Kit is a Kotlin Multiplatform library that provides production-ready resilience patterns built on [Arrow-kt](https://arrow-kt.io/). It offers composable, coroutine-first implementations of **Bulkhead**, **Cache**, **Circuit Breaker**, **Rate Limiter**, **Retry & Repeat**, **Saga**, **Time Limiter**, and **STM Helpers** — everything you need to build fault-tolerant applications.
+Arrow Resilience Kit is a Kotlin Multiplatform library that provides production-ready resilience patterns built on [Arrow-kt](https://arrow-kt.io/). It offers composable, coroutine-first implementations of **Bulkhead**, **Cache**, **Circuit Breaker**, **Rate Limiter**, **Retry & Repeat**, **Saga**, **Time Limiter**, **Adaptive Limiter**, **Hedge**, and **STM Helpers** — plus a **Policy** combinator and **Flow** operators to compose them — everything you need to build fault-tolerant applications.
 
-**Supported platforms:** JVM (17+), JavaScript (Browser & Node.js), Native (Linux x64, macOS x64/ARM64).
+**Supported platforms:** JVM (17+), JavaScript (Browser & Node.js), Native (Linux x64, macOS x64/ARM64, iOS x64/ARM64/Simulator ARM64).
 
 📚 **[Full API documentation (Dokka)](https://sorinirimies.github.io/arrow-resilience-kit/)**
 
@@ -336,6 +336,68 @@ tvar.compareAndSet(expected = 1, new = 2)
 stmTransaction { tvar.write(tvar.read() + 10) }
 ```
 
+### Policy (composition)
+
+Wraps [Bulkhead], [CircuitBreaker], [RateLimiter], [TimeLimiter], and retry into one reusable, order-explicit chain. `a + b` means *a wraps b* — the leftmost policy is outermost.
+
+```/dev/null/PolicyExample.kt#L1-L10
+val policy = retryPolicy(retries = 3) + circuitBreaker.asPolicy() + bulkhead.asPolicy()
+val result = policy.apply { api.fetchData() }
+
+// Or fold a list of policies:
+val combined = Policy.combine(retryPolicy(), circuitBreaker.asPolicy(), bulkhead.asPolicy())
+```
+
+### Flow operators
+
+`Flow`-native counterparts of the same patterns, protecting a whole collection instead of a single call.
+
+```/dev/null/FlowExample.kt#L1-L12
+api.streamUpdates()
+    .throughCircuitBreaker(circuitBreaker)
+    .throughBulkhead(bulkhead)
+    .retryWithBackoff(retries = 3)
+    .collect { println(it) }
+```
+
+### Hedge (speculative requests)
+
+Fires a duplicate attempt after a delay if the first hasn't completed yet; the first to *succeed* wins. Cuts tail latency before a slow call has even failed — complements retry, which only reacts after failure.
+
+```/dev/null/HedgeExample.kt#L1-L6
+val result = hedge(hedgeDelay = 50.milliseconds, maxHedges = 2) {
+    api.fetchData() // must be safe to call more than once concurrently
+}
+```
+
+### Adaptive Limiter
+
+AIMD (additive-increase / multiplicative-decrease) concurrency limiter, in the spirit of TCP congestion control and Netflix's `concurrency-limits`. Grows its limit on success, shrinks it multiplicatively on failure or excess latency — no hand-tuned fixed capacity required.
+
+```/dev/null/AdaptiveLimiterExample.kt#L1-L10
+val limiter = AdaptiveLimiter.create(AdaptiveLimiterConfig(
+    initialLimit = 20,
+    latencyThreshold = 200.milliseconds, // slow-but-successful calls still count as overload
+))
+val result = limiter.execute { downstream.call() }
+println(limiter.statistics().currentLimit)
+```
+
+### Chaos (fault injection for tests)
+
+Wraps a real or fake call so it randomly fails and/or adds latency — exercise your retry/circuit-breaker/bulkhead usage without hand-rolling flaky fakes.
+
+```/dev/null/ChaosExample.kt#L1-L8
+val flaky = chaos({ failureRate = 0.3; latency = 50.milliseconds }) {
+    realApi.call()
+}
+val result = retryWithExponentialBackoff(retries = 5) { flaky() }
+```
+
+### Shared State Store (extension point)
+
+`SharedStateStore` is a minimal key-value seam for backing resilience state with a distributed store (Redis, a database, ...) instead of in-memory STM — useful when circuit-breaker/rate-limiter decisions need to be coordinated across a horizontally-scaled fleet. Ships with `InMemorySharedStateStore` (single-process reference implementation); wiring a real backend is left to your application.
+
 ## Configuration
 
 Every pattern supports a DSL builder for configuration:
@@ -373,12 +435,23 @@ Named registries (`CircuitBreakerRegistry`, `BulkheadRegistry`, `RateLimiterRegi
 | Arrow-kt (Core, FX Coroutines, FX STM, Resilience) | 1.2.4 |
 | Kotlinx Coroutines | 1.11.0 |
 | Kotlinx DateTime | 0.8.0 |
+| Kotlinx Serialization (JSON) | 1.9.0 |
 | Kotlin Logging | 3.0.5 |
 | Kotest (test) | 6.2.5 |
 | Detekt | 1.23.8 |
 | Dokka | 1.9.20 |
 
 See [`gradle/libs.versions.toml`](gradle/libs.versions.toml) for the full version catalog — kept current by an automated nightly dependency-upgrade workflow.
+
+### Optional: Micrometer metrics bridge (JVM only)
+
+`MicrometerBridge` exports pattern statistics (call counts, rejection rates, circuit state, adaptive limits, ...) as Micrometer gauges. It's `compileOnly` on the JVM target — add `io.micrometer:micrometer-core` yourself to use it, everyone else pays nothing:
+
+```/dev/null/MicrometerExample.kt#L1-L4
+val registry = SimpleMeterRegistry() // or PrometheusMeterRegistry, etc.
+MicrometerBridge.bindCircuitBreaker(registry, "orders-api", circuitBreaker)
+MicrometerBridge.bindBulkhead(registry, "orders-api", bulkhead)
+```
 
 ## Project Structure
 

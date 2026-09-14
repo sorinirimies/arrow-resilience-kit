@@ -6,6 +6,7 @@ package ro.sorinirmies.arrow.resiliencekit
 import arrow.fx.stm.STM
 import arrow.fx.stm.TVar
 import arrow.fx.stm.atomically
+import kotlinx.serialization.Serializable
 import kotlin.time.Clock
 import kotlin.time.Instant
 import kotlin.time.Duration
@@ -433,6 +434,7 @@ internal data class CacheEntry<V>(
 )
 
 /** Statistics tracked by a cache. */
+@Serializable
 public data class CacheStatistics(
     /** Number of cache hits. */
     public val hits: Long,

@@ -6,6 +6,7 @@ package ro.sorinirmies.arrow.resiliencekit
 import arrow.fx.stm.TVar
 import arrow.fx.stm.atomically
 import kotlinx.coroutines.sync.Semaphore
+import kotlinx.serialization.Serializable
 import kotlin.time.Duration
 
 /**
@@ -51,6 +52,7 @@ public class BulkheadTimeoutException(
 /**
  * Statistics tracked by a bulkhead.
  */
+@Serializable
 public data class BulkheadStatistics(
     /** Total number of calls attempted. */
     public val totalCalls: Long,
