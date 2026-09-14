@@ -3,9 +3,15 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+### 🔄 CI
+- ci: retrigger after runner disk cleanup
+## 0.4.3 - 2026-09-12
 ### 🐛 Bug Fixes
 - fix(ci): install nushell fallback in release test job cleanup step
 - fix(ci): pin known-good gradle-wrapper.jar checksum for wrapper-validation
+### 🔧 Chores
+- chore: bump version to 0.4.3
+**Full Changelog**: https://github.com/sorinirimies/arrow-resilience-kit/compare/0.4.2...0.4.3
 ## 0.4.2 - 2026-09-12
 ### ➕ Added
 - Add .codegraph ignore rules for local data
@@ -68,8 +74,8 @@ All notable changes to this project will be documented in this file.
 - docs: document known compilation issues
 - docs: add comprehensive compilation status report
 - docs: add comprehensive fix guide for remaining 59 compilation errors
-- docs: update API documentation from d25df6bac3b3efd632788ed1e2bdd051b90768dc
-- docs: update API documentation from ee2645377b751bdf5a413ecc9e257b8d0d69cf07
+- docs: update API documentation from 39f94b2f901b45cc3f50d3d43259e71bcb6315b4
+- docs: update API documentation from 5d7ffb26bcd241ed93f094e2ce264c0ff106ca1b
 - docs: update NEXT_STEPS with completed v0.1.2 release status
 - docs: add comprehensive release automation guide
 ### 📦 Other Changes
