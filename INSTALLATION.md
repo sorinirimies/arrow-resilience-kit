@@ -6,33 +6,10 @@
 |---|---|
 | **Group ID** | `ro.sorinirmies.arrow` |
 | **Artifact ID** | `arrow-resilience-kit` |
-| **Version** | `0.2.0` |
+| **Version** | `0.4.4` |
 
----
-
-## Maven Central
-
-### Gradle (Kotlin DSL)
-
-```kotlin
-repositories {
-    mavenCentral()
-}
-
-dependencies {
-    implementation("ro.sorinirmies.arrow:arrow-resilience-kit:0.2.0")
-}
-```
-
-### Maven
-
-```xml
-<dependency>
-    <groupId>ro.sorinirmies.arrow</groupId>
-    <artifactId>arrow-resilience-kit</artifactId>
-    <version>0.2.0</version>
-</dependency>
-```
+> Not published to Maven Central. Use JitPack (any tag/commit, zero setup) or
+> GitHub Packages (requires a token) below.
 
 ---
 
@@ -48,7 +25,7 @@ repositories {
 }
 
 dependencies {
-    implementation("com.github.sorinirimies:arrow-resilience-kit:0.2.0")
+    implementation("com.github.sorinirimies:arrow-resilience-kit:0.4.4")
 }
 ```
 
@@ -65,7 +42,7 @@ dependencies {
 <dependency>
     <groupId>com.github.sorinirimies</groupId>
     <artifactId>arrow-resilience-kit</artifactId>
-    <version>0.2.0</version>
+    <version>0.4.4</version>
 </dependency>
 ```
 
@@ -90,7 +67,7 @@ repositories {
 }
 
 dependencies {
-    implementation("ro.sorinirmies.arrow:arrow-resilience-kit:0.2.0")
+    implementation("ro.sorinirmies.arrow:arrow-resilience-kit:0.4.4")
 }
 ```
 
@@ -107,7 +84,7 @@ dependencies {
 <dependency>
     <groupId>ro.sorinirmies.arrow</groupId>
     <artifactId>arrow-resilience-kit</artifactId>
-    <version>0.2.0</version>
+    <version>0.4.4</version>
 </dependency>
 ```
 

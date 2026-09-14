@@ -142,9 +142,9 @@ tasks.dokkaHtml.configure {
         mapOf(
             "org.jetbrains.dokka.base.DokkaBase" to """
                 {
-                    "customStyleSheets": [],
+                    "customStyleSheets": ["${file("config/dokka/custom-styles.css")}"],
                     "customAssets": [],
-                    "separateInheritedMembers": false,
+                    "separateInheritedMembers": true,
                     "footerMessage": "© 2026 Arrow Resilience Kit"
                 }
             """

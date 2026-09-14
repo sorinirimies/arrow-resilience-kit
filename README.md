@@ -11,6 +11,19 @@ Arrow Resilience Kit is a Kotlin Multiplatform library that provides production-
 
 **Supported platforms:** JVM (17+), JavaScript (Browser & Node.js), Native (Linux x64, macOS x64/ARM64).
 
+📚 **[Full API documentation (Dokka)](https://sorinirimies.github.io/arrow-resilience-kit/)**
+
+## Why Arrow Resilience Kit?
+
+| | |
+|---|---|
+| **Coroutine-native** | Every pattern is a `suspend` function or operates on one — no thread blocking, no callback soup. |
+| **Composable** | Patterns wrap plain lambdas, so you freely nest `retry { circuitBreaker.execute { bulkhead.execute { ... } } }`. |
+| **DSL builders** | Every config type has a `{ }` builder with sane, documented defaults. |
+| **Observable** | Listeners and `*Statistics` snapshots (hit rate, rejection rate, state transitions) on every pattern. |
+| **Named registries** | Manage many instances (per-endpoint circuit breakers, per-tenant rate limiters, ...) by key. |
+| **Multiplatform** | One dependency, same API on JVM, JS, and Native — no platform-specific forks. |
+
 ## Installation
 
 **Coordinates:**
@@ -19,7 +32,7 @@ Arrow Resilience Kit is a Kotlin Multiplatform library that provides production-
 |---|---|
 | **Group ID** | `ro.sorinirmies.arrow` |
 | **Artifact ID** | `arrow-resilience-kit` |
-| **Version** | `0.2.0` |
+| **Version** | `0.4.4` |
 
 ### JitPack
 
@@ -29,7 +42,7 @@ repositories {
 }
 
 dependencies {
-    implementation("com.github.sorinirimies:arrow-resilience-kit:0.2.0")
+    implementation("com.github.sorinirimies:arrow-resilience-kit:0.4.4")
 }
 ```
 
@@ -47,10 +60,12 @@ repositories {
     }
 }
 
-implementation("ro.sorinirmies.arrow:arrow-resilience-kit:0.2.0")
+implementation("ro.sorinirmies.arrow:arrow-resilience-kit:0.4.4")
 ```
 
 > Requires a GitHub Personal Access Token with `read:packages` scope.
+
+See [INSTALLATION.md](INSTALLATION.md) for Maven and additional details.
 
 ## Quick Start
 
@@ -354,20 +369,20 @@ Named registries (`CircuitBreakerRegistry`, `BulkheadRegistry`, `RateLimiterRegi
 
 | Dependency | Version |
 |---|---|
-| Kotlin | 1.9.25 |
+| Kotlin | 2.2.20 |
 | Arrow-kt (Core, FX Coroutines, FX STM, Resilience) | 1.2.4 |
-| Kotlinx Coroutines | 1.8.1 |
-| Kotlinx DateTime | 0.6.1 |
+| Kotlinx Coroutines | 1.11.0 |
+| Kotlinx DateTime | 0.8.0 |
 | Kotlin Logging | 3.0.5 |
-| Kotest (test) | 5.9.1 |
-| Detekt | 1.23.7 |
+| Kotest (test) | 6.2.5 |
+| Detekt | 1.23.8 |
 | Dokka | 1.9.20 |
 
-See [`gradle/libs.versions.toml`](gradle/libs.versions.toml) for the full version catalog.
+See [`gradle/libs.versions.toml`](gradle/libs.versions.toml) for the full version catalog — kept current by an automated nightly dependency-upgrade workflow.
 
 ## Project Structure
 
-```/dev/null/tree.txt#L1-L28
+```/dev/null/tree.txt#L1-L32
 arrow-resilience-kit/
 ├── src/
 │   ├── commonMain/kotlin/ro/sorinirmies/arrow/resiliencekit/
@@ -385,14 +400,15 @@ arrow-resilience-kit/
 │   ├── jvmMain/kotlin/
 │   ├── jsMain/kotlin/
 │   └── nativeMain/kotlin/
-├── docs/
+├── docs/                    # Published Dokka HTML (GitHub Pages)
 ├── gradle/
 │   └── libs.versions.toml
-├── .github/workflows/
-│   ├── ci.yml
-│   └── release.yml
-├── scripts/
+├── .github/workflows/       # Public CI/release/deps-update (GitHub Actions)
+├── .gitea/workflows/        # Mirrored CI/release/deps-update (self-hosted Gitea)
+├── scripts/                 # Nushell automation: release, upgrade, validation
 ├── config/
+│   ├── detekt/
+│   └── dokka/               # Custom Dokka stylesheet
 ├── build.gradle.kts
 ├── settings.gradle.kts
 ├── justfile
