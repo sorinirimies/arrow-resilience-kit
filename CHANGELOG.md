@@ -3,8 +3,17 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+### ✨ Features
+- feat: add Policy combinator, Flow operators, Hedge, AdaptiveLimiter, Chaos, iOS targets, serialization, Micrometer bridge
+### 📚 Documentation
+- docs: update API documentation for 0.4.4
+- docs: refresh README/INSTALLATION for 0.4.4 and theme Dokka output
+## 0.4.4 - 2026-09-14
 ### 🔄 CI
 - ci: retrigger after runner disk cleanup
+### 🔧 Chores
+- chore: bump version to 0.4.4
+**Full Changelog**: https://github.com/sorinirimies/arrow-resilience-kit/compare/0.4.3...0.4.4
 ## 0.4.3 - 2026-09-12
 ### 🐛 Bug Fixes
 - fix(ci): install nushell fallback in release test job cleanup step
