@@ -4,10 +4,18 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 ### ✨ Features
+- feat: publish to Maven Central, Gitea Packages, and SPM (iOS XCFramework)
+### 📚 Documentation
+- docs: update API documentation for 0.5.0
+## 0.5.0 - 2026-09-15
+### ✨ Features
 - feat: add Policy combinator, Flow operators, Hedge, AdaptiveLimiter, Chaos, iOS targets, serialization, Micrometer bridge
 ### 📚 Documentation
 - docs: update API documentation for 0.4.4
 - docs: refresh README/INSTALLATION for 0.4.4 and theme Dokka output
+### 🔧 Chores
+- chore: bump version to 0.5.0
+**Full Changelog**: https://github.com/sorinirimies/arrow-resilience-kit/compare/0.4.4...0.5.0
 ## 0.4.4 - 2026-09-14
 ### 🔄 CI
 - ci: retrigger after runner disk cleanup
