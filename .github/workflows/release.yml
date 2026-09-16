@@ -127,45 +127,114 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # ── 3. Publish to GitHub Packages ───────────────────────────────────────────
+  # ── 3. Build & attach iOS XCFramework (Swift Package Manager) ────────────────────────
+  xcframework:
+    name: Build & attach XCFramework (iOS)
+    needs: [validate, release, publish]
+    # Runs after `publish` (which may also push a commit to main for docs)
+    # so the two git-push steps don't race each other on the same branch.
+    # Kotlin/Native's iOS targets (and lipo/xcodebuild -create-xcframework)
+    # can only be built on a Mac with Xcode installed — this is the only job
+    # in either release workflow that needs macos-latest instead of Ubuntu.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.validate.outputs.tag }}
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+
+      - name: Install Nushell
+        run: brew install nushell
+
+      - name: Build ArrowResilienceKit.xcframework
+        run: ./gradlew assembleArrowResilienceKitReleaseXCFramework --no-daemon
+
+      - name: Zip XCFramework
+        run: |
+          cd build/XCFrameworks/release
+          zip -r -y -q ArrowResilienceKit.xcframework.zip ArrowResilienceKit.xcframework
+
+      - name: Upload XCFramework to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: >
+          gh release upload "${{ needs.validate.outputs.tag }}"
+          build/XCFrameworks/release/ArrowResilienceKit.xcframework.zip
+          --clobber
+
+      - name: Update Package.swift for this release
+        run: |
+          CHECKSUM=$(swift package compute-checksum build/XCFrameworks/release/ArrowResilienceKit.xcframework.zip)
+          nu scripts/update_package_swift.nu --tag "${{ needs.validate.outputs.tag }}" --checksum "$CHECKSUM"
+
+      - name: Commit and push Package.swift
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git fetch origin main
+          git checkout main
+          git add Package.swift
+          git diff --staged --quiet || git commit -m "chore: update Package.swift for ${{ needs.validate.outputs.tag }}"
+          git push origin main
+
+  # ── 4. Publish to GitHub Packages ───────────────────────────────────────────
   publish:
     name: Publish to GitHub Packages
     needs: [validate, release]
     runs-on: ubuntu-latest
     env:
       HAS_TOKEN: ${{ secrets.PACKAGES_PUBLISH != '' }}
+      HAS_CENTRAL_TOKEN: ${{ secrets.MAVEN_CENTRAL_USERNAME != '' }}
+      HAS_ANY_TARGET: ${{ secrets.PACKAGES_PUBLISH != '' || secrets.MAVEN_CENTRAL_USERNAME != '' }}
     steps:
       - name: Skip notice (no token)
-        if: env.HAS_TOKEN != 'true'
-        run: echo "⏭️  PACKAGES_PUBLISH is not configured — skipping publish."
+        if: env.HAS_ANY_TARGET != 'true'
+        run: echo "⏭️  Neither PACKAGES_PUBLISH nor MAVEN_CENTRAL_USERNAME is configured — skipping publish."
 
       - uses: actions/checkout@v4
-        if: env.HAS_TOKEN == 'true'
+        if: env.HAS_ANY_TARGET == 'true'
         with:
           ref: ${{ needs.validate.outputs.tag }}
 
       - name: Set up JDK 17
-        if: env.HAS_TOKEN == 'true'
+        if: env.HAS_ANY_TARGET == 'true'
         uses: actions/setup-java@v4
         with:
           java-version: "17"
           distribution: "temurin"
 
       - name: Setup Gradle
-        if: env.HAS_TOKEN == 'true'
+        if: env.HAS_ANY_TARGET == 'true'
         uses: gradle/actions/setup-gradle@v3
         with:
           cache-read-only: false
 
       - name: Publish to GitHub Packages
         if: env.HAS_TOKEN == 'true'
-        run: ./gradlew publish --no-daemon
+        run: ./gradlew publishAllPublicationsToGitHubPackagesRepository --no-daemon
         env:
           PACKAGES_PUBLISH: ${{ secrets.PACKAGES_PUBLISH }}
           GITHUB_ACTOR: ${{ github.actor }}
 
+      - name: Publish to Maven Central
+        if: env.HAS_CENTRAL_TOKEN == 'true'
+        # publishToMavenCentral uploads + (with automaticRelease=true, set in
+        # build.gradle.kts) triggers the release; see INSTALLATION.md for the
+        # one-time Central Portal namespace verification this requires.
+        run: ./gradlew publishToMavenCentral --no-daemon
+        env:
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          GPG_SIGNING_KEY: ${{ secrets.GPG_SIGNING_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+
       - name: Generate and deploy documentation
-        if: env.HAS_TOKEN == 'true'
+        if: env.HAS_ANY_TARGET == 'true'
         run: |
           ./gradlew dokkaHtml --no-daemon
 
@@ -180,7 +249,7 @@ jobs:
           echo "<p>Commit: ${{ github.sha }}</p>" >> docs/VERSION.html
 
       - name: Commit and push documentation
-        if: env.HAS_TOKEN == 'true'
+        if: env.HAS_ANY_TARGET == 'true'
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
@@ -191,7 +260,7 @@ jobs:
           git push origin main
 
       - name: Upload build artifacts
-        if: env.HAS_TOKEN == 'true'
+        if: env.HAS_ANY_TARGET == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: build-artifacts

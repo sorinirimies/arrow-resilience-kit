@@ -45,6 +45,23 @@ configure<PublishingExtension> {
                 password = System.getenv("PACKAGES_PUBLISH") ?: ""
             }
         }
+
+        // Self-hosted Gitea's built-in Maven package registry. Only ever invoked
+        // explicitly (publishAllPublicationsToGiteaPackagesRepository) from the
+        // Gitea-triggered release workflow — the Gitea host is a private LAN
+        // address unreachable from GitHub-hosted runners, so plain `publish`
+        // never targets this repository from GitHub Actions.
+        maven {
+            name = "GiteaPackages"
+            url = uri(System.getenv("GITEA_PACKAGES_URL") ?: "http://192.168.1.44:3000/api/packages/sorin/maven")
+            credentials(org.gradle.api.credentials.HttpHeaderCredentials::class) {
+                name = "Authorization"
+                value = "token " + (System.getenv("GITEA_PACKAGES_TOKEN") ?: "")
+            }
+            authentication {
+                create<org.gradle.authentication.http.HttpHeaderAuthentication>("header")
+            }
+        }
     }
 }
 

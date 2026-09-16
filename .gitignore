@@ -47,3 +47,12 @@ build/documentation/
 # Test results
 **/build/test-results/
 **/build/reports/
+
+# Stray CI tool downloads (nushell etc.) if ever extracted at repo root
+# by mistake — must never be committed.
+/nu-*-unknown-linux-gnu/
+/nu-*-apple-darwin/
+/nu-*-pc-windows*/
+
+# Swift Package Manager local build cache (from `swift build`/`swift package`)
+.build/

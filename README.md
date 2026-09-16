@@ -65,7 +65,31 @@ implementation("ro.sorinirmies.arrow:arrow-resilience-kit:0.4.4")
 
 > Requires a GitHub Personal Access Token with `read:packages` scope.
 
-See [INSTALLATION.md](INSTALLATION.md) for Maven and additional details.
+### Maven Central
+
+```kotlin
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation("ro.sorinirmies.arrow:arrow-resilience-kit:0.5.0")
+}
+```
+
+> Published via the [Central Portal](https://central.sonatype.com/) — no token needed to consume it.
+
+### Swift Package Manager (iOS)
+
+Every release also ships a prebuilt `ArrowResilienceKit.xcframework` (iOS device + simulator, arm64/x86_64) via SPM:
+
+```swift
+.package(url: "https://github.com/sorinirimies/arrow-resilience-kit", from: "0.5.0")
+```
+
+Kotlin `suspend` functions are exposed as completion-handler methods, which Swift automatically bridges to `async`/`await`. See [Package.swift](Package.swift).
+
+See [INSTALLATION.md](INSTALLATION.md) for Maven, Gitea Packages, and additional details.
 
 ## Quick Start
 
@@ -452,6 +476,20 @@ val registry = SimpleMeterRegistry() // or PrometheusMeterRegistry, etc.
 MicrometerBridge.bindCircuitBreaker(registry, "orders-api", circuitBreaker)
 MicrometerBridge.bindBulkhead(registry, "orders-api", bulkhead)
 ```
+
+## Publishing
+
+Every `./gradlew publish`-capable target (JVM, JS, Linux x64, macOS x64/ARM64, iOS x64/ARM64/Simulator ARM64) is published to:
+
+| Target | Trigger | Notes |
+|---|---|---|
+| **GitHub Packages** | Either release workflow (GitHub or Gitea) | Gated on `PACKAGES_PUBLISH` secret (a GitHub PAT with `write:packages`). The destination is hardcoded to `maven.pkg.github.com`, so a Gitea-triggered release publishes to GitHub Packages too — as long as `PACKAGES_PUBLISH` is *also* configured as a Gitea Actions secret (Gitea and GitHub secrets are separate stores). |
+| **Maven Central** (Central Portal) | Either release workflow | Gated on `MAVEN_CENTRAL_USERNAME`/`MAVEN_CENTRAL_PASSWORD` (a Central Portal user token, not your login password) + `GPG_SIGNING_KEY`/`GPG_PASSPHRASE`. Requires a one-time, human-only step: verifying the `ro.sorinirmies.arrow` namespace at [central.sonatype.com](https://central.sonatype.com/). Uses the [vanniktech/gradle-maven-publish-plugin](https://github.com/vanniktech/gradle-maven-publish-plugin) pinned to 0.35.0 (the last version supporting Dokka v1, which this project uses for its themed HTML docs — 0.36.0+ requires Dokka v2). |
+| **Gitea Packages** (self-hosted) | Gitea release workflow only | Gated on `GITEA_PACKAGES_TOKEN`. Only wired into `.gitea/workflows/release.yml` — the Gitea instance is a private LAN address, unreachable from GitHub-hosted runners. |
+| **JitPack** | Passive, no workflow step | Builds on-demand from any GitHub tag; nothing to configure. |
+| **Swift Package Manager** (iOS) | GitHub release workflow only, `xcframework` job | Builds `ArrowResilienceKit.xcframework` on `macos-latest` (Kotlin/Native's iOS targets require Xcode), uploads it as a release asset, and updates [`Package.swift`](Package.swift)'s checksum. Not wired into the Gitea workflow — the self-hosted runner is Linux and can't build Apple frameworks. |
+
+**Not published: npm.** Kotlin/JS's `@JsExport` [does not support `suspend` functions](https://kotlinlang.org/docs/js-to-kotlin-interop.html) at all (verified: `Declaration of such kind (suspend function) cannot be exported to JavaScript`). Since this library's entire public API is suspend-based, an npm-consumable package would require hand-writing Promise-returning wrapper facades for every function across every pattern — a separate, substantial project, not a publishing-target toggle. Deferred.
 
 ## Project Structure
 

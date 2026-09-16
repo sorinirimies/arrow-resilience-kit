@@ -148,39 +148,64 @@ jobs:
     runs-on: ubuntu-latest
     env:
       HAS_TOKEN: ${{ secrets.PACKAGES_PUBLISH != '' }}
+      HAS_CENTRAL_TOKEN: ${{ secrets.MAVEN_CENTRAL_USERNAME != '' }}
+      HAS_GITEA_TOKEN: ${{ secrets.GITEA_PACKAGES_TOKEN != '' }}
+      HAS_ANY_TARGET: ${{ secrets.PACKAGES_PUBLISH != '' || secrets.MAVEN_CENTRAL_USERNAME != '' || secrets.GITEA_PACKAGES_TOKEN != '' }}
     steps:
       - name: Skip notice (no token)
-        if: env.HAS_TOKEN != 'true'
-        run: echo "⏭️  PACKAGES_PUBLISH is not configured — skipping publish."
+        if: env.HAS_ANY_TARGET != 'true'
+        run: echo "⏭️  No publish token configured (PACKAGES_PUBLISH / MAVEN_CENTRAL_USERNAME / GITEA_PACKAGES_TOKEN) — skipping publish."
 
       - uses: actions/checkout@v4
-        if: env.HAS_TOKEN == 'true'
+        if: env.HAS_ANY_TARGET == 'true'
         with:
           ref: ${{ needs.validate.outputs.tag }}
 
       - name: Set up JDK 17
-        if: env.HAS_TOKEN == 'true'
+        if: env.HAS_ANY_TARGET == 'true'
         uses: actions/setup-java@v4
         with:
           java-version: "17"
           distribution: "temurin"
 
       - name: Setup Gradle
-        if: env.HAS_TOKEN == 'true'
+        if: env.HAS_ANY_TARGET == 'true'
         uses: gradle/actions/setup-gradle@v3
         with:
           cache-read-only: false
 
       - name: Publish to GitHub Packages
         if: env.HAS_TOKEN == 'true'
-        run: ./gradlew publish --no-daemon
+        run: ./gradlew publishAllPublicationsToGitHubPackagesRepository --no-daemon
         env:
           PACKAGES_PUBLISH: ${{ secrets.PACKAGES_PUBLISH }}
           GITHUB_ACTOR: ${{ github.actor }}
 
+      - name: Publish to Gitea Packages
+        if: env.HAS_GITEA_TOKEN == 'true'
+        # Only meaningful from this self-hosted runner: GiteaPackages points at
+        # a private LAN address (192.168.1.44) unreachable from GitHub-hosted
+        # runners, so this step only exists in the Gitea workflow.
+        run: ./gradlew publishAllPublicationsToGiteaPackagesRepository --no-daemon
+        env:
+          GITEA_PACKAGES_TOKEN: ${{ secrets.GITEA_PACKAGES_TOKEN }}
+          GITEA_PACKAGES_URL: ${{ secrets.GITEA_PACKAGES_URL }}
+
+      - name: Publish to Maven Central
+        if: env.HAS_CENTRAL_TOKEN == 'true'
+        # publishToMavenCentral uploads + (with automaticRelease=true, set in
+        # build.gradle.kts) triggers the release; see INSTALLATION.md for the
+        # one-time Central Portal namespace verification this requires.
+        run: ./gradlew publishToMavenCentral --no-daemon
+        env:
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          GPG_SIGNING_KEY: ${{ secrets.GPG_SIGNING_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+
       - name: Publish complete
-        if: env.HAS_TOKEN == 'true'
-        run: echo "✅ Published ${{ needs.validate.outputs.tag }} to GitHub Packages."
+        if: env.HAS_ANY_TARGET == 'true'
+        run: echo "✅ Published ${{ needs.validate.outputs.tag }}."
 
       - name: Cleanup workspace
         if: always()
