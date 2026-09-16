@@ -1,12 +1,23 @@
 # Installation
 
+[![Maven Central](https://img.shields.io/maven-central/v/ro.sorinirmies.arrow/arrow-resilience-kit?label=Maven%20Central)](https://central.sonatype.com/artifact/ro.sorinirmies.arrow/arrow-resilience-kit)
+[![GitHub Release](https://img.shields.io/github/v/release/sorinirimies/arrow-resilience-kit?label=latest)](https://github.com/sorinirimies/arrow-resilience-kit/releases/latest)
+[![JitPack](https://jitpack.io/v/sorinirimies/arrow-resilience-kit.svg)](https://jitpack.io/#sorinirimies/arrow-resilience-kit)
+
 **Coordinates:**
 
 | | |
 |---|---|
 | **Group ID** | `ro.sorinirmies.arrow` |
 | **Artifact ID** | `arrow-resilience-kit` |
-| **Version** | `0.5.0` |
+| **Version** | see the badges above — they always reflect the current published version |
+
+Every snippet below uses `<version>` as a placeholder — substitute whatever
+the badges show. If you'd rather never touch this file again, use a
+[dynamic Gradle version](https://docs.gradle.org/current/userguide/dynamic_versions.html)
+instead of a pinned one, e.g. `implementation("ro.sorinirmies.arrow:arrow-resilience-kit:+")`
+or `:latest.release`. Convenient, but not reproducible — pin an exact
+version for anything you actually ship.
 
 > Also published to Maven Central (see below) — that's the recommended way
 > to consume this library; JitPack and GitHub Packages remain available too.
@@ -25,7 +36,7 @@ repositories {
 }
 
 dependencies {
-    implementation("ro.sorinirmies.arrow:arrow-resilience-kit:0.5.0")
+    implementation("ro.sorinirmies.arrow:arrow-resilience-kit:<version>")
 }
 ```
 
@@ -35,7 +46,7 @@ dependencies {
 <dependency>
     <groupId>ro.sorinirmies.arrow</groupId>
     <artifactId>arrow-resilience-kit</artifactId>
-    <version>0.5.0</version>
+    <version>x.y.z</version>
 </dependency>
 ```
 
@@ -53,7 +64,7 @@ repositories {
 }
 
 dependencies {
-    implementation("com.github.sorinirimies:arrow-resilience-kit:0.5.0")
+    implementation("com.github.sorinirimies:arrow-resilience-kit:<version>")
 }
 ```
 
@@ -70,7 +81,7 @@ dependencies {
 <dependency>
     <groupId>com.github.sorinirimies</groupId>
     <artifactId>arrow-resilience-kit</artifactId>
-    <version>0.5.0</version>
+    <version>x.y.z</version>
 </dependency>
 ```
 
@@ -95,7 +106,7 @@ repositories {
 }
 
 dependencies {
-    implementation("ro.sorinirmies.arrow:arrow-resilience-kit:0.5.0")
+    implementation("ro.sorinirmies.arrow:arrow-resilience-kit:<version>")
 }
 ```
 
@@ -112,7 +123,7 @@ dependencies {
 <dependency>
     <groupId>ro.sorinirmies.arrow</groupId>
     <artifactId>arrow-resilience-kit</artifactId>
-    <version>0.5.0</version>
+    <version>x.y.z</version>
 </dependency>
 ```
 
@@ -152,7 +163,7 @@ repositories {
 }
 
 dependencies {
-    implementation("ro.sorinirmies.arrow:arrow-resilience-kit:0.5.0")
+    implementation("ro.sorinirmies.arrow:arrow-resilience-kit:<version>")
 }
 ```
 
@@ -164,9 +175,15 @@ Every GitHub release also builds and attaches a prebuilt `ArrowResilienceKit.xcf
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/sorinirimies/arrow-resilience-kit", from: "0.5.0")
+    .package(url: "https://github.com/sorinirimies/arrow-resilience-kit", from: "<version>")
 ]
 ```
+
+`Package.swift` in this repo always points at the exact latest release —
+its `binaryTarget` url/checksum are rewritten automatically by CI on every
+release (see `scripts/update_package_swift.nu`), so if you reference the
+repo directly via `.package(url: "https://github.com/sorinirimies/arrow-resilience-kit", from: "<version>")`
+there is nothing to keep in sync by hand.
 
 Kotlin/Native automatically bridges `suspend` functions to Objective-C completion-handler methods, which Swift imports as native `async`/`await` functions — no wrapper code needed on either side.
 

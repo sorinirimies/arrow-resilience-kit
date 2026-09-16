@@ -2,6 +2,8 @@
 
 [![CI](https://github.com/sorinirimies/arrow-resilience-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/sorinirimies/arrow-resilience-kit/actions/workflows/ci.yml)
 [![Release](https://github.com/sorinirimies/arrow-resilience-kit/actions/workflows/release.yml/badge.svg)](https://github.com/sorinirimies/arrow-resilience-kit/actions/workflows/release.yml)
+[![Maven Central](https://img.shields.io/maven-central/v/ro.sorinirmies.arrow/arrow-resilience-kit?label=Maven%20Central)](https://central.sonatype.com/artifact/ro.sorinirmies.arrow/arrow-resilience-kit)
+[![GitHub Release](https://img.shields.io/github/v/release/sorinirimies/arrow-resilience-kit?label=latest)](https://github.com/sorinirimies/arrow-resilience-kit/releases/latest)
 [![JitPack](https://jitpack.io/v/sorinirimies/arrow-resilience-kit.svg)](https://jitpack.io/#sorinirimies/arrow-resilience-kit)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -32,7 +34,12 @@ Arrow Resilience Kit is a Kotlin Multiplatform library that provides production-
 |---|---|
 | **Group ID** | `ro.sorinirmies.arrow` |
 | **Artifact ID** | `arrow-resilience-kit` |
-| **Version** | `0.4.4` |
+| **Version** | see the **Maven Central** / **latest** badges above — always current, never hand-edited |
+
+In every snippet below, replace `<version>` with whatever those badges show
+(or use a [dynamic Gradle version](https://docs.gradle.org/current/userguide/dynamic_versions.html)
+like `+` / `latest.release` to always resolve the newest published release —
+convenient, but not reproducible, so pin an exact version for real builds).
 
 ### JitPack
 
@@ -42,7 +49,7 @@ repositories {
 }
 
 dependencies {
-    implementation("com.github.sorinirimies:arrow-resilience-kit:0.4.4")
+    implementation("com.github.sorinirimies:arrow-resilience-kit:<version>")
 }
 ```
 
@@ -60,7 +67,7 @@ repositories {
     }
 }
 
-implementation("ro.sorinirmies.arrow:arrow-resilience-kit:0.4.4")
+implementation("ro.sorinirmies.arrow:arrow-resilience-kit:<version>")
 ```
 
 > Requires a GitHub Personal Access Token with `read:packages` scope.
@@ -73,7 +80,7 @@ repositories {
 }
 
 dependencies {
-    implementation("ro.sorinirmies.arrow:arrow-resilience-kit:0.5.0")
+    implementation("ro.sorinirmies.arrow:arrow-resilience-kit:<version>")
 }
 ```
 
@@ -84,10 +91,10 @@ dependencies {
 Every release also ships a prebuilt `ArrowResilienceKit.xcframework` (iOS device + simulator, arm64/x86_64) via SPM:
 
 ```swift
-.package(url: "https://github.com/sorinirimies/arrow-resilience-kit", from: "0.5.0")
+.package(url: "https://github.com/sorinirimies/arrow-resilience-kit", from: "<version>")
 ```
 
-Kotlin `suspend` functions are exposed as completion-handler methods, which Swift automatically bridges to `async`/`await`. See [Package.swift](Package.swift).
+Kotlin `suspend` functions are exposed as completion-handler methods, which Swift automatically bridges to `async`/`await`. See [Package.swift](Package.swift) (its `binaryTarget` always points at the exact latest release, updated automatically by CI).
 
 See [INSTALLATION.md](INSTALLATION.md) for Maven, Gitea Packages, and additional details.
 
