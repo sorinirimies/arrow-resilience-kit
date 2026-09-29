@@ -193,10 +193,11 @@ jobs:
 
       - name: Publish to Maven Central
         if: env.HAS_CENTRAL_TOKEN == 'true'
-        # publishToMavenCentral uploads + (with automaticRelease=true, set in
-        # build.gradle.kts) triggers the release; see INSTALLATION.md for the
-        # one-time Central Portal namespace verification this requires.
-        run: ./gradlew publishToMavenCentral --no-daemon
+        # publishToCentralPortal stages, zips, and uploads the bundle with
+        # publishingType=AUTOMATIC (gradle/central-portal.gradle.kts), which
+        # triggers Sonatype's auto validate+release; see INSTALLATION.md for
+        # the one-time Central Portal namespace verification this requires.
+        run: ./gradlew publishToCentralPortal --no-daemon
         env:
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
