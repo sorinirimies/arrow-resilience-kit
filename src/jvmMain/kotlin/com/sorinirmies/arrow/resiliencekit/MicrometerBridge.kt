@@ -18,7 +18,7 @@
  * MicrometerBridge.bindCircuitBreaker(registry, "orders-api", circuitBreaker)
  * ```
  */
-package ro.sorinirmies.arrow.resiliencekit
+package com.sorinirmies.arrow.resiliencekit
 
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Tags

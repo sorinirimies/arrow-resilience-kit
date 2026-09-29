@@ -25,7 +25,7 @@ apply(from = "gradle/publishing.gradle.kts")
 // human-only step).
 apply(from = "gradle/central-portal.gradle.kts")
 
-group = "ro.sorinirmies.arrow"
+group = "com.sorinirmies.arrow"
 version = "0.5.7"
 
 repositories {

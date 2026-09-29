@@ -1,6 +1,6 @@
 # Installation
 
-[![Maven Central](https://img.shields.io/maven-central/v/ro.sorinirmies.arrow/arrow-resilience-kit?label=Maven%20Central)](https://central.sonatype.com/artifact/ro.sorinirmies.arrow/arrow-resilience-kit)
+[![Maven Central](https://img.shields.io/maven-central/v/com.sorinirmies.arrow/arrow-resilience-kit?label=Maven%20Central)](https://central.sonatype.com/artifact/com.sorinirmies.arrow/arrow-resilience-kit)
 [![GitHub Release](https://img.shields.io/github/v/release/sorinirimies/arrow-resilience-kit?label=latest)](https://github.com/sorinirimies/arrow-resilience-kit/releases/latest)
 [![JitPack](https://jitpack.io/v/sorinirimies/arrow-resilience-kit.svg)](https://jitpack.io/#sorinirimies/arrow-resilience-kit)
 
@@ -8,14 +8,14 @@
 
 | | |
 |---|---|
-| **Group ID** | `ro.sorinirmies.arrow` |
+| **Group ID** | `com.sorinirmies.arrow` |
 | **Artifact ID** | `arrow-resilience-kit` |
 | **Version** | see the badges above — they always reflect the current published version |
 
 Every snippet below uses `<version>` as a placeholder — substitute whatever
 the badges show. If you'd rather never touch this file again, use a
 [dynamic Gradle version](https://docs.gradle.org/current/userguide/dynamic_versions.html)
-instead of a pinned one, e.g. `implementation("ro.sorinirmies.arrow:arrow-resilience-kit:+")`
+instead of a pinned one, e.g. `implementation("com.sorinirmies.arrow:arrow-resilience-kit:+")`
 or `:latest.release`. Convenient, but not reproducible — pin an exact
 version for anything you actually ship.
 
@@ -36,7 +36,7 @@ repositories {
 }
 
 dependencies {
-    implementation("ro.sorinirmies.arrow:arrow-resilience-kit:<version>")
+    implementation("com.sorinirmies.arrow:arrow-resilience-kit:<version>")
 }
 ```
 
@@ -44,7 +44,7 @@ dependencies {
 
 ```xml
 <dependency>
-    <groupId>ro.sorinirmies.arrow</groupId>
+    <groupId>com.sorinirmies.arrow</groupId>
     <artifactId>arrow-resilience-kit</artifactId>
     <version>x.y.z</version>
 </dependency>
@@ -106,7 +106,7 @@ repositories {
 }
 
 dependencies {
-    implementation("ro.sorinirmies.arrow:arrow-resilience-kit:<version>")
+    implementation("com.sorinirmies.arrow:arrow-resilience-kit:<version>")
 }
 ```
 
@@ -121,7 +121,7 @@ dependencies {
 </repositories>
 
 <dependency>
-    <groupId>ro.sorinirmies.arrow</groupId>
+    <groupId>com.sorinirmies.arrow</groupId>
     <artifactId>arrow-resilience-kit</artifactId>
     <version>x.y.z</version>
 </dependency>
@@ -163,7 +163,7 @@ repositories {
 }
 
 dependencies {
-    implementation("ro.sorinirmies.arrow:arrow-resilience-kit:<version>")
+    implementation("com.sorinirmies.arrow:arrow-resilience-kit:<version>")
 }
 ```
 

@@ -15,7 +15,7 @@
  * val result = retryWithExponentialBackoff(retries = 5) { flaky() }
  * ```
  */
-package ro.sorinirmies.arrow.resiliencekit
+package com.sorinirmies.arrow.resiliencekit
 
 import kotlinx.coroutines.delay
 import kotlin.random.Random

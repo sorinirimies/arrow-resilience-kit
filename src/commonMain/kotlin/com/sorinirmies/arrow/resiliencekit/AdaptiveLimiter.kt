@@ -22,7 +22,7 @@
  * val result = limiter.execute { downstream.call() }
  * ```
  */
-package ro.sorinirmies.arrow.resiliencekit
+package com.sorinirmies.arrow.resiliencekit
 
 import arrow.fx.stm.STM
 import arrow.fx.stm.TVar

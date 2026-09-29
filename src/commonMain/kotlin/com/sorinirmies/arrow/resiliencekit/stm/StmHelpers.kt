@@ -1,4 +1,4 @@
-package ro.sorinirmies.arrow.resiliencekit.stm
+package com.sorinirmies.arrow.resiliencekit.stm
 
 import arrow.fx.stm.STM
 import arrow.fx.stm.TVar

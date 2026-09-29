@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Sorin Albu-Irimies
 
-package ro.sorinirmies.arrow.resiliencekit
+package com.sorinirmies.arrow.resiliencekit
 
 import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.async

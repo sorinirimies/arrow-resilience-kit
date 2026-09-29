@@ -25,7 +25,7 @@
  * }
  * ```
  */
-package ro.sorinirmies.arrow.resiliencekit
+package com.sorinirmies.arrow.resiliencekit
 
 import arrow.fx.stm.TVar
 import arrow.fx.stm.atomically

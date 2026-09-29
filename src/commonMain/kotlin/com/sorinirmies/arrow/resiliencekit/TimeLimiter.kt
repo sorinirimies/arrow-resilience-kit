@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Sorin Albu-Irimies
 
-package ro.sorinirmies.arrow.resiliencekit
+package com.sorinirmies.arrow.resiliencekit
 
 import arrow.fx.stm.TVar
 import arrow.fx.stm.atomically
@@ -641,7 +641,7 @@ public suspend fun <T> withTimeLimitOrDefault(
  */
 public object DurationMillisSerializer : KSerializer<Duration> {
     override val descriptor: SerialDescriptor =
-        PrimitiveSerialDescriptor("ro.sorinirmies.arrow.resiliencekit.DurationMillis", PrimitiveKind.LONG)
+        PrimitiveSerialDescriptor("com.sorinirmies.arrow.resiliencekit.DurationMillis", PrimitiveKind.LONG)
 
     override fun serialize(encoder: Encoder, value: Duration) {
         encoder.encodeLong(value.inWholeMilliseconds)

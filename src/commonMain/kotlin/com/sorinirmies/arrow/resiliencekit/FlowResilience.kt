@@ -15,7 +15,7 @@
  *     .collect { println(it) }
  * ```
  */
-package ro.sorinirmies.arrow.resiliencekit
+package com.sorinirmies.arrow.resiliencekit
 
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay

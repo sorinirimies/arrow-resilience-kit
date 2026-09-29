@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/sorinirimies/arrow-resilience-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/sorinirimies/arrow-resilience-kit/actions/workflows/ci.yml)
 [![Release](https://github.com/sorinirimies/arrow-resilience-kit/actions/workflows/release.yml/badge.svg)](https://github.com/sorinirimies/arrow-resilience-kit/actions/workflows/release.yml)
-[![Maven Central](https://img.shields.io/maven-central/v/ro.sorinirmies.arrow/arrow-resilience-kit?label=Maven%20Central)](https://central.sonatype.com/artifact/ro.sorinirmies.arrow/arrow-resilience-kit)
+[![Maven Central](https://img.shields.io/maven-central/v/com.sorinirmies.arrow/arrow-resilience-kit?label=Maven%20Central)](https://central.sonatype.com/artifact/com.sorinirmies.arrow/arrow-resilience-kit)
 [![GitHub Release](https://img.shields.io/github/v/release/sorinirimies/arrow-resilience-kit?label=latest)](https://github.com/sorinirimies/arrow-resilience-kit/releases/latest)
 [![JitPack](https://jitpack.io/v/sorinirimies/arrow-resilience-kit.svg)](https://jitpack.io/#sorinirimies/arrow-resilience-kit)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -32,7 +32,7 @@ Arrow Resilience Kit is a Kotlin Multiplatform library that provides production-
 
 | | |
 |---|---|
-| **Group ID** | `ro.sorinirmies.arrow` |
+| **Group ID** | `com.sorinirmies.arrow` |
 | **Artifact ID** | `arrow-resilience-kit` |
 | **Version** | see the **Maven Central** / **latest** badges above — always current, never hand-edited |
 
@@ -67,7 +67,7 @@ repositories {
     }
 }
 
-implementation("ro.sorinirmies.arrow:arrow-resilience-kit:<version>")
+implementation("com.sorinirmies.arrow:arrow-resilience-kit:<version>")
 ```
 
 > Requires a GitHub Personal Access Token with `read:packages` scope.
@@ -80,7 +80,7 @@ repositories {
 }
 
 dependencies {
-    implementation("ro.sorinirmies.arrow:arrow-resilience-kit:<version>")
+    implementation("com.sorinirmies.arrow:arrow-resilience-kit:<version>")
 }
 ```
 
@@ -101,7 +101,7 @@ See [INSTALLATION.md](INSTALLATION.md) for Maven, Gitea Packages, and additional
 ## Quick Start
 
 ```/dev/null/QuickStart.kt#L1-L24
-import ro.sorinirmies.arrow.resiliencekit.*
+import com.sorinirmies.arrow.resiliencekit.*
 import kotlin.time.Duration.Companion.seconds
 
 // Retry a flaky call
@@ -336,7 +336,7 @@ val quick = withTimeLimit(2.seconds) { fastOp() }
 Lock-free, composable transactional primitives built on Arrow's Software Transactional Memory.
 
 ```/dev/null/StmExample.kt#L1-L30
-import ro.sorinirmies.arrow.resiliencekit.stm.*
+import com.sorinirmies.arrow.resiliencekit.stm.*
 import arrow.fx.stm.atomically
 
 // Atomic counter
@@ -491,7 +491,7 @@ Every `./gradlew publish`-capable target (JVM, JS, Linux x64, macOS ARM64, iOS x
 | Target | Trigger | Notes |
 |---|---|---|
 | **GitHub Packages** | Either release workflow (GitHub or Gitea) | Gated on `PACKAGES_PUBLISH` secret (a GitHub PAT with `write:packages`). The destination is hardcoded to `maven.pkg.github.com`, so a Gitea-triggered release publishes to GitHub Packages too — as long as `PACKAGES_PUBLISH` is *also* configured as a Gitea Actions secret (Gitea and GitHub secrets are separate stores). |
-| **Maven Central** (Central Portal) | Either release workflow | Gated on `MAVEN_CENTRAL_USERNAME`/`MAVEN_CENTRAL_PASSWORD` (a Central Portal user token, not your login password) + `GPG_SIGNING_KEY`/`GPG_PASSPHRASE`. Requires a one-time, human-only step: verifying the `ro.sorinirmies.arrow` namespace at [central.sonatype.com](https://central.sonatype.com/). Uploaded via `./gradlew publishToCentralPortal` (see [`gradle/central-portal.gradle.kts`](gradle/central-portal.gradle.kts)) — a hand-rolled call to the Central Portal Publisher API using only the JDK's `java.net.http.HttpClient`, no Gradle publish plugin dependency. |
+| **Maven Central** (Central Portal) | Either release workflow | Gated on `MAVEN_CENTRAL_USERNAME`/`MAVEN_CENTRAL_PASSWORD` (a Central Portal user token, not your login password) + `GPG_SIGNING_KEY`/`GPG_PASSPHRASE`. Requires a one-time, human-only step: verifying the `com.sorinirmies.arrow` namespace at [central.sonatype.com](https://central.sonatype.com/). Uploaded via `./gradlew publishToCentralPortal` (see [`gradle/central-portal.gradle.kts`](gradle/central-portal.gradle.kts)) — a hand-rolled call to the Central Portal Publisher API using only the JDK's `java.net.http.HttpClient`, no Gradle publish plugin dependency. |
 | **Gitea Packages** (self-hosted) | Gitea release workflow only | Gated on `GITEA_PACKAGES_TOKEN`. Only wired into `.gitea/workflows/release.yml` — the Gitea instance is a private LAN address, unreachable from GitHub-hosted runners. |
 | **JitPack** | Passive, no workflow step | Builds on-demand from any GitHub tag; nothing to configure. |
 | **Swift Package Manager** (iOS) | GitHub release workflow only, `xcframework` job | Builds `ArrowResilienceKit.xcframework` on `macos-latest` (Kotlin/Native's iOS targets require Xcode), uploads it as a release asset, and updates [`Package.swift`](Package.swift)'s checksum. Not wired into the Gitea workflow — the self-hosted runner is Linux and can't build Apple frameworks. |
@@ -503,7 +503,7 @@ Every `./gradlew publish`-capable target (JVM, JS, Linux x64, macOS ARM64, iOS x
 ```/dev/null/tree.txt#L1-L38
 arrow-resilience-kit/
 ├── src/
-│   ├── commonMain/kotlin/ro/sorinirmies/arrow/resiliencekit/
+│   ├── commonMain/kotlin/com/sorinirmies/arrow/resiliencekit/
 │   │   ├── stm/
 │   │   │   ├── StmExtensions.kt
 │   │   │   └── StmHelpers.kt

@@ -36,7 +36,7 @@
  * }
  * ```
  */
-package ro.sorinirmies.arrow.resiliencekit
+package com.sorinirmies.arrow.resiliencekit
 
 import arrow.resilience.Schedule
 import arrow.resilience.retry

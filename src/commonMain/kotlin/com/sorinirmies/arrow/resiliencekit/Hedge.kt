@@ -15,7 +15,7 @@
  * }
  * ```
  */
-package ro.sorinirmies.arrow.resiliencekit
+package com.sorinirmies.arrow.resiliencekit
 
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope

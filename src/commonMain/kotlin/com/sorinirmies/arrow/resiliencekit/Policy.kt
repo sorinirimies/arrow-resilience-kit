@@ -23,7 +23,7 @@
  * touching the bulkhead once open), bulkhead innermost (bounds concurrency on
  * the actual resource).
  */
-package ro.sorinirmies.arrow.resiliencekit
+package com.sorinirmies.arrow.resiliencekit
 
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
