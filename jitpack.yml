@@ -1,4 +1,9 @@
 jdk:
   - openjdk17
 install:
-  - ./gradlew build --no-daemon
+  # Only publish the JVM variant + root module metadata to ~/.m2 (what JitPack packages).
+  # A full `./gradlew build` also compiles the JS target, which fails on JitPack's container:
+  # its bundled Node.js needs a newer glibc than the container ships (CXXABI_1.3.11/GLIBC_2.27+
+  # not found). JVM consumers (the overwhelming majority, including plain non-KMP Gradle
+  # projects) never need the JS/Native artifacts anyway.
+  - ./gradlew publishKotlinMultiplatformPublicationToMavenLocal publishJvmPublicationToMavenLocal --no-daemon
