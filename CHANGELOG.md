@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+### 🐛 Bug Fixes
+- fix: silence all fixable Gradle/Kotlin build warnings
+- fix(gitea-ci): point RUNNER_TOOL_CACHE at a writable path
+### 📚 Documentation
+- docs: update API documentation for 0.5.7
+### 📦 Other Changes
+- feat!: rename Maven groupId and Kotlin package ro.sorinirmies -> com.sorinirmies
+- Merge remote-tracking branch 'github/main'
+### 🔧 Chores
+- chore: update Package.swift for 0.5.7
+## 0.5.7 - 2026-09-29
+### 🔧 Chores
+- chore: bump version to 0.5.7
+**Full Changelog**: https://github.com/sorinirimies/arrow-resilience-kit/compare/0.5.6...0.5.7
 ## 0.5.6 - 2026-09-29
 ### 🔧 Chores
 - chore: bump version to 0.5.6
