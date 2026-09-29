@@ -6,46 +6,56 @@ use runner.nu *
 use ../validate_tag.nu [validate]
 
 def "test validate_tag: bare version" [] {
-    let result = (validate "0.3.0")
+    let result = (validate "0.3.0" "0.3.0")
     assert equal $result.tag "0.3.0"
     assert equal $result.version "0.3.0"
 }
 
 def "test validate_tag: simple version" [] {
-    let result = (validate "1.0.0")
+    let result = (validate "1.0.0" "1.0.0")
     assert equal $result.tag "1.0.0"
     assert equal $result.version "1.0.0"
 }
 
 def "test validate_tag: patch version" [] {
-    let result = (validate "0.2.1")
+    let result = (validate "0.2.1" "0.2.1")
     assert equal $result.tag "0.2.1"
     assert equal $result.version "0.2.1"
 }
 
 def "test validate_tag: zero version" [] {
-    let result = (validate "0.0.0")
+    let result = (validate "0.0.0" "0.0.0")
     assert equal $result.tag "0.0.0"
     assert equal $result.version "0.0.0"
 }
 
 def "test validate_tag: large version numbers" [] {
-    let result = (validate "12.345.6789")
+    let result = (validate "12.345.6789" "12.345.6789")
     assert equal $result.tag "12.345.6789"
     assert equal $result.version "12.345.6789"
 }
 
 def "test validate_tag: version has no v prefix" [] {
-    let result = (validate "3.2.1")
+    let result = (validate "3.2.1" "3.2.1")
     assert (not ($result.version | str starts-with "v"))
     assert (not ($result.tag | str starts-with "v"))
 }
 
 def "test validate_tag: result has both keys" [] {
-    let result = (validate "1.0.0")
+    let result = (validate "1.0.0" "1.0.0")
     let columns = ($result | columns)
     assert ("tag" in $columns)
     assert ("version" in $columns)
+}
+
+def "test validate_tag: rejects mismatched gradle version" [] {
+    let failed = (try { validate "1.0.0" "0.9.0"; false } catch { true })
+    assert $failed
+}
+
+def "test validate_tag: accepts matching gradle version" [] {
+    let result = (validate "2.5.1" "2.5.1")
+    assert equal $result.tag "2.5.1"
 }
 
 def "test validate_tag: rejects v prefix" [] {

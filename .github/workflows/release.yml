@@ -31,7 +31,14 @@ jobs:
       tag: ${{ steps.resolve.outputs.tag }}
       version: ${{ steps.resolve.outputs.version }}
     steps:
+      # For workflow_dispatch, github.ref_name/checkout's default ref is the
+      # branch that triggered it (main), NOT the tag being released -- the
+      # tag comes from the `tag` input instead. Checking out the requested
+      # tag explicitly here (not just "main") is what lets the version check
+      # below compare against that tag's own build.gradle.kts, not main's.
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}
 
       - name: Install Nushell
         run: |
