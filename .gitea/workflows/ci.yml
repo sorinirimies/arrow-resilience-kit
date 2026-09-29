@@ -57,10 +57,10 @@ jobs:
         uses: gradle/actions/wrapper-validation@v3
         with:
           # Pins the known-good gradle-wrapper.jar checksum for our pinned Gradle
-          # version (verified against the official gradle/gradle v9.7.1 tag) so this
+          # version (verified against the official gradle/gradle v9.8.0 tag) so this
           # step never falls back to fetching checksums over the network — that
           # network fallback was flaking with ECONNRESET on the self-hosted runner.
-          allow-checksums: 7a9ce74cff467ca1bf60a4fcd9f05185acceda4d0f382434d393e17864262c5d
+          allow-checksums: 238e777fcddd7e34f9708186085def2abd6e08e658505b38718d79d74c21abd5
 
       - name: Build project
         run: ./gradlew assemble --no-daemon --stacktrace
