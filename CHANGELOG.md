@@ -3,12 +3,23 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+### ➕ Added
+- Add retryIfWithExponentialBackoff, retryIfWithCappedBackoff, and retryIfPolicy
+### 🐛 Bug Fixes
+- fix(build): add JetBrains cache-redirector as a Maven Central fallback
+### 📚 Documentation
+- docs: update API documentation for 0.6.0
+### 🔧 Chores
+- chore: update Package.swift for 0.6.0
+## 0.6.0 - 2026-09-29
 ### 🐛 Bug Fixes
 - fix: pin published kotlin-stdlib dependency to 2.2.20, not the 2.4.20 toolchain
 ### 📚 Documentation
 - docs: update API documentation for 0.5.9
 ### 🔧 Chores
 - chore: update Package.swift for 0.5.9
+- chore: bump version to 0.6.0
+**Full Changelog**: https://github.com/sorinirimies/arrow-resilience-kit/compare/0.5.9...0.6.0
 ## 0.5.9 - 2026-09-29
 ### 🐛 Bug Fixes
 - fix(ci): update pinned gradle-wrapper.jar checksum for Gradle 9.8.0
