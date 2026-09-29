@@ -3,10 +3,21 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+### 🐛 Bug Fixes
+- fix(jitpack): only publish the JVM variant, skip the JS target entirely
+### 📚 Documentation
+- docs: clean up README (dep versions, drop macOS x64, fix publishing/project-tree)
+- docs: update API documentation for 0.5.4
+### 🔧 Chores
+- chore: update Package.swift for 0.5.4
+## 0.5.4 - 2026-09-29
 ### ✨ Features
 - feat: add AdaptiveLimiter.asPolicy() and hedgePolicy() to Policy combinator
 ### 🐛 Bug Fixes
 - fix(justfile): stop bump from validating tag against pre-bump version
+### 🔧 Chores
+- chore: bump version to 0.5.4
+**Full Changelog**: https://github.com/sorinirimies/arrow-resilience-kit/compare/0.5.3...0.5.4
 ## 0.5.3 - 2026-09-29
 ### 🐛 Bug Fixes
 - fix(ci): update Gitea release workflow to publishToCentralPortal
