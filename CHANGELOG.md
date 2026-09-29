@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 ### 🐛 Bug Fixes
+- fix(ci): update pinned gradle-wrapper.jar checksum for Gradle 9.8.0
+## 0.5.8 - 2026-09-29
+### 🐛 Bug Fixes
 - fix: silence all fixable Gradle/Kotlin build warnings
 - fix(gitea-ci): point RUNNER_TOOL_CACHE at a writable path
 ### 📚 Documentation
@@ -13,6 +16,8 @@ All notable changes to this project will be documented in this file.
 - Merge remote-tracking branch 'github/main'
 ### 🔧 Chores
 - chore: update Package.swift for 0.5.7
+- chore: bump version to 0.5.8
+**Full Changelog**: https://github.com/sorinirimies/arrow-resilience-kit/compare/0.5.7...0.5.8
 ## 0.5.7 - 2026-09-29
 ### 🔧 Chores
 - chore: bump version to 0.5.7
