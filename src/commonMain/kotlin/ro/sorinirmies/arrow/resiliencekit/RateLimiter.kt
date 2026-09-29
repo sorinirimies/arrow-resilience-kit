@@ -8,7 +8,7 @@ import arrow.fx.stm.atomically
 import kotlinx.serialization.Serializable
 import kotlin.time.Clock
 import kotlin.time.Instant
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds

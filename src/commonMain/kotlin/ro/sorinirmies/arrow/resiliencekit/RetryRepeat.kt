@@ -44,7 +44,7 @@ import arrow.resilience.retryOrElse
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeout
 import kotlin.time.Clock
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds

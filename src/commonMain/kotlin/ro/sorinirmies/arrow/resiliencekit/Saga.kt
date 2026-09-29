@@ -7,7 +7,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlin.time.Clock
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlin.time.Duration
 
 private val logger = KotlinLogging.logger {}

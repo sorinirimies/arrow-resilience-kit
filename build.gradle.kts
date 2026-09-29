@@ -3,7 +3,6 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.dokka)
     alias(libs.plugins.detekt)
-    alias(libs.plugins.vanniktech.maven.publish)
     `maven-publish`
     signing
 }
@@ -16,30 +15,15 @@ plugins {
 // Apply publishing configuration
 apply(from = "gradle/publishing.gradle.kts")
 
-// Maven Central (Central Portal), via the vanniktech plugin. Reuses the
-// MavenPublication/pom + signing configured in gradle/publishing.gradle.kts —
-// this only adds Central Portal as an extra publish target, it does not
-// create or reconfigure publications. No-op at configuration time; the
-// publishToMavenCentral task itself needs `mavenCentralUsername`/
-// `mavenCentralPassword` (a Central Portal user token, NOT your login
-// password) and a GPG key — see INSTALLATION.md for the one-time setup
-// (Central Portal namespace verification is a manual, human-only step).
-mavenPublishing {
-    // javadocJar = Empty(): this project's Dokka setup is pinned to v1 (see the
-    // Dokka config below + config/dokka/custom-styles.css); vanniktech's
-    // automatic Dokka-based javadoc jar requires Dokka v2. Central Portal only
-    // requires *a* javadoc jar to exist, not that it be Dokka-generated, so an
-    // empty one satisfies validation without forcing a Dokka v2 migration.
-    // The real, fully-featured docs are still published separately to GitHub
-    // Pages via dokkaHtml/prepareDocs.
-    configure(
-        com.vanniktech.maven.publish.KotlinMultiplatform(
-            javadocJar = com.vanniktech.maven.publish.JavadocJar.Empty(),
-            sourcesJar = true,
-        ),
-    )
-    publishToMavenCentral(automaticRelease = true)
-}
+// Maven Central (Central Portal). No third-party Gradle plugin (previously
+// com.vanniktech.maven.publish) — hand-rolled against the same Central
+// Portal Publisher API that plugin uses under the hood, using only the JDK's
+// built-in java.net.http.HttpClient. See gradle/central-portal.gradle.kts.
+// Needs `mavenCentralUsername`/`mavenCentralPassword` (a Central Portal user
+// token, NOT your login password) and a GPG key — see INSTALLATION.md for
+// the one-time setup (Central Portal namespace verification is a manual,
+// human-only step).
+apply(from = "gradle/central-portal.gradle.kts")
 
 group = "ro.sorinirmies.arrow"
 version = "0.5.2"
@@ -94,7 +78,10 @@ kotlin {
     }
 
     linuxX64()
-    macosX64()
+    // macosX64 (Intel Mac) dropped: Arrow 2.2.3+ no longer publishes klibs for
+    // this target (last version that did was 2.2.2; see arrow-kt/arrow release
+    // notes). Matches the wider Kotlin/Native ecosystem's deprioritization of
+    // Intel macOS following Apple's transition to Apple Silicon.
     macosArm64()
 
     // iOS: also assembled into a single ArrowResilienceKit.xcframework (see the

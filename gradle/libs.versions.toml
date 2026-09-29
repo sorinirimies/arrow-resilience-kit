@@ -1,14 +1,13 @@
 [versions]
-kotlin = "2.2.20"
+kotlin = "2.4.20"
 kotlinx-coroutines = "1.11.0"
 kotlinx-datetime = "0.8.0"
-kotlinx-serialization = "1.9.0"
-micrometer = "1.14.4"
-vanniktech-maven-publish = "0.35.0"
-arrow = "1.2.4"
+kotlinx-serialization = "1.11.0"
+micrometer = "1.17.1"
+arrow = "2.2.3"
 kotest = "6.2.5"
-kotlin-logging = "3.0.5"
-logback = "1.6.3"
+kotlin-logging = "8.0.4"
+logback = "1.6.4"
 dokka = "1.9.20"
 detekt = "1.23.8"
 
@@ -22,7 +21,7 @@ arrow-core = { module = "io.arrow-kt:arrow-core", version.ref = "arrow" }
 arrow-fx-coroutines = { module = "io.arrow-kt:arrow-fx-coroutines", version.ref = "arrow" }
 arrow-fx-stm = { module = "io.arrow-kt:arrow-fx-stm", version.ref = "arrow" }
 arrow-resilience = { module = "io.arrow-kt:arrow-resilience", version.ref = "arrow" }
-kotlin-logging = { module = "io.github.microutils:kotlin-logging", version.ref = "kotlin-logging" }
+kotlin-logging = { module = "io.github.oshai:kotlin-logging", version.ref = "kotlin-logging" }
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 kotest-assertions-core = { module = "io.kotest:kotest-assertions-core", version.ref = "kotest" }
 detekt-formatting = { module = "io.gitlab.arturbosch.detekt:detekt-formatting", version.ref = "detekt" }
@@ -32,4 +31,3 @@ kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref 
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
 detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
-vanniktech-maven-publish = { id = "com.vanniktech.maven.publish", version.ref = "vanniktech-maven-publish" }
