@@ -22,6 +22,11 @@ concurrency:
   group: release
   cancel-in-progress: true
 
+# Self-hosted Gitea Act Runner: see .gitea/workflows/ci.yml for why this is
+# needed (actions/setup-java@v4 fails on this runner without it).
+env:
+  RUNNER_TOOL_CACHE: /tmp/hostedtoolcache
+
 jobs:
   # ── 0. Validate tag ──────────────────────────────────────────────────────────
   validate:
