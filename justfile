@@ -178,7 +178,13 @@ validate-tag TAG: _check-nu
     @nu scripts/validate_tag.nu {{ TAG }}
 
 # Bump version, quality gate, commit and tag
-bump VERSION: _check-nu (validate-tag VERSION) (_check-version-changed VERSION)
+# Note: doesn't depend on `validate-tag` — that check compares the tag
+# against build.gradle.kts's *current* version, which is only meaningful
+# after bump_version.nu has already updated it (as CI does, checking out
+# the pushed tag itself). Running it here, before the bump, would always
+# compare the new VERSION against the still-old version and fail.
+# `_check-version-changed` is the right local guard instead.
+bump VERSION: _check-nu (_check-version-changed VERSION)
     @nu scripts/bump_version.nu {{ VERSION }}
 
 # ── Changelog ──────────────────────────────────────────────────
