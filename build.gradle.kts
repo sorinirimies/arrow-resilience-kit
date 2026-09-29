@@ -102,7 +102,7 @@ kotlin {
     }
 
     sourceSets {
-        val commonMain by getting {
+        getByName("commonMain") {
             dependencies {
                 api(libs.kotlinx.coroutines.core)
                 api(libs.arrow.core)
@@ -115,7 +115,7 @@ kotlin {
             }
         }
 
-        val commonTest by getting {
+        getByName("commonTest") {
             dependencies {
                 implementation(kotlin("test"))
                 implementation(libs.kotlinx.coroutines.test)
@@ -123,14 +123,14 @@ kotlin {
             }
         }
 
-        val jvmMain by getting {
+        getByName("jvmMain") {
             dependencies {
                 // Optional: only needed if you use MicrometerBridge. compileOnly so
                 // consumers who don't touch it aren't forced to pull Micrometer in.
                 compileOnly(libs.micrometer.core)
             }
         }
-        val jvmTest by getting {
+        getByName("jvmTest") {
             dependencies {
                 implementation(libs.logback.classic)
                 implementation(libs.micrometer.core)

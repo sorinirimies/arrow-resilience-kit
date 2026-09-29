@@ -60,10 +60,13 @@ style:
     active: true
   ForbiddenComment:
     active: true
-    values:
-      - "FIXME"
-      - "STOPSHIP"
-      - "HACK"
+    comments:
+      - reason: 'Forbidden FIXME todo marker in comment, please fix the specified task before pushing.'
+        value: 'FIXME'
+      - reason: 'Forbidden STOPSHIP marker in comment, please address the specified task before pushing.'
+        value: 'STOPSHIP'
+      - reason: 'Forbidden HACK marker in comment, please clean up the specified hack before pushing.'
+        value: 'HACK'
     allowedPatterns: "TODO"
   UnnecessaryLet:
     active: true

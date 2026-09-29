@@ -31,7 +31,7 @@ class AdaptiveLimiterTest {
             AdaptiveLimiterConfig(initialLimit = 2, maxLimit = 10, increaseStep = 1),
         )
 
-        repeat(3) { limiter.execute { "ok" } }
+        repeat(3) { limiter.execute<String> { "ok" } }
 
         limiter.currentLimit() shouldBe 5
     }
@@ -78,7 +78,7 @@ class AdaptiveLimiterTest {
             AdaptiveLimiterConfig(initialLimit = 9, maxLimit = 10, increaseStep = 5),
         )
 
-        repeat(5) { limiter.execute { "ok" } }
+        repeat(5) { limiter.execute<String> { "ok" } }
 
         limiter.currentLimit() shouldBe 10
     }
