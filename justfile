@@ -47,7 +47,7 @@ info:
     @echo "╚════════════════════════════════════════════╝"
     @echo "  Group:     ro.sorinirmies.arrow"
     @echo "  Version:   $(just version)"
-    @echo "  Platforms: JVM, JS, Linux x64, macOS x64, macOS ARM64"
+    @echo "  Platforms: JVM, JS, Linux x64, macOS ARM64"
     @echo ""
     @echo "  GitHub:            git@github.com:sorinirimies/arrow-resilience-kit.git"
     @echo "  Gitea:            ssh://git@192.168.1.204:30009/sorin/arrow-resilience-kit.git"

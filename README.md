@@ -11,7 +11,7 @@
 
 Arrow Resilience Kit is a Kotlin Multiplatform library that provides production-ready resilience patterns built on [Arrow-kt](https://arrow-kt.io/). It offers composable, coroutine-first implementations of **Bulkhead**, **Cache**, **Circuit Breaker**, **Rate Limiter**, **Retry & Repeat**, **Saga**, **Time Limiter**, **Adaptive Limiter**, **Hedge**, and **STM Helpers** — plus a **Policy** combinator and **Flow** operators to compose them — everything you need to build fault-tolerant applications.
 
-**Supported platforms:** JVM (17+), JavaScript (Browser & Node.js), Native (Linux x64, macOS x64/ARM64, iOS x64/ARM64/Simulator ARM64).
+**Supported platforms:** JVM (17+), JavaScript (Browser & Node.js), Native (Linux x64, macOS ARM64, iOS x64/ARM64/Simulator ARM64).
 
 📚 **[Full API documentation (Dokka)](https://sorinirimies.github.io/arrow-resilience-kit/)**
 
@@ -462,12 +462,12 @@ Named registries (`CircuitBreakerRegistry`, `BulkheadRegistry`, `RateLimiterRegi
 
 | Dependency | Version |
 |---|---|
-| Kotlin | 2.2.20 |
-| Arrow-kt (Core, FX Coroutines, FX STM, Resilience) | 1.2.4 |
+| Kotlin | 2.4.20 |
+| Arrow-kt (Core, FX Coroutines, FX STM, Resilience) | 2.2.3 |
 | Kotlinx Coroutines | 1.11.0 |
 | Kotlinx DateTime | 0.8.0 |
-| Kotlinx Serialization (JSON) | 1.9.0 |
-| Kotlin Logging | 3.0.5 |
+| Kotlinx Serialization (JSON) | 1.11.0 |
+| Kotlin Logging | 8.0.4 |
 | Kotest (test) | 6.2.5 |
 | Detekt | 1.23.8 |
 | Dokka | 1.9.20 |
@@ -486,12 +486,12 @@ MicrometerBridge.bindBulkhead(registry, "orders-api", bulkhead)
 
 ## Publishing
 
-Every `./gradlew publish`-capable target (JVM, JS, Linux x64, macOS x64/ARM64, iOS x64/ARM64/Simulator ARM64) is published to:
+Every `./gradlew publish`-capable target (JVM, JS, Linux x64, macOS ARM64, iOS x64/ARM64/Simulator ARM64) is published to:
 
 | Target | Trigger | Notes |
 |---|---|---|
 | **GitHub Packages** | Either release workflow (GitHub or Gitea) | Gated on `PACKAGES_PUBLISH` secret (a GitHub PAT with `write:packages`). The destination is hardcoded to `maven.pkg.github.com`, so a Gitea-triggered release publishes to GitHub Packages too — as long as `PACKAGES_PUBLISH` is *also* configured as a Gitea Actions secret (Gitea and GitHub secrets are separate stores). |
-| **Maven Central** (Central Portal) | Either release workflow | Gated on `MAVEN_CENTRAL_USERNAME`/`MAVEN_CENTRAL_PASSWORD` (a Central Portal user token, not your login password) + `GPG_SIGNING_KEY`/`GPG_PASSPHRASE`. Requires a one-time, human-only step: verifying the `ro.sorinirmies.arrow` namespace at [central.sonatype.com](https://central.sonatype.com/). Uses the [vanniktech/gradle-maven-publish-plugin](https://github.com/vanniktech/gradle-maven-publish-plugin) pinned to 0.35.0 (the last version supporting Dokka v1, which this project uses for its themed HTML docs — 0.36.0+ requires Dokka v2). |
+| **Maven Central** (Central Portal) | Either release workflow | Gated on `MAVEN_CENTRAL_USERNAME`/`MAVEN_CENTRAL_PASSWORD` (a Central Portal user token, not your login password) + `GPG_SIGNING_KEY`/`GPG_PASSPHRASE`. Requires a one-time, human-only step: verifying the `ro.sorinirmies.arrow` namespace at [central.sonatype.com](https://central.sonatype.com/). Uploaded via `./gradlew publishToCentralPortal` (see [`gradle/central-portal.gradle.kts`](gradle/central-portal.gradle.kts)) — a hand-rolled call to the Central Portal Publisher API using only the JDK's `java.net.http.HttpClient`, no Gradle publish plugin dependency. |
 | **Gitea Packages** (self-hosted) | Gitea release workflow only | Gated on `GITEA_PACKAGES_TOKEN`. Only wired into `.gitea/workflows/release.yml` — the Gitea instance is a private LAN address, unreachable from GitHub-hosted runners. |
 | **JitPack** | Passive, no workflow step | Builds on-demand from any GitHub tag; nothing to configure. |
 | **Swift Package Manager** (iOS) | GitHub release workflow only, `xcframework` job | Builds `ArrowResilienceKit.xcframework` on `macos-latest` (Kotlin/Native's iOS targets require Xcode), uploads it as a release asset, and updates [`Package.swift`](Package.swift)'s checksum. Not wired into the Gitea workflow — the self-hosted runner is Linux and can't build Apple frameworks. |
@@ -500,27 +500,35 @@ Every `./gradlew publish`-capable target (JVM, JS, Linux x64, macOS x64/ARM64, i
 
 ## Project Structure
 
-```/dev/null/tree.txt#L1-L32
+```/dev/null/tree.txt#L1-L38
 arrow-resilience-kit/
 ├── src/
 │   ├── commonMain/kotlin/ro/sorinirmies/arrow/resiliencekit/
 │   │   ├── stm/
 │   │   │   ├── StmExtensions.kt
 │   │   │   └── StmHelpers.kt
+│   │   ├── AdaptiveLimiter.kt
 │   │   ├── Bulkhead.kt
 │   │   ├── Cache.kt
+│   │   ├── Chaos.kt
 │   │   ├── CircuitBreaker.kt
+│   │   ├── FlowResilience.kt
+│   │   ├── Hedge.kt
+│   │   ├── Policy.kt
 │   │   ├── RateLimiter.kt
 │   │   ├── RetryRepeat.kt
 │   │   ├── Saga.kt
+│   │   ├── SharedStateStore.kt
 │   │   └── TimeLimiter.kt
 │   ├── commonTest/kotlin/
-│   ├── jvmMain/kotlin/
+│   ├── jvmMain/kotlin/       # MicrometerBridge.kt (optional, compileOnly)
 │   ├── jsMain/kotlin/
 │   └── nativeMain/kotlin/
 ├── docs/                    # Published Dokka HTML (GitHub Pages)
 ├── gradle/
-│   └── libs.versions.toml
+│   ├── libs.versions.toml
+│   ├── publishing.gradle.kts    # Repositories, POM, GPG signing
+│   └── central-portal.gradle.kts # Maven Central (Central Portal) publish task
 ├── .github/workflows/       # Public CI/release/deps-update (GitHub Actions)
 ├── .gitea/workflows/        # Mirrored CI/release/deps-update (self-hosted Gitea)
 ├── scripts/                 # Nushell automation: release, upgrade, validation
