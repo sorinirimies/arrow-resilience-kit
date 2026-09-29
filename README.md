@@ -260,6 +260,12 @@ val d4 = retryIf(retries = 3, delay = 1.seconds, predicate = { it is IOException
     api.fetch()
 }
 
+// Conditional retry with exponential backoff - combines retryIf's filtering with
+// retryWithExponentialBackoff's backoff strategy, which neither offers alone
+val d4b = retryIfWithExponentialBackoff(retries = 5, shouldRetry = { it is IOException }) {
+    api.fetch()
+}
+
 // Retry with fallback default
 val d5 = retryOrDefault(retries = 3, defaultValue = emptyList()) { api.fetchList() }
 
@@ -374,6 +380,11 @@ Wraps [Bulkhead], [CircuitBreaker], [RateLimiter], [TimeLimiter], and retry into
 ```/dev/null/PolicyExample.kt#L1-L10
 val policy = retryPolicy(retries = 3) + circuitBreaker.asPolicy() + bulkhead.asPolicy()
 val result = policy.apply { api.fetchData() }
+
+// retryIfPolicy: like retryPolicy, but only for exceptions matching shouldRetry - use this
+// instead whenever some failures are permanent and shouldn't be retried at all
+val conditionalPolicy = retryIfPolicy(retries = 3, shouldRetry = { it is IOException }) +
+    circuitBreaker.asPolicy()
 
 // Or fold a list of policies:
 val combined = Policy.combine(retryPolicy(), circuitBreaker.asPolicy(), bulkhead.asPolicy())

@@ -322,6 +322,75 @@ public suspend fun <R> retryIf(
 }
 
 /**
+ * Executes a suspend operation with retry using exponential backoff and jitter, but only for
+ * exceptions matching [shouldRetry] - combines [retryWithExponentialBackoff]'s backoff strategy
+ * with [retryIf]'s conditional retry, which neither function offers alone.
+ *
+ * @param R The return type of the suspend operation
+ * @param retries The maximum number of retry attempts after the initial attempt (defaults to 3)
+ * @param base The base duration for exponential backoff (defaults to 200 milliseconds)
+ * @param factor The exponential factor (defaults to 2.0)
+ * @param shouldRetry Predicate that receives the exception and returns true to retry
+ * @param block The suspend operation to execute
+ *
+ * @return The result of the successful execution
+ * @throws Exception if shouldRetry returns false or all retries are exhausted
+ *
+ * Example usage:
+ * ```
+ * val response = retryIfWithExponentialBackoff(
+ *     retries = 5,
+ *     shouldRetry = { it is IOException || it is ServerErrorException },
+ * ) {
+ *     httpClient.get("/api/data")
+ * }
+ * ```
+ */
+public suspend fun <R> retryIfWithExponentialBackoff(
+    retries: Long = 3,
+    base: Duration = 200.milliseconds,
+    factor: Double = 2.0,
+    shouldRetry: (Throwable) -> Boolean,
+    block: suspend () -> R,
+): R {
+    require(retries >= 0) { "retries must be >= 0, but was $retries" }
+    require(base >= Duration.ZERO) { "base delay must be >= 0, but was $base" }
+    require(factor > 0) { "factor must be > 0, but was $factor" }
+
+    var attempt = 0L
+    var currentDelay = base
+    var lastException: Throwable? = null
+
+    while (attempt <= retries) {
+        try {
+            return block()
+        } catch (exception: kotlinx.coroutines.CancellationException) {
+            throw exception
+        } catch (exception: Exception) {
+            lastException = exception
+
+            if (attempt >= retries || !shouldRetry(exception)) {
+                logger.warn(exception) {
+                    "Retry condition not met or attempts exhausted (attempt ${attempt + 1}/${retries + 1})"
+                }
+                throw exception
+            }
+
+            logger.debug {
+                "Retrying after ${exception::class.simpleName} " +
+                    "(attempt ${attempt + 1}/${retries + 1}, delay=$currentDelay)"
+            }
+
+            delay(applyJitter(currentDelay))
+            currentDelay *= factor
+            attempt++
+        }
+    }
+
+    throw lastException ?: IllegalStateException("Retry failed without exception")
+}
+
+/**
  * Executes a suspend operation with retry and collects detailed history of all attempts.
  *
  * @param R The return type of the suspend operation
@@ -723,6 +792,69 @@ public suspend fun <R> retryWithCappedBackoff(
             attempt++
         }
     }
+}
+
+/**
+ * Executes a suspend operation with retry using exponential backoff capped at a maximum delay,
+ * like [retryWithCappedBackoff] - but, unlike that, only for exceptions matching [shouldRetry].
+ * Combines [retryWithCappedBackoff]'s bounded backoff with [retryIf]'s conditional retry.
+ *
+ * @param R The return type of the suspend operation
+ * @param retries The maximum number of retry attempts (defaults to 3)
+ * @param base The base duration for exponential backoff (defaults to 200 milliseconds)
+ * @param maxDelay The maximum delay between retries
+ * @param factor The exponential factor (defaults to 2.0)
+ * @param shouldRetry Predicate that receives the exception and returns true to retry
+ * @param block The suspend operation to execute
+ *
+ * @return The result of the successful execution
+ * @throws Exception if shouldRetry returns false or all retries are exhausted
+ */
+public suspend fun <R> retryIfWithCappedBackoff(
+    retries: Long = 3,
+    base: Duration = 200.milliseconds,
+    maxDelay: Duration = 10.seconds,
+    factor: Double = 2.0,
+    shouldRetry: (Throwable) -> Boolean,
+    block: suspend () -> R,
+): R {
+    require(retries >= 0) { "retries must be >= 0, but was $retries" }
+    require(base >= Duration.ZERO) { "base delay must be >= 0, but was $base" }
+    require(maxDelay > Duration.ZERO) { "maxDelay must be > 0, but was $maxDelay" }
+    require(factor > 0) { "factor must be > 0, but was $factor" }
+
+    var attempt = 0L
+    var currentDelay = base
+    var lastException: Throwable? = null
+
+    while (attempt <= retries) {
+        try {
+            return block()
+        } catch (exception: kotlinx.coroutines.CancellationException) {
+            throw exception
+        } catch (exception: Exception) {
+            lastException = exception
+
+            if (attempt >= retries || !shouldRetry(exception)) {
+                logger.warn(exception) {
+                    "Retry condition not met or attempts exhausted (attempt ${attempt + 1}/${retries + 1})"
+                }
+                throw exception
+            }
+
+            logger.debug {
+                "Retrying after ${exception::class.simpleName} " +
+                    "(capped backoff attempt ${attempt + 1}/${retries + 1})"
+            }
+
+            val effectiveDelay = if (currentDelay > maxDelay) maxDelay else currentDelay
+            delay(applyJitter(effectiveDelay))
+            currentDelay *= factor
+            attempt++
+        }
+    }
+
+    throw lastException ?: IllegalStateException("Retry failed without exception")
 }
 
 // ============================================================================

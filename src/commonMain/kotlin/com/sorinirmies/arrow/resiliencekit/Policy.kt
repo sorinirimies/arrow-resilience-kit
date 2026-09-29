@@ -141,3 +141,19 @@ public fun retryPolicy(
     override suspend fun <T> apply(block: suspend () -> T): T =
         retryWithExponentialBackoff(retries, base, factor, block)
 }
+
+/**
+ * A [Policy] that retries with exponential backoff and jitter like [retryPolicy], but only for
+ * exceptions matching [shouldRetry], backed by [retryIfWithExponentialBackoff]. Prefer this over
+ * [retryPolicy] whenever some failures are permanent (e.g. a 4xx response, a validation error)
+ * and shouldn't be retried at all.
+ */
+public fun retryIfPolicy(
+    retries: Long = 3,
+    base: Duration = 200.milliseconds,
+    factor: Double = 2.0,
+    shouldRetry: (Throwable) -> Boolean,
+): Policy = object : Policy {
+    override suspend fun <T> apply(block: suspend () -> T): T =
+        retryIfWithExponentialBackoff(retries, base, factor, shouldRetry, block)
+}

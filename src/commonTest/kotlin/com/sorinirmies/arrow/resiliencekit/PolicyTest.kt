@@ -3,6 +3,7 @@
 
 package com.sorinirmies.arrow.resiliencekit
 
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.test.runTest
 import kotlin.js.JsName
@@ -78,7 +79,67 @@ class PolicyTest {
         attempts shouldBe 2
     }
 
-    @JsName("adaptiveLimiterComposesAsPolicy")
+    @JsName("retryIfPolicyRetriesOnlyMatchingExceptions")
+    @Test
+    fun `retryIfPolicy retries only matching exceptions`() = runTest {
+        val policy = retryIfPolicy(
+            retries = 3,
+            base = 10.milliseconds,
+            shouldRetry = { it is IllegalStateException },
+        )
+
+        var attempts = 0
+        val result = policy.apply {
+            attempts++
+            if (attempts < 2) throw IllegalStateException("flaky") else "success"
+        }
+
+        result shouldBe "success"
+        attempts shouldBe 2
+    }
+
+    @JsName("retryIfPolicyDoesNotRetryNonMatchingExceptions")
+    @Test
+    fun `retryIfPolicy does not retry non-matching exceptions`() = runTest {
+        val policy = retryIfPolicy(
+            retries = 3,
+            base = 10.milliseconds,
+            shouldRetry = { it is IllegalStateException },
+        )
+
+        var attempts = 0
+        val exception = shouldThrow<RuntimeException> {
+            policy.apply<String> {
+                attempts++
+                throw RuntimeException("permanent")
+            }
+        }
+
+        exception.message shouldBe "permanent"
+        attempts shouldBe 1
+    }
+
+    @JsName("retryIfPolicyComposesWithOtherPolicies")
+    @Test
+    fun `retryIfPolicy composes with other policies`() = runTest {
+        val bulkhead = Bulkhead.create(BulkheadConfig(maxConcurrentCalls = 2))
+        val policy = retryIfPolicy(
+            retries = 2,
+            base = 10.milliseconds,
+            shouldRetry = { it is IllegalStateException },
+        ) + bulkhead.asPolicy()
+
+        var attempts = 0
+        val result = policy.apply<String> {
+            attempts++
+            if (attempts < 2) throw IllegalStateException("flaky") else "success"
+        }
+
+        result shouldBe "success"
+        attempts shouldBe 2
+    }
+
+
     @Test
     fun `adaptive limiter composes as policy`() = runTest {
         val limiter = AdaptiveLimiter.create()

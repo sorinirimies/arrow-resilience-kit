@@ -15,6 +15,9 @@ import kotlin.test.Test
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
+// One test class per source file, covering every retry/repeat function 1:1 - naturally large as
+// the source file grows; splitting it would fragment coverage of a single cohesive API surface.
+@Suppress("LargeClass")
 class RetryRepeatTest {
 
     // ============================================================================
@@ -209,6 +212,110 @@ class RetryRepeatTest {
 
         exception.message shouldBe "Don't retry this"
         attempts shouldBe 1
+    }
+
+    @JsName("retryIfWithExponentialBackoffRetriesOnlyMatchingExceptions")
+    @Test
+    fun `retryIfWithExponentialBackoff retries only matching exceptions`() = runTest {
+        var attempts = 0
+        val result = retryIfWithExponentialBackoff(
+            retries = 3,
+            base = 10.milliseconds,
+            shouldRetry = { it is RuntimeException && it.message == "retryable" },
+        ) {
+            attempts++
+            if (attempts < 3) throw RuntimeException("retryable")
+            "success"
+        }
+
+        result shouldBe "success"
+        attempts shouldBe 3
+    }
+
+    @JsName("retryIfWithExponentialBackoffFailsImmediatelyOnNonMatchingException")
+    @Test
+    fun `retryIfWithExponentialBackoff fails immediately on non-matching exception`() = runTest {
+        var attempts = 0
+        val exception = shouldThrow<IllegalStateException> {
+            retryIfWithExponentialBackoff(
+                retries = 3,
+                base = 10.milliseconds,
+                shouldRetry = { it is IllegalArgumentException },
+            ) {
+                attempts++
+                throw IllegalStateException("permanent failure")
+            }
+        }
+
+        exception.message shouldBe "permanent failure"
+        attempts shouldBe 1
+    }
+
+    @JsName("retryIfWithExponentialBackoffThrowsLastExceptionAfterRetriesExhausted")
+    @Test
+    fun `retryIfWithExponentialBackoff throws last exception after retries exhausted`() = runTest {
+        var attempts = 0
+        val exception = shouldThrow<RuntimeException> {
+            retryIfWithExponentialBackoff(
+                retries = 2,
+                base = 10.milliseconds,
+                shouldRetry = { it is RuntimeException },
+            ) {
+                attempts++
+                throw RuntimeException("attempt $attempts")
+            }
+        }
+
+        exception.message shouldBe "attempt 3"
+        attempts shouldBe 3
+    }
+
+    @JsName("retryIfWithCappedBackoffRetriesOnlyMatchingExceptions")
+    @Test
+    fun `retryIfWithCappedBackoff retries only matching exceptions`() = runTest {
+        var attempts = 0
+        val result = retryIfWithCappedBackoff(
+            retries = 5,
+            base = 10.milliseconds,
+            maxDelay = 50.milliseconds,
+            factor = 10.0,
+            shouldRetry = { it is RuntimeException },
+        ) {
+            attempts++
+            if (attempts < 4) throw RuntimeException("flaky")
+            "success"
+        }
+
+        result shouldBe "success"
+        attempts shouldBe 4
+    }
+
+    @JsName("retryIfWithCappedBackoffFailsImmediatelyOnNonMatchingException")
+    @Test
+    fun `retryIfWithCappedBackoff fails immediately on non-matching exception`() = runTest {
+        var attempts = 0
+        val exception = shouldThrow<IllegalStateException> {
+            retryIfWithCappedBackoff(
+                retries = 5,
+                base = 10.milliseconds,
+                maxDelay = 50.milliseconds,
+                shouldRetry = { it is IllegalArgumentException },
+            ) {
+                attempts++
+                throw IllegalStateException("permanent failure")
+            }
+        }
+
+        exception.message shouldBe "permanent failure"
+        attempts shouldBe 1
+    }
+
+    @JsName("retryIfWithCappedBackoffValidatesParameters")
+    @Test
+    fun `retryIfWithCappedBackoff validates parameters`() = runTest {
+        shouldThrow<IllegalArgumentException> {
+            retryIfWithCappedBackoff(maxDelay = 0.milliseconds, shouldRetry = { true }) { "test" }
+        }
     }
 
     @JsName("retryWithHistoryReturnsHistoryOfAllAttempts")
