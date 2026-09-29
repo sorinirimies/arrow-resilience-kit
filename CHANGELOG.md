@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## 0.5.5 - 2026-09-29
 ### 🐛 Bug Fixes
 - fix(jitpack): only publish the JVM variant, skip the JS target entirely
 ### 📚 Documentation
@@ -10,6 +10,8 @@ All notable changes to this project will be documented in this file.
 - docs: update API documentation for 0.5.4
 ### 🔧 Chores
 - chore: update Package.swift for 0.5.4
+- chore: bump version to 0.5.5
+**Full Changelog**: https://github.com/sorinirimies/arrow-resilience-kit/compare/0.5.4...0.5.5
 ## 0.5.4 - 2026-09-29
 ### ✨ Features
 - feat: add AdaptiveLimiter.asPolicy() and hedgePolicy() to Policy combinator
