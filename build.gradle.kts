@@ -104,6 +104,10 @@ kotlin {
     sourceSets {
         getByName("commonMain") {
             dependencies {
+                // Explicit, low-pinned stdlib -- see gradle.properties'
+                // kotlin.stdlib.default.dependency=false and the kotlin-stdlib
+                // version comment in gradle/libs.versions.toml.
+                api(libs.kotlin.stdlib)
                 api(libs.kotlinx.coroutines.core)
                 api(libs.arrow.core)
                 api(libs.arrow.fx.coroutines)
