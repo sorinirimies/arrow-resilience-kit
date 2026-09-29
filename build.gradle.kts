@@ -30,6 +30,8 @@ version = "0.6.0"
 
 repositories {
     mavenCentral()
+    // See settings.gradle.kts for why this fallback exists.
+    maven { url = uri("https://cache-redirector.jetbrains.com/repo1.maven.org/maven2") }
 }
 
 detekt {
