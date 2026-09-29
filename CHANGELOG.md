@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.5.6 - 2026-09-29
+### 🔧 Chores
+- chore: bump version to 0.5.6
+**Full Changelog**: https://github.com/sorinirimies/arrow-resilience-kit/compare/0.5.5...0.5.6
 ## 0.5.5 - 2026-09-29
 ### 🐛 Bug Fixes
 - fix(jitpack): only publish the JVM variant, skip the JS target entirely
@@ -151,3 +155,4 @@ All notable changes to this project will be documented in this file.
 - chore: bump version to 0.1.2
 - chore: remove unused listener methods and parameters
 - chore: bump version to 0.2.0
+**Full Changelog**: https://github.com/sorinirimies/arrow-resilience-kit/compare/v0.1.2...v0.2.0

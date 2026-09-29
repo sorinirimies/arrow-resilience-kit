@@ -26,7 +26,7 @@ apply(from = "gradle/publishing.gradle.kts")
 apply(from = "gradle/central-portal.gradle.kts")
 
 group = "ro.sorinirmies.arrow"
-version = "0.5.6"
+version = "0.5.7"
 
 repositories {
     mavenCentral()
@@ -60,6 +60,12 @@ kotlin {
 
     compilerOptions {
         optIn.add("kotlin.time.ExperimentalTime")
+        // Lets consumers on an older embedded Kotlin compiler (e.g. Gradle's kotlin-dsl /
+        // precompiled-script-plugin machinery, which is pinned to whatever Kotlin version
+        // ships with that Gradle release) still read this library's metadata. Bump this only
+        // when a language feature newer than 2.2 is actually needed.
+        languageVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_2)
+        apiVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_2)
     }
 
     jvm {
