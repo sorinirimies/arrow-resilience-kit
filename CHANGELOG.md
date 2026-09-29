@@ -3,8 +3,14 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+### ✨ Features
+- feat: add AdaptiveLimiter.asPolicy() and hedgePolicy() to Policy combinator
+### 🐛 Bug Fixes
+- fix(justfile): stop bump from validating tag against pre-bump version
+## 0.5.3 - 2026-09-29
 ### 🐛 Bug Fixes
 - fix(ci): update Gitea release workflow to publishToCentralPortal
+- fix: sync build.gradle.kts to 0.5.3, and fail-fast on tag/version mismatch
 ### 📚 Documentation
 - docs: update API documentation for 0.5.2
 ### 📦 Other Changes
@@ -13,6 +19,8 @@ All notable changes to this project will be documented in this file.
 - chore: update Package.swift for 0.5.2
 - chore: bump dependencies (Arrow 2.2.3, Kotlin 2.4.20) and drop vanniktech publish plugin
 - chore: bump version to 0.5.1
+- chore: bump version to 0.5.3
+**Full Changelog**: https://github.com/sorinirimies/arrow-resilience-kit/compare/0.5.2...0.5.3
 ## 0.5.2 - 2026-09-25
 ### 📚 Documentation
 - docs: update API documentation for 0.5.1
