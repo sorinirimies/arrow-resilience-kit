@@ -7,6 +7,7 @@ import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.test.runTest
 import kotlin.js.JsName
 import kotlin.test.Test
+import kotlin.time.Duration.Companion.milliseconds
 
 class PolicyTest {
 
@@ -75,5 +76,27 @@ class PolicyTest {
 
         result shouldBe "success"
         attempts shouldBe 2
+    }
+
+    @JsName("adaptiveLimiterComposesAsPolicy")
+    @Test
+    fun `adaptive limiter composes as policy`() = runTest {
+        val limiter = AdaptiveLimiter.create()
+        val policy = limiter.asPolicy()
+
+        val result = policy.apply { "value" }
+
+        result shouldBe "value"
+        limiter.statistics().totalCalls shouldBe 1L
+    }
+
+    @JsName("hedgePolicyResolvesToFirstSuccessfulAttempt")
+    @Test
+    fun `hedge policy resolves to first successful attempt`() = runTest {
+        val policy = hedgePolicy(hedgeDelay = 10.milliseconds, maxHedges = 2)
+
+        val result = policy.apply { "value" }
+
+        result shouldBe "value"
     }
 }

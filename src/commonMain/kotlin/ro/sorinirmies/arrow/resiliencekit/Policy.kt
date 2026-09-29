@@ -108,6 +108,27 @@ public fun TimeLimiter.asPolicy(): Policy {
     }
 }
 
+/** Adapts this [AdaptiveLimiter] into a [Policy]. */
+public fun AdaptiveLimiter.asPolicy(): Policy {
+    val adaptiveLimiter = this
+    return object : Policy {
+        override suspend fun <T> apply(block: suspend () -> T): T = adaptiveLimiter.execute(block)
+    }
+}
+
+/**
+ * A [Policy] that runs the hedged-request pattern (see [hedge]): [block] may be started more than
+ * once, concurrently, after [hedgeDelay] (and again every [hedgeDelay] up to [maxHedges] times) if
+ * the earlier attempt(s) haven't completed yet, resolving to whichever attempt succeeds first.
+ * [block] must be safe to run multiple times concurrently (e.g. an idempotent GET).
+ */
+public fun hedgePolicy(
+    hedgeDelay: Duration = 100.milliseconds,
+    maxHedges: Int = 1,
+): Policy = object : Policy {
+    override suspend fun <T> apply(block: suspend () -> T): T = hedge(hedgeDelay, maxHedges, block)
+}
+
 /**
  * A [Policy] that retries with exponential backoff and jitter, backed by
  * [retryWithExponentialBackoff].
