@@ -3,10 +3,32 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+### 🐛 Bug Fixes
+- fix(ci): update Gitea release workflow to publishToCentralPortal
+### 📚 Documentation
+- docs: update API documentation for 0.5.2
+### 📦 Other Changes
+- Merge remote-tracking branch 'gitea_starscream/main'
+### 🔧 Chores
+- chore: update Package.swift for 0.5.2
+- chore: bump dependencies (Arrow 2.2.3, Kotlin 2.4.20) and drop vanniktech publish plugin
+- chore: bump version to 0.5.1
+## 0.5.2 - 2026-09-25
+### 📚 Documentation
+- docs: update API documentation for 0.5.1
+- docs: replace hardcoded versions in README/INSTALLATION with dynamic badges
+### 🔧 Chores
+- chore: update Package.swift for 0.5.1
+- chore: bump version to 0.5.2
+**Full Changelog**: https://github.com/sorinirimies/arrow-resilience-kit/compare/0.5.1...0.5.2
+## 0.5.1 - 2026-09-16
 ### ✨ Features
 - feat: publish to Maven Central, Gitea Packages, and SPM (iOS XCFramework)
 ### 📚 Documentation
 - docs: update API documentation for 0.5.0
+### 🔧 Chores
+- chore: bump version to 0.5.1
+**Full Changelog**: https://github.com/sorinirimies/arrow-resilience-kit/compare/0.5.0...0.5.1
 ## 0.5.0 - 2026-09-15
 ### ✨ Features
 - feat: add Policy combinator, Flow operators, Hedge, AdaptiveLimiter, Chaos, iOS targets, serialization, Micrometer bridge
