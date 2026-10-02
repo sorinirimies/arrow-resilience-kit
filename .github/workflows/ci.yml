@@ -26,7 +26,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           java-version: "17"
-          distribution: "temurin"
+          distribution: "corretto"
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
@@ -63,7 +63,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           java-version: "17"
-          distribution: "temurin"
+          distribution: "corretto"
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
@@ -101,7 +101,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           java-version: "17"
-          distribution: "temurin"
+          distribution: "corretto"
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
@@ -120,7 +120,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           java-version: "17"
-          distribution: "temurin"
+          distribution: "corretto"
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3

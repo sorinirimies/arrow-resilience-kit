@@ -32,10 +32,16 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Set up JDK 17
+        # distribution: corretto, not temurin -- Temurin's actual binaries (and
+        # its version-resolution API, api.adoptium.net) are both hosted via
+        # github.com, which this runner can't reach (confirmed separately via
+        # the kotlin-compiler-embeddable detekt dependency, and via sdkman's
+        # own download broker, which redirects through github.com for Temurin
+        # too). Corretto is hosted on AWS/CloudFront instead.
         uses: actions/setup-java@v4
         with:
           java-version: "17"
-          distribution: "temurin"
+          distribution: "corretto"
 
       - name: Cache Gradle
         uses: actions/cache@v4
@@ -88,7 +94,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           java-version: "17"
-          distribution: "temurin"
+          distribution: "corretto"
 
       - name: Cache Gradle
         uses: actions/cache@v4
@@ -132,7 +138,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           java-version: "17"
-          distribution: "temurin"
+          distribution: "corretto"
 
       - name: Cache Gradle
         uses: actions/cache@v4
@@ -169,7 +175,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           java-version: "17"
-          distribution: "temurin"
+          distribution: "corretto"
 
       - name: Cache Gradle
         uses: actions/cache@v4
