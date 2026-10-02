@@ -38,9 +38,10 @@ val centralStagingDir = layout.buildDirectory.dir("central-staging")
 
 // Central Portal requires a javadoc jar to exist alongside every published
 // artifact set, even for Kotlin/Native targets that have no real API docs.
-// Dokka is intentionally pinned to v1 here (see build.gradle.kts), so this
-// is an empty placeholder — the real, fully-featured HTML docs are still
-// published separately to GitHub Pages via dokkaHtml/prepareDocs.
+// This is an empty placeholder rather than Dokka-generated content, to keep
+// this task independent of the Dokka configuration in build.gradle.kts --
+// the real, fully-featured HTML docs are still published separately to
+// GitHub Pages via dokkaGeneratePublicationHtml/prepareDocs.
 val emptyJavadocJar = tasks.register<Jar>("emptyJavadocJar") {
     archiveClassifier.set("javadoc")
 }

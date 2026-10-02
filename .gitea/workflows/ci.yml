@@ -181,7 +181,7 @@ jobs:
           restore-keys: gradle-${{ runner.os }}-
 
       - name: Generate Dokka documentation
-        run: ./gradlew dokkaHtml --no-daemon --stacktrace
+        run: ./gradlew dokkaGeneratePublicationHtml --no-daemon --stacktrace
 
       - name: Cleanup workspace
         if: always()

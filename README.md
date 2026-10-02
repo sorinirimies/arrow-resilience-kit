@@ -9,7 +9,7 @@
 
 ## Overview
 
-Arrow Resilience Kit is a Kotlin Multiplatform library that provides production-ready resilience patterns built on [Arrow-kt](https://arrow-kt.io/). It offers composable, coroutine-first implementations of **Bulkhead**, **Cache**, **Circuit Breaker**, **Rate Limiter**, **Retry & Repeat**, **Saga**, **Time Limiter**, **Adaptive Limiter**, **Hedge**, and **STM Helpers** — plus a **Policy** combinator and **Flow** operators to compose them — everything you need to build fault-tolerant applications.
+Arrow Resilience Kit is a Kotlin Multiplatform library that provides production-ready resilience patterns built on [Arrow-kt](https://arrow-kt.io/). It offers composable, coroutine-first implementations of **Bulkhead**, **Cache**, **Circuit Breaker**, **Rate Limiter**, **Retry & Repeat**, **Saga**, **Time Limiter**, **Adaptive Limiter**, **Hedge**, **Failover**, and **STM Helpers** — plus a **Policy** combinator and **Flow** operators to compose them — everything you need to build fault-tolerant applications.
 
 **Supported platforms:** JVM (17+), JavaScript (Browser & Node.js), Native (Linux x64, macOS ARM64, iOS x64/ARM64/Simulator ARM64).
 
@@ -440,6 +440,32 @@ val result = retryWithExponentialBackoff(retries = 5) { flaky() }
 
 `SharedStateStore` is a minimal key-value seam for backing resilience state with a distributed store (Redis, a database, ...) instead of in-memory STM — useful when circuit-breaker/rate-limiter decisions need to be coordinated across a horizontally-scaled fleet. Ships with `InMemorySharedStateStore` (single-process reference implementation); wiring a real backend is left to your application.
 
+### Failover (protocol/transport fallback)
+
+Tries a prioritized list of named providers, falling through to the next one when the current one's circuit is open or it fails outright — e.g. prefer a WebSocket transport, degrade to MQTT, then to HTTP long-polling if both are down. Each provider gets its own [CircuitBreaker]; a provider that keeps failing trips its breaker open so later calls skip it immediately (no repeated timeout cost), and the breaker's own half-open/reset-timeout behavior periodically re-probes it — so `Failover` self-heals back to the preferred provider once it recovers, with no extra bookkeeping from the caller.
+
+```/dev/null/FailoverExample.kt#L1-L17
+val transport = failover<Connection> {
+    provider("websocket") { connectWebSocket() }
+    provider("mqtt") { connectMqtt() }
+    provider("http-polling") { connectHttpPolling() }
+}
+
+val connection = transport.execute()
+
+// Per-provider circuit breaker tuning
+val tuned = failover<Connection> {
+    provider("websocket", circuitBreakerConfig = { failureThreshold = 3 }) { connectWebSocket() }
+    provider("mqtt") { connectMqtt() }
+}
+
+// Inspecting provider health
+transport.providerNames() // ["websocket", "mqtt", "http-polling"]
+transport.stateOf("websocket") // CircuitBreakerState.Open, once it's known-bad
+```
+
+If every provider is either skipped (circuit open) or fails, `execute()` throws `FailoverExhaustedException` describing why each one was unavailable.
+
 ## Configuration
 
 Every pattern supports a DSL builder for configuration:
@@ -481,7 +507,7 @@ Named registries (`CircuitBreakerRegistry`, `BulkheadRegistry`, `RateLimiterRegi
 | Kotlin Logging | 8.0.4 |
 | Kotest (test) | 6.2.5 |
 | Detekt | 1.23.8 |
-| Dokka | 1.9.20 |
+| Dokka | 2.2.0 |
 
 See [`gradle/libs.versions.toml`](gradle/libs.versions.toml) for the full version catalog — kept current by an automated nightly dependency-upgrade workflow.
 
@@ -523,6 +549,7 @@ arrow-resilience-kit/
 │   │   ├── Cache.kt
 │   │   ├── Chaos.kt
 │   │   ├── CircuitBreaker.kt
+│   │   ├── Failover.kt
 │   │   ├── FlowResilience.kt
 │   │   ├── Hedge.kt
 │   │   ├── Policy.kt

@@ -7,11 +7,6 @@ plugins {
     signing
 }
 
-// Note: Dokka optimization warnings are expected and harmless
-// These are informational warnings from Gradle about Dokka's internal URL usage
-// They don't affect documentation generation or build success
-// See: https://github.com/Kotlin/dokka/issues/1933
-
 // Apply publishing configuration
 apply(from = "gradle/publishing.gradle.kts")
 
@@ -148,58 +143,51 @@ kotlin {
     explicitApi()
 }
 
-// Configure Dokka for better documentation
-tasks.dokkaHtml.configure {
-    outputDirectory.set(layout.buildDirectory.dir("docs"))
+// Configure Dokka for better documentation (Dokka V2 DSL)
+dokka {
+    moduleName.set("Arrow Resilience Kit")
 
-    dokkaSourceSets {
-        named("commonMain") {
-            moduleName.set("Arrow Resilience Kit")
+    dokkaSourceSets.named("commonMain") {
+        includes.from("Module.md")
 
-            includes.from("Module.md")
+        sourceLink {
+            localDirectory.set(file("src/commonMain/kotlin"))
+            remoteUrl("https://github.com/sorinirimies/arrow-resilience-kit/tree/main/src/commonMain/kotlin")
+            remoteLineSuffix.set("#L")
+        }
 
-            sourceLink {
-                localDirectory.set(file("src/commonMain/kotlin"))
-                remoteUrl.set(uri("https://github.com/sorinirimies/arrow-resilience-kit/tree/main/src/commonMain/kotlin").toURL())
-                remoteLineSuffix.set("#L")
-            }
+        // Package documentation
+        perPackageOption {
+            matchingRegex.set(".*")
+            suppress.set(false)
+            reportUndocumented.set(true)
+            skipDeprecated.set(false)
+        }
 
-            // Package documentation
-            perPackageOption {
-                matchingRegex.set(".*")
-                suppress.set(false)
-                reportUndocumented.set(true)
-                skipDeprecated.set(false)
-            }
+        // External documentation links
+        externalDocumentationLinks.register("arrow") {
+            url("https://arrow-kt.io/docs/")
+        }
 
-            // External documentation links
-            externalDocumentationLink {
-                url.set(uri("https://arrow-kt.io/docs/").toURL())
-            }
-
-            externalDocumentationLink {
-                url.set(uri("https://kotlinlang.org/api/kotlinx.coroutines/").toURL())
-            }
+        externalDocumentationLinks.register("kotlinx-coroutines") {
+            url("https://kotlinlang.org/api/kotlinx.coroutines/")
         }
     }
 
-    pluginsMapConfiguration.set(
-        mapOf(
-            "org.jetbrains.dokka.base.DokkaBase" to """
-                {
-                    "customStyleSheets": ["${file("config/dokka/custom-styles.css")}"],
-                    "customAssets": [],
-                    "separateInheritedMembers": true,
-                    "footerMessage": "© 2026 Arrow Resilience Kit"
-                }
-            """
-        )
-    )
+    pluginsConfiguration.html {
+        customStyleSheets.from(file("config/dokka/custom-styles.css"))
+        footerMessage.set("© 2026 Arrow Resilience Kit")
+        separateInheritedMembers.set(true)
+    }
+
+    dokkaPublications.html {
+        outputDirectory.set(layout.buildDirectory.dir("docs"))
+    }
 }
 
 // Task to prepare docs for GitHub Pages
 tasks.register<Copy>("prepareDocs") {
-    dependsOn(tasks.dokkaHtml)
+    dependsOn(tasks.named("dokkaGeneratePublicationHtml"))
     from(layout.buildDirectory.dir("docs"))
     into(file("docs"))
 

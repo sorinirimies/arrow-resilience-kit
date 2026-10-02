@@ -139,7 +139,7 @@ pre-commit: check-all
 
 # Generate API documentation (Dokka)
 doc:
-    ./gradlew dokkaHtml --no-daemon
+    ./gradlew dokkaGeneratePublicationHtml --no-daemon
     @echo "📚 Documentation generated at: build/docs/index.html"
 
 # Generate and open docs in browser
