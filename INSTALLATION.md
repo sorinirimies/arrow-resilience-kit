@@ -185,6 +185,6 @@ release (see `scripts/update_package_swift.nu`), so if you reference the
 repo directly via `.package(url: "https://github.com/sorinirimies/arrow-resilience-kit", from: "<version>")`
 there is nothing to keep in sync by hand.
 
-Kotlin/Native automatically bridges `suspend` functions to Objective-C completion-handler methods, which Swift imports as native `async`/`await` functions — no wrapper code needed on either side.
+Kotlin/Native automatically bridges `suspend` functions to Objective-C completion-handler methods, which Swift imports as native `async`/`await` functions -- that's true as-is for direct calls (e.g. `CircuitBreaker.companion.create(config:clock:)`). Calls that take a *lambda* parameter, like `execute { ... }`, need two small reusable Swift adapter types first (wrapping your closure as `KotlinSuspendFunction0`, and the clock as `KotlinClock`) -- see [INTEROP.md](INTEROP.md) for verified, working examples.
 
 Built and attached by the `xcframework` job in `.github/workflows/release.yml` (macOS-only — Kotlin/Native's iOS targets require Xcode, so this isn't wired into the Gitea workflow, whose runner is Linux).

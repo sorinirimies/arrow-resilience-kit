@@ -15,6 +15,8 @@ Arrow Resilience Kit is a Kotlin Multiplatform library that provides production-
 
 📚 **[Full API documentation (Dokka)](https://sorinirimies.github.io/arrow-resilience-kit/)**
 
+🌐 Consuming this from Java, Swift (iOS), or JavaScript/TypeScript instead of Kotlin? See **[INTEROP.md](INTEROP.md)** for verified, per-language usage and caveats.
+
 ## Why Arrow Resilience Kit?
 
 | | |
@@ -94,7 +96,7 @@ Every release also ships a prebuilt `ArrowResilienceKit.xcframework` (iOS device
 .package(url: "https://github.com/sorinirimies/arrow-resilience-kit", from: "<version>")
 ```
 
-Kotlin `suspend` functions are exposed as completion-handler methods, which Swift automatically bridges to `async`/`await`. See [Package.swift](Package.swift) (its `binaryTarget` always points at the exact latest release, updated automatically by CI).
+Kotlin `suspend` functions are exposed as completion-handler methods, which Swift automatically bridges to `async`/`await` -- this works out of the box for direct calls like `CircuitBreaker.companion.create(config:clock:)`. Calls that take a *lambda* parameter (e.g. `execute { ... }`) need a couple of small, reusable Swift adapter types first; see **[INTEROP.md](INTEROP.md)** for verified, working examples and the `Duration`/DSL-builder caveats. See [Package.swift](Package.swift) (its `binaryTarget` always points at the exact latest release, updated automatically by CI).
 
 See [INSTALLATION.md](INSTALLATION.md) for Maven, Gitea Packages, and additional details.
 
@@ -533,7 +535,7 @@ Every `./gradlew publish`-capable target (JVM, JS, Linux x64, macOS ARM64, iOS x
 | **JitPack** | Passive, no workflow step | Builds on-demand from any GitHub tag; nothing to configure. |
 | **Swift Package Manager** (iOS) | GitHub release workflow only, `xcframework` job | Builds `ArrowResilienceKit.xcframework` on `macos-latest` (Kotlin/Native's iOS targets require Xcode), uploads it as a release asset, and updates [`Package.swift`](Package.swift)'s checksum. Not wired into the Gitea workflow — the self-hosted runner is Linux and can't build Apple frameworks. |
 
-**Not published: npm.** Kotlin/JS's `@JsExport` [does not support `suspend` functions](https://kotlinlang.org/docs/js-to-kotlin-interop.html) at all (verified: `Declaration of such kind (suspend function) cannot be exported to JavaScript`). Since this library's entire public API is suspend-based, an npm-consumable package would require hand-writing Promise-returning wrapper facades for every function across every pattern — a separate, substantial project, not a publishing-target toggle. Deferred.
+**Not published: npm.** Kotlin/JS's `@JsExport` [does not support `suspend` functions](https://kotlinlang.org/docs/js-to-kotlin-interop.html) at all (verified: `Declaration of such kind (suspend function) cannot be exported to JavaScript`). Since this library's entire public API is suspend-based, an npm-consumable package would require hand-writing Promise-returning wrapper facades for every function across every pattern — a separate, substantial project, not a publishing-target toggle. Deferred. See [INTEROP.md](INTEROP.md) for what JS/TypeScript consumption does and doesn't mean in practice.
 
 ## Project Structure
 
