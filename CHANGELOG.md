@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+### ✨ Features
+- feat: add Failover pattern; migrate Dokka v1 -> v2
+### 📚 Documentation
+- docs: update API documentation for 0.6.1
+### 🔧 Chores
+- chore: update Package.swift for 0.6.1
+## 0.6.1 - 2026-09-29
 ### ➕ Added
 - Add retryIfWithExponentialBackoff, retryIfWithCappedBackoff, and retryIfPolicy
 ### 🐛 Bug Fixes
@@ -11,6 +18,8 @@ All notable changes to this project will be documented in this file.
 - docs: update API documentation for 0.6.0
 ### 🔧 Chores
 - chore: update Package.swift for 0.6.0
+- chore: bump version to 0.6.1
+**Full Changelog**: https://github.com/sorinirimies/arrow-resilience-kit/compare/0.6.0...0.6.1
 ## 0.6.0 - 2026-09-29
 ### 🐛 Bug Fixes
 - fix: pin published kotlin-stdlib dependency to 2.2.20, not the 2.4.20 toolchain
