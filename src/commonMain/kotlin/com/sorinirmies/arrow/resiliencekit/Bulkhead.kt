@@ -148,6 +148,7 @@ public interface BulkheadListener {
  * ```
  */
 public class Bulkhead private constructor(
+    /** The configuration this bulkhead was created with. */
     public val config: BulkheadConfig,
     private val semaphore: Semaphore,
     private val activeCallsVar: TVar<Int>,
@@ -161,6 +162,7 @@ public class Bulkhead private constructor(
 
     private val listeners = mutableListOf<BulkheadListener>()
 
+    /** Factory for [Bulkhead]. */
     public companion object {
         /**
          * Creates a new [Bulkhead] instance with the given configuration.
@@ -361,6 +363,7 @@ public class BulkheadRegistry private constructor(
     private val bulkheadsVar: TVar<Map<String, Bulkhead>>,
 ) {
 
+    /** Factory for [BulkheadRegistry]. */
     public companion object {
         /**
          * Creates a new empty [BulkheadRegistry].

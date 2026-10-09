@@ -61,6 +61,7 @@ public class InMemorySharedStateStore private constructor(
     private val entriesVar: TVar<Map<String, String>>,
 ) : SharedStateStore {
 
+    /** Factory for [InMemorySharedStateStore]. */
     public companion object {
         /** Creates a new, empty [InMemorySharedStateStore]. */
         public suspend fun create(): InMemorySharedStateStore = InMemorySharedStateStore(TVar.new(emptyMap()))

@@ -5,6 +5,8 @@ package com.sorinirmies.arrow.resiliencekit
 
 import kotlinx.coroutines.CancellationException
 import io.github.oshai.kotlinlogging.KotlinLogging
+import arrow.fx.stm.TVar
+import arrow.fx.stm.atomically
 import kotlin.time.Clock
 
 private val logger = KotlinLogging.logger {}
@@ -73,14 +75,18 @@ public class Failover<T> internal constructor(
 
         for (provider in providers) {
             try {
-                return provider.circuitBreaker.execute(provider.block)
+                val result = provider.circuitBreaker.execute(provider.block)
+                atomically { provider.successes.write(provider.successes.read() + 1) }
+                return result
             } catch (e: CircuitBreakerOpenException) {
                 logger.debug { "Failover: provider '${provider.name}' circuit is open, skipping" }
+                atomically { provider.skipped.write(provider.skipped.read() + 1) }
                 attempts += FailoverAttempt(provider.name, FailoverAttempt.Reason.CircuitOpen, e)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 logger.debug(e) { "Failover: provider '${provider.name}' failed" }
+                atomically { provider.failures.write(provider.failures.read() + 1) }
                 attempts += FailoverAttempt(provider.name, FailoverAttempt.Reason.Failed, e)
             }
         }
@@ -94,16 +100,30 @@ public class Failover<T> internal constructor(
     /** Current circuit-breaker state of the named provider, or `null` if no such provider exists. */
     public suspend fun stateOf(name: String): CircuitBreakerState? =
         providers.find { it.name == name }?.circuitBreaker?.currentState()
+
+    /** Per-provider invocation statistics, in priority order. */
+    public suspend fun statistics(): List<FailoverProviderStatistics> = providers.map { provider ->
+        FailoverProviderStatistics(
+            name = provider.name,
+            state = provider.circuitBreaker.currentState(),
+            successes = atomically { provider.successes.read() },
+            failures = atomically { provider.failures.read() },
+            skipped = atomically { provider.skipped.read() },
+        )
+    }
 }
 
 /**
  * A single named candidate implementation within a [Failover], paired with its own
- * dedicated [CircuitBreaker].
+ * dedicated [CircuitBreaker] and invocation counters (see [FailoverProviderStatistics]).
  */
 internal data class FailoverProvider<T>(
     val name: String,
     val circuitBreaker: CircuitBreaker,
     val block: suspend () -> T,
+    val successes: TVar<Long>,
+    val failures: TVar<Long>,
+    val skipped: TVar<Long>,
 )
 
 /**
@@ -150,6 +170,23 @@ public class FailoverExhaustedException(
 )
 
 /**
+ * Invocation statistics for a single provider within a [Failover], as of [Failover.statistics].
+ *
+ * @property name The provider's name
+ * @property state Current state of this provider's dedicated circuit breaker
+ * @property successes Number of times this provider was invoked and succeeded
+ * @property failures Number of times this provider was invoked and threw
+ * @property skipped Number of times this provider was skipped because its circuit was open
+ */
+public data class FailoverProviderStatistics(
+    public val name: String,
+    public val state: CircuitBreakerState,
+    public val successes: Long,
+    public val failures: Long,
+    public val skipped: Long,
+)
+
+/**
  * Builder for [Failover], used via the [failover] DSL function.
  */
 public class FailoverBuilder<T> {
@@ -174,7 +211,14 @@ public class FailoverBuilder<T> {
         require(name.isNotBlank()) { "Failover provider name must not be blank" }
         require(providers.none { it.name == name }) { "Duplicate failover provider name: '$name'" }
         val config = CircuitBreakerConfigBuilder().apply(circuitBreakerConfig).build()
-        providers += FailoverProvider(name, CircuitBreaker.create(config, clock), block)
+        providers += FailoverProvider(
+            name = name,
+            circuitBreaker = CircuitBreaker.create(config, clock),
+            block = block,
+            successes = TVar.new(0L),
+            failures = TVar.new(0L),
+            skipped = TVar.new(0L),
+        )
     }
 
     internal fun build(): Failover<T> {
@@ -197,4 +241,80 @@ public suspend fun <T> failover(configure: suspend FailoverBuilder<T>.() -> Unit
     val builder = FailoverBuilder<T>()
     builder.configure()
     return builder.build()
+}
+
+/**
+ * Registry for managing multiple named [Failover] chains.
+ *
+ * Example usage:
+ * ```
+ * val registry = FailoverRegistry.create()
+ *
+ * val transport = registry.getOrCreate<Connection>("realtime-transport") {
+ *     provider("websocket") { connectWebSocket() }
+ *     provider("mqtt") { connectMqtt() }
+ * }
+ * ```
+ */
+public class FailoverRegistry private constructor(
+    private val failovers: TVar<Map<String, Failover<*>>>,
+) {
+    /** Factory for [FailoverRegistry]. */
+    public companion object {
+        /** Creates a new, empty [FailoverRegistry]. */
+        public suspend fun create(): FailoverRegistry {
+            val failovers = TVar.new(emptyMap<String, Failover<*>>())
+            return FailoverRegistry(failovers)
+        }
+    }
+
+    /**
+     * Gets an existing failover chain or builds a new one from [configure].
+     *
+     * If a failover is already registered under [name], [configure] is ignored
+     * and the existing instance is returned as-is -- same caveat as
+     * [CacheRegistry.getOrCreate]: calling this with a different `T` for an
+     * already-registered name is a programmer error, not something this API
+     * can check at compile time.
+     */
+    @Suppress("UNCHECKED_CAST")
+    public suspend fun <T> getOrCreate(name: String, configure: suspend FailoverBuilder<T>.() -> Unit): Failover<T> {
+        val existing = atomically { failovers.read()[name] }
+        if (existing != null) return existing as Failover<T>
+
+        val newFailover = failover(configure)
+        return atomically {
+            val current = failovers.read()
+            val existingInTx = current[name]
+            if (existingInTx != null) {
+                existingInTx as Failover<T>
+            } else {
+                failovers.write(current + (name to newFailover))
+                newFailover
+            }
+        }
+    }
+
+    /**
+     * Gets an existing failover chain by name.
+     */
+    @Suppress("UNCHECKED_CAST")
+    public suspend fun <T> get(name: String): Failover<T>? = atomically { failovers.read()[name] as? Failover<T> }
+
+    /**
+     * Removes a failover chain from the registry.
+     */
+    public suspend fun remove(name: String): Failover<*>? = atomically {
+        val current = failovers.read()
+        val removed = current[name]
+        if (removed != null) {
+            failovers.write(current - name)
+        }
+        removed
+    }
+
+    /**
+     * Gets all failover chain names in the registry.
+     */
+    public suspend fun getNames(): Set<String> = atomically { failovers.read().keys }
 }

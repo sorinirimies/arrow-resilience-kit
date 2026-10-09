@@ -87,6 +87,7 @@ public data class AdaptiveLimiterStatistics(
  * AIMD-based adaptive concurrency limiter. See file-level docs for details.
  */
 public class AdaptiveLimiter private constructor(
+    /** The configuration this limiter was created with. */
     public val config: AdaptiveLimiterConfig,
     private val limitVar: TVar<Int>,
     private val inFlightVar: TVar<Int>,
@@ -95,6 +96,7 @@ public class AdaptiveLimiter private constructor(
     private val clock: Clock,
 ) {
 
+    /** Factory for [AdaptiveLimiter]. */
     public companion object {
         /** Creates a new [AdaptiveLimiter] with the given [config]. */
         public suspend fun create(
@@ -212,4 +214,87 @@ public class AdaptiveLimiterConfigBuilder {
         decreaseFactor = decreaseFactor,
         latencyThreshold = latencyThreshold,
     )
+}
+
+/**
+ * Registry for managing multiple named adaptive limiters.
+ *
+ * Example usage:
+ * ```
+ * val registry = AdaptiveLimiterRegistry.create()
+ *
+ * val apiLimiter = registry.getOrCreate("downstream-api") {
+ *     initialLimit = 20
+ * }
+ * ```
+ */
+public class AdaptiveLimiterRegistry private constructor(
+    private val limiters: TVar<Map<String, AdaptiveLimiter>>,
+) {
+    /** Factory for [AdaptiveLimiterRegistry]. */
+    public companion object {
+        /** Creates a new, empty [AdaptiveLimiterRegistry]. */
+        public suspend fun create(): AdaptiveLimiterRegistry {
+            val limiters = TVar.new(emptyMap<String, AdaptiveLimiter>())
+            return AdaptiveLimiterRegistry(limiters)
+        }
+    }
+
+    /**
+     * Gets an existing adaptive limiter or creates a new one.
+     */
+    public suspend fun getOrCreate(
+        name: String,
+        configure: (AdaptiveLimiterConfigBuilder.() -> Unit)? = null,
+    ): AdaptiveLimiter {
+        val existing = atomically { limiters.read()[name] }
+        if (existing != null) return existing
+
+        val newLimiter = if (configure != null) {
+            adaptiveLimiter(configure)
+        } else {
+            AdaptiveLimiter.create()
+        }
+
+        return atomically {
+            val current = limiters.read()
+            val existingInTx = current[name]
+            if (existingInTx != null) {
+                existingInTx
+            } else {
+                limiters.write(current + (name to newLimiter))
+                newLimiter
+            }
+        }
+    }
+
+    /**
+     * Gets an existing adaptive limiter by name.
+     */
+    public suspend fun get(name: String): AdaptiveLimiter? = atomically { limiters.read()[name] }
+
+    /**
+     * Removes an adaptive limiter from the registry.
+     */
+    public suspend fun remove(name: String): AdaptiveLimiter? = atomically {
+        val current = limiters.read()
+        val removed = current[name]
+        if (removed != null) {
+            limiters.write(current - name)
+        }
+        removed
+    }
+
+    /**
+     * Gets all adaptive limiter names in the registry.
+     */
+    public suspend fun getNames(): Set<String> = atomically { limiters.read().keys }
+
+    /**
+     * Gets statistics for all adaptive limiters.
+     */
+    public suspend fun getAllStatistics(): Map<String, AdaptiveLimiterStatistics> {
+        val snapshot = atomically { limiters.read() }
+        return snapshot.mapValues { (_, limiter) -> limiter.statistics() }
+    }
 }

@@ -41,6 +41,7 @@ import arrow.fx.stm.atomically
  */
 public class StmCounter private constructor(private val tvar: TVar<Long>) {
 
+    /** Factory for [StmCounter]. */
     public companion object {
         /**
          * Creates a new [StmCounter] with the given [initial] value.
@@ -117,6 +118,7 @@ public class StmGauge private constructor(
     private val maxTVar: TVar<Double>,
 ) {
 
+    /** Factory for [StmGauge]. */
     public companion object {
         /**
          * Creates a new [StmGauge] with the given [initial] value.
@@ -184,6 +186,7 @@ public class StmStateMachine<S> private constructor(
     private val stateTVar: TVar<S>,
 ) {
 
+    /** Factory for [StmStateMachine]. */
     public companion object {
         /**
          * Creates a new [StmStateMachine] with the given [initial] state.
@@ -250,6 +253,7 @@ public class StmSemaphore private constructor(
     private val maxPermits: Int,
 ) {
 
+    /** Factory for [StmSemaphore]. */
     public companion object {
         /**
          * Creates a new [StmSemaphore] with the given number of [permits].
@@ -321,6 +325,7 @@ public class StmRateWindow private constructor(
     private val windowMs: Long,
 ) {
 
+    /** Factory for [StmRateWindow]. */
     public companion object {
         /**
          * Creates a new [StmRateWindow] with the given [windowMs] duration in milliseconds.

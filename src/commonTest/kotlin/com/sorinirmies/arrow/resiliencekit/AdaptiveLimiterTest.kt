@@ -130,4 +130,44 @@ class AdaptiveLimiterTest {
         limiter.currentLimit() shouldBe 5
         limiter.statistics().overloadEvents shouldBe 1L
     }
+
+    @JsName("adaptiveLimiterRegistryReusesInstanceByName")
+    @Test
+    fun `AdaptiveLimiterRegistry reuses instance by name`() = runTest {
+        val registry = AdaptiveLimiterRegistry.create()
+
+        val first = registry.getOrCreate("downstream-api") { initialLimit = 20 }
+        val second = registry.getOrCreate("downstream-api") { initialLimit = 99 }
+
+        first shouldBe second
+        second.statistics().currentLimit shouldBe 20
+        registry.getNames() shouldBe setOf("downstream-api")
+    }
+
+    @JsName("adaptiveLimiterRegistryGetAndRemove")
+    @Test
+    fun `AdaptiveLimiterRegistry get and remove`() = runTest {
+        val registry = AdaptiveLimiterRegistry.create()
+        registry.get("downstream-api") shouldBe null
+
+        registry.getOrCreate("downstream-api") { initialLimit = 20 }
+        registry.get("downstream-api")?.statistics()?.currentLimit shouldBe 20
+
+        val removed = registry.remove("downstream-api")
+        removed?.statistics()?.currentLimit shouldBe 20
+        registry.get("downstream-api") shouldBe null
+    }
+
+    @JsName("adaptiveLimiterRegistryGetAllStatisticsReturnsSnapshotForEachLimiter")
+    @Test
+    fun `AdaptiveLimiterRegistry getAllStatistics returns snapshot for each limiter`() = runTest {
+        val registry = AdaptiveLimiterRegistry.create()
+        registry.getOrCreate("a") { initialLimit = 10 }
+        registry.getOrCreate("b") { initialLimit = 20 }
+
+        val stats = registry.getAllStatistics()
+        stats.keys shouldBe setOf("a", "b")
+        stats.getValue("a").currentLimit shouldBe 10
+        stats.getValue("b").currentLimit shouldBe 20
+    }
 }

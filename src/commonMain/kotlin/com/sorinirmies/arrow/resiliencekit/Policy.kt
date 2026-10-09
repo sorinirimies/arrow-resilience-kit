@@ -44,6 +44,7 @@ public interface Policy {
     /** Runs [block] through this policy's protective behavior. */
     public suspend fun <T> apply(block: suspend () -> T): T
 
+    /** Factory helpers for combining multiple [Policy] instances. */
     public companion object {
         /** A no-op policy that just invokes the block directly. Useful as a fold seed. */
         public val identity: Policy = object : Policy {

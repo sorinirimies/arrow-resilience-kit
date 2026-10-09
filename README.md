@@ -464,9 +464,10 @@ val tuned = failover<Connection> {
 // Inspecting provider health
 transport.providerNames() // ["websocket", "mqtt", "http-polling"]
 transport.stateOf("websocket") // CircuitBreakerState.Open, once it's known-bad
+transport.statistics() // List<FailoverProviderStatistics>: successes/failures/skipped per provider
 ```
 
-If every provider is either skipped (circuit open) or fails, `execute()` throws `FailoverExhaustedException` describing why each one was unavailable.
+If every provider is either skipped (circuit open) or fails, `execute()` throws `FailoverExhaustedException` describing why each one was unavailable. A `FailoverRegistry` manages multiple named failover chains, same as the other patterns' registries.
 
 ## Configuration
 
@@ -495,7 +496,7 @@ val tl = timeLimiter {
 }
 ```
 
-Named registries (`CircuitBreakerRegistry`, `BulkheadRegistry`, `RateLimiterRegistry`, `TimeLimiterRegistry`, `CacheRegistry`) let you manage instances by name and collect statistics across all instances.
+Named registries (`CircuitBreakerRegistry`, `BulkheadRegistry`, `RateLimiterRegistry`, `TimeLimiterRegistry`, `CacheRegistry`, `AdaptiveLimiterRegistry`, `SagaRegistry`, `FailoverRegistry`) let you manage instances by name and collect statistics across all instances.
 
 ## Dependencies
 
@@ -515,7 +516,7 @@ See [`gradle/libs.versions.toml`](gradle/libs.versions.toml) for the full versio
 
 ### Optional: Micrometer metrics bridge (JVM only)
 
-`MicrometerBridge` exports pattern statistics (call counts, rejection rates, circuit state, adaptive limits, ...) as Micrometer gauges. It's `compileOnly` on the JVM target — add `io.micrometer:micrometer-core` yourself to use it, everyone else pays nothing:
+`MicrometerBridge` exports pattern statistics (call counts, rejection rates, circuit state, adaptive limits, cache hit rate, per-provider failover health, ...) as Micrometer gauges. It's `compileOnly` on the JVM target — add `io.micrometer:micrometer-core` yourself to use it, everyone else pays nothing. Covers `Bulkhead`, `CircuitBreaker`, `RateLimiter`, `AdaptiveLimiter`, `Cache`, `TimeLimiter`, and `Failover` (`bindBulkhead`/`bindCircuitBreaker`/`bindRateLimiter`/`bindAdaptiveLimiter`/`bindCache`/`bindTimeLimiter`/`bindFailover`):
 
 ```/dev/null/MicrometerExample.kt#L1-L4
 val registry = SimpleMeterRegistry() // or PrometheusMeterRegistry, etc.

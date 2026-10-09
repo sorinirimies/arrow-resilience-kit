@@ -75,6 +75,7 @@ public class Cache<K, V> private constructor(
 ) {
     private val listeners = mutableListOf<CacheListener<K, V>>()
 
+    /** Factory for [Cache]. */
     public companion object {
         /**
          * Creates a new [Cache] instance.
@@ -520,6 +521,7 @@ public class LoadingCache<K, V> private constructor(
     private val delegate: Cache<K, V>,
     private val loader: suspend (K) -> V
 ) {
+    /** Factory for [LoadingCache]. */
     public companion object {
         /**
          * Creates a new [LoadingCache] instance.
@@ -573,6 +575,7 @@ public class LoadingCache<K, V> private constructor(
 public class CacheRegistry private constructor(
     private val caches: TVar<Map<String, Cache<*, *>>>
 ) {
+    /** Factory for [CacheRegistry]. */
     public companion object {
         /** Creates a new [CacheRegistry] instance. */
         public suspend fun create(): CacheRegistry {

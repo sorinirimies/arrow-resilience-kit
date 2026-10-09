@@ -5,6 +5,7 @@ package com.sorinirmies.arrow.resiliencekit
 
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
 import kotlinx.coroutines.test.runTest
 import kotlin.js.JsName
 import kotlin.test.Test
@@ -233,5 +234,67 @@ class FailoverTest {
         repeat(3) { transport.execute() shouldBe "ws-connection" }
         mqttCalls shouldBe 0
         transport.stateOf("mqtt") shouldBe CircuitBreakerState.Closed
+    }
+
+    @JsName("failoverStatisticsTracksSuccessesFailuresAndSkips")
+    @Test
+    fun `failover statistics tracks successes failures and skips`() = runTest {
+        val transport = failover<String> {
+            provider("websocket", circuitBreakerConfig = { failureThreshold = 1 }) {
+                throw RuntimeException("ws down")
+            }
+            provider("mqtt") { "mqtt-connection" }
+        }
+
+        // First call: websocket is invoked and fails (tripping its breaker open),
+        // then mqtt is invoked and succeeds.
+        transport.execute() shouldBe "mqtt-connection"
+        // Second call: websocket's breaker is already open, so it's skipped.
+        transport.execute() shouldBe "mqtt-connection"
+
+        val stats = transport.statistics().associateBy { it.name }
+        stats.getValue("websocket").successes shouldBe 0L
+        stats.getValue("websocket").failures shouldBe 1L
+        stats.getValue("websocket").skipped shouldBe 1L
+        stats.getValue("websocket").state shouldBe CircuitBreakerState.Open
+
+        stats.getValue("mqtt").successes shouldBe 2L
+        stats.getValue("mqtt").failures shouldBe 0L
+        stats.getValue("mqtt").skipped shouldBe 0L
+        stats.getValue("mqtt").state shouldBe CircuitBreakerState.Closed
+    }
+
+    @JsName("failoverRegistryReusesInstanceByName")
+    @Test
+    fun `failover registry reuses instance by name`() = runTest {
+        val registry = FailoverRegistry.create()
+
+        val first = registry.getOrCreate<String>("transport") {
+            provider("websocket") { "ws" }
+        }
+        val second = registry.getOrCreate<String>("transport") {
+            provider("mqtt") { "mqtt" }
+        }
+
+        first shouldBe second
+        second.providerNames() shouldBe listOf("websocket")
+        registry.getNames() shouldBe setOf("transport")
+    }
+
+    @JsName("failoverRegistryGetAndRemove")
+    @Test
+    fun `failover registry get and remove`() = runTest {
+        val registry = FailoverRegistry.create()
+        registry.get<String>("transport") shouldBe null
+
+        registry.getOrCreate<String>("transport") {
+            provider("websocket") { "ws" }
+        }
+        registry.get<String>("transport")?.providerNames() shouldBe listOf("websocket")
+
+        val removed = registry.remove("transport")
+        removed shouldNotBe null
+        registry.get<String>("transport") shouldBe null
+        registry.getNames() shouldBe emptySet()
     }
 }

@@ -6,6 +6,8 @@ package com.sorinirmies.arrow.resiliencekit
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import arrow.fx.stm.TVar
+import arrow.fx.stm.atomically
 import kotlin.time.Clock
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlin.time.Duration
@@ -188,6 +190,7 @@ public class Saga<T> private constructor(
         )
     }
 
+    /** Factory for [Saga]. */
     public companion object {
         /**
          * Creates a new Saga instance with the given steps and configuration.
@@ -396,6 +399,7 @@ public sealed class SagaResult<T> {
         public val executedSteps: Int,
         public val duration: Duration,
     ) : SagaResult<T>() {
+        /** Always `true` for [Success]. */
         public val isSuccess: Boolean = true
     }
 
@@ -413,7 +417,9 @@ public sealed class SagaResult<T> {
         public val compensationErrors: List<CompensationError>,
         public val duration: Duration,
     ) : SagaResult<T>() {
+        /** Always `false` for [Failure]. */
         public val isSuccess: Boolean = false
+        /** Whether any compensation (rollback) step itself also failed. */
         public val hasCompensationErrors: Boolean = compensationErrors.isNotEmpty()
     }
 }
@@ -435,6 +441,7 @@ public data class CompensationError(
  * Exception thrown when a saga step fails.
  */
 public class SagaStepException(
+    /** Name of the step that failed. */
     public val stepName: String,
     cause: Throwable,
 ) : Exception("Saga step '$stepName' failed", cause)
@@ -503,10 +510,15 @@ public class ParallelSagaCoordinator {
  * Result of parallel saga execution.
  */
 public data class ParallelSagaResult<T>(
+    /** The result of each saga, in the same order they were submitted. */
     public val results: List<SagaResult<T>>,
+    /** Total number of sagas executed. */
     public val totalSagas: Int,
+    /** Number of sagas that completed successfully. */
     public val successfulSagas: Int,
+    /** Number of sagas that failed (and were compensated). */
     public val failedSagas: Int,
+    /** Total wall-clock time to run every saga. */
     public val duration: Duration,
 ) {
     /** Ratio of successful sagas from 0.0 to 1.0. */
@@ -514,4 +526,87 @@ public data class ParallelSagaResult<T>(
 
     /** Whether all sagas completed successfully. */
     public val allSuccessful: Boolean = failedSagas == 0
+}
+
+/**
+ * Registry for managing multiple named, reusable saga templates.
+ *
+ * A [Saga] instance is safe to [Saga.execute] more than once (its per-run
+ * tracking state is reset at the start of every execution), so storing one by
+ * name and re-running it is the main use case for this registry -- e.g. an
+ * "order-checkout" saga built once at startup and executed per order.
+ *
+ * Example usage:
+ * ```
+ * val registry = SagaRegistry.create()
+ *
+ * val checkout = registry.getOrCreate<OrderResult>("order-checkout") {
+ *     step("Reserve inventory", action = { inventoryService.reserve(items) })
+ *     step("Charge payment", action = { paymentService.charge(amount) })
+ * }
+ *
+ * val result = checkout.execute()
+ * ```
+ */
+public class SagaRegistry private constructor(
+    private val sagas: TVar<Map<String, Saga<*>>>,
+) {
+    /** Factory for [SagaRegistry]. */
+    public companion object {
+        /** Creates a new, empty [SagaRegistry]. */
+        public suspend fun create(): SagaRegistry {
+            val sagas = TVar.new(emptyMap<String, Saga<*>>())
+            return SagaRegistry(sagas)
+        }
+    }
+
+    /**
+     * Gets an existing saga template or builds a new one from [configure].
+     *
+     * If a saga is already registered under [name], [configure] is ignored
+     * and the existing instance is returned as-is -- same caveat as
+     * [CacheRegistry.getOrCreate]: calling this with a different `T` for an
+     * already-registered name is a programmer error, not something this API
+     * can check at compile time.
+     */
+    @Suppress("UNCHECKED_CAST")
+    public suspend fun <T> getOrCreate(name: String, configure: SagaBuilder<T>.() -> Unit): Saga<T> {
+        val existing = atomically { sagas.read()[name] }
+        if (existing != null) return existing as Saga<T>
+
+        val newSaga = saga(configure = configure)
+        return atomically {
+            val current = sagas.read()
+            val existingInTx = current[name]
+            if (existingInTx != null) {
+                existingInTx as Saga<T>
+            } else {
+                sagas.write(current + (name to newSaga))
+                newSaga
+            }
+        }
+    }
+
+    /**
+     * Gets an existing saga template by name.
+     */
+    @Suppress("UNCHECKED_CAST")
+    public suspend fun <T> get(name: String): Saga<T>? = atomically { sagas.read()[name] as? Saga<T> }
+
+    /**
+     * Removes a saga template from the registry.
+     */
+    public suspend fun remove(name: String): Saga<*>? = atomically {
+        val current = sagas.read()
+        val removed = current[name]
+        if (removed != null) {
+            sagas.write(current - name)
+        }
+        removed
+    }
+
+    /**
+     * Gets all saga template names in the registry.
+     */
+    public suspend fun getNames(): Set<String> = atomically { sagas.read().keys }
 }

@@ -80,6 +80,7 @@ public class TimeLimiter private constructor(
 ) {
     private val listeners = mutableListOf<TimeLimiterListener>()
 
+    /** Factory for [TimeLimiter]. */
     public companion object {
         /**
          * Creates a new [TimeLimiter] instance.
@@ -516,6 +517,7 @@ public class TimeLimiterConfigBuilder {
 public class TimeLimiterRegistry private constructor(
     private val limiters: TVar<Map<String, TimeLimiter>>,
 ) {
+    /** Factory for [TimeLimiterRegistry]. */
     public companion object {
         /**
          * Creates a new [TimeLimiterRegistry] instance.
@@ -640,12 +642,15 @@ public suspend fun <T> withTimeLimitOrDefault(
  * carry a duration use this explicit serializer instead.
  */
 public object DurationMillisSerializer : KSerializer<Duration> {
+    /** Describes this serializer's wire format: a single [Long] of milliseconds. */
     override val descriptor: SerialDescriptor =
         PrimitiveSerialDescriptor("com.sorinirmies.arrow.resiliencekit.DurationMillis", PrimitiveKind.LONG)
 
+    /** Encodes [value] as its whole-millisecond count. */
     override fun serialize(encoder: Encoder, value: Duration) {
         encoder.encodeLong(value.inWholeMilliseconds)
     }
 
+    /** Decodes a whole-millisecond count back into a [Duration]. */
     override fun deserialize(decoder: Decoder): Duration = decoder.decodeLong().milliseconds
 }

@@ -8,6 +8,7 @@ import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.comparables.shouldBeGreaterThan
 import io.kotest.matchers.comparables.shouldBeLessThan
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlinx.coroutines.test.runTest
 import kotlin.js.JsName
@@ -578,5 +579,54 @@ class SagaTest {
         shouldThrow<IllegalArgumentException> {
             builder.build() // Should throw because no steps added
         }
+    }
+
+    @JsName("sagaRegistryReusesInstanceByName")
+    @Test
+    fun `SagaRegistry reuses instance by name`() = runTest {
+        val registry = SagaRegistry.create()
+
+        val first = registry.getOrCreate<String>("checkout") {
+            step("reserve", action = { "reserved" })
+        }
+        val second = registry.getOrCreate<String>("checkout") {
+            step("charge", action = { "charged" })
+        }
+
+        first shouldBe second
+        registry.getNames() shouldBe setOf("checkout")
+    }
+
+    @JsName("sagaRegistryGetAndRemove")
+    @Test
+    fun `SagaRegistry get and remove`() = runTest {
+        val registry = SagaRegistry.create()
+        registry.get<String>("checkout") shouldBe null
+
+        registry.getOrCreate<String>("checkout") {
+            step("reserve", action = { "reserved" })
+        }
+        registry.get<String>("checkout") shouldNotBe null
+
+        val removed = registry.remove("checkout")
+        removed shouldNotBe null
+        registry.get<String>("checkout") shouldBe null
+    }
+
+    @JsName("sagaRegistryInstanceIsSafeToExecuteMoreThanOnce")
+    @Test
+    fun `SagaRegistry instance is safe to execute more than once`() = runTest {
+        val registry = SagaRegistry.create()
+        var calls = 0
+        val checkout = registry.getOrCreate<String>("checkout") {
+            step("reserve", action = { calls++; "reserved-$calls" })
+        }
+
+        val first = checkout.execute()
+        val second = checkout.execute()
+
+        first.shouldBeInstanceOf<SagaResult.Success<String>>()
+        second.shouldBeInstanceOf<SagaResult.Success<String>>()
+        calls shouldBe 2
     }
 }

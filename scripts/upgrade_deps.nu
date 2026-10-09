@@ -20,6 +20,28 @@ export def has-changes []: nothing -> bool {
     not ($diff.stdout | str trim | is-empty)
 }
 
+# gradle/actions/wrapper-validation@v3's `allow-checksums` is pinned to the
+# sha256 of the gradle-wrapper.jar actually committed in this repo (see the
+# comment above each `allow-checksums:` line) -- every time this script
+# regenerates that jar, the pin goes stale until updated here too, otherwise
+# CI falls back to validating over the network, which flakes with ECONNRESET
+# on the self-hosted Gitea runner.
+export def sync-wrapper-checksum []: nothing -> nothing {
+    let checksum = (open --raw gradle/wrapper/gradle-wrapper.jar | hash sha256)
+    let files = [
+        ".github/workflows/ci.yml"
+        ".github/workflows/release.yml"
+        ".gitea/workflows/ci.yml"
+        ".gitea/workflows/release.yml"
+    ]
+    for file in $files {
+        let content = (open --raw $file)
+        let updated = ($content | str replace --regex 'allow-checksums: [0-9a-f]{64}' $"allow-checksums: ($checksum)")
+        $updated | save -f $file
+    }
+    print $"  New checksum: ($checksum)"
+}
+
 def main [
     --check       # Dry run — just show latest versions
     --commit      # Auto-commit and push (CI mode)
@@ -42,6 +64,9 @@ def main [
     print "▸ Updating Gradle wrapper..."
     run-external "./gradlew" "wrapper" $"--gradle-version=($latest)" "--no-daemon"
     run-external "./gradlew" "wrapper" $"--gradle-version=($latest)" "--no-daemon"
+
+    print "▸ Syncing pinned gradle-wrapper.jar checksum in CI workflows..."
+    sync-wrapper-checksum
 
     if (has-catalog-update-plugin) {
         print "▸ Running versionCatalogUpdate..."

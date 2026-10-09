@@ -84,6 +84,7 @@ public class CircuitBreaker private constructor(
 ) {
     private val listeners = mutableListOf<CircuitBreakerListener>()
 
+    /** Factory for [CircuitBreaker]. */
     public companion object {
         /**
          * Creates a new [CircuitBreaker] instance.
@@ -403,6 +404,12 @@ public class CircuitBreakerOpenException(
  * Listener for circuit breaker state changes.
  */
 public fun interface CircuitBreakerListener {
+    /**
+     * Called whenever the circuit breaker transitions between states.
+     *
+     * @param oldState The state the circuit breaker transitioned from
+     * @param newState The state the circuit breaker transitioned to
+     */
     public fun onStateChange(oldState: CircuitBreakerState, newState: CircuitBreakerState)
 }
 
@@ -448,6 +455,7 @@ public class CircuitBreakerConfigBuilder {
 public class CircuitBreakerRegistry private constructor(
     private val breakers: TVar<Map<String, CircuitBreaker>>,
 ) {
+    /** Factory for [CircuitBreakerRegistry]. */
     public companion object {
         /**
          * Creates a new [CircuitBreakerRegistry].

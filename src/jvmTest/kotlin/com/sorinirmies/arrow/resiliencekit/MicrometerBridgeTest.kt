@@ -47,4 +47,47 @@ class MicrometerBridgeTest {
 
         registry.get("resilience.adaptive_limiter.limit").tag("name", "test-limiter").gauge().value() shouldBe 4.0
     }
+
+    @Test
+    fun `bindCache exposes hit and miss counts`() = runTest {
+        val cache = Cache.create<String, String>(CacheConfig(maxSize = 10))
+        cache.put("a", "1")
+        cache.get("a")
+        cache.get("missing")
+
+        val registry = SimpleMeterRegistry()
+        MicrometerBridge.bindCache(registry, "test-cache", cache)
+
+        registry.get("resilience.cache.hits").tag("name", "test-cache").gauge().value() shouldBe 1.0
+        registry.get("resilience.cache.misses").tag("name", "test-cache").gauge().value() shouldBe 1.0
+    }
+
+    @Test
+    fun `bindTimeLimiter exposes total call and success rate gauges`() = runTest {
+        val timeLimiter = TimeLimiter.create()
+        timeLimiter.execute { "ok" }
+
+        val registry = SimpleMeterRegistry()
+        MicrometerBridge.bindTimeLimiter(registry, "test-time-limiter", timeLimiter)
+
+        registry.get("resilience.time_limiter.calls.total").tag("name", "test-time-limiter").gauge().value() shouldBe 1.0
+        registry.get("resilience.time_limiter.success_rate").tag("name", "test-time-limiter").gauge().value() shouldBe 1.0
+    }
+
+    @Test
+    fun `bindFailover exposes per-provider success and state gauges`() = runTest {
+        val transport = failover<String> {
+            provider("websocket") { "ws" }
+            provider("mqtt") { "mqtt" }
+        }
+        transport.execute()
+
+        val registry = SimpleMeterRegistry()
+        MicrometerBridge.bindFailover(registry, "test-transport", transport)
+
+        registry.get("resilience.failover.successes")
+            .tag("name", "test-transport").tag("provider", "websocket").gauge().value() shouldBe 1.0
+        registry.get("resilience.failover.state")
+            .tag("name", "test-transport").tag("provider", "websocket").gauge().value() shouldBe 0.0
+    }
 }

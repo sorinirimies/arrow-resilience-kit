@@ -74,6 +74,7 @@ public class RateLimiter private constructor(
 ) {
     private val listeners = mutableListOf<RateLimiterListener>()
 
+    /** Factory for [RateLimiter]. */
     public companion object {
         /**
          * Creates a new [RateLimiter] instance.
@@ -450,6 +451,7 @@ public class SlidingWindowRateLimiter private constructor(
     private val acceptedRequests: TVar<Long>,
     private val rejectedRequests: TVar<Long>,
 ) {
+    /** Factory for [SlidingWindowRateLimiter]. */
     public companion object {
         /**
          * Creates a new [SlidingWindowRateLimiter] instance.
@@ -651,6 +653,7 @@ public class RateLimitExceededException(
 public class RateLimiterRegistry private constructor(
     private val limiters: TVar<Map<String, RateLimiter>>,
 ) {
+    /** Factory for [RateLimiterRegistry]. */
     public companion object {
         /**
          * Creates a new [RateLimiterRegistry] instance.

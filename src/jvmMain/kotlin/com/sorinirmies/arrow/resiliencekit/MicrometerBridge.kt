@@ -92,6 +92,60 @@ public object MicrometerBridge {
         }
     }
 
+    /** Binds [CacheStatistics] gauges for [cache] under metric prefix `resilience.cache`. */
+    public fun bindCache(registry: MeterRegistry, name: String, cache: Cache<*, *>) {
+        val tags = Tags.of("name", name)
+        gauge(registry, "resilience.cache.hits", tags) { cache.blockingStatistics().hits.toDouble() }
+        gauge(registry, "resilience.cache.misses", tags) { cache.blockingStatistics().misses.toDouble() }
+        gauge(registry, "resilience.cache.evictions", tags) { cache.blockingStatistics().evictions.toDouble() }
+        gauge(registry, "resilience.cache.size", tags) { cache.blockingStatistics().size.toDouble() }
+        gauge(registry, "resilience.cache.hit_rate", tags) { cache.blockingStatistics().hitRate }
+    }
+
+    /** Binds [TimeLimiterStatistics] gauges for [timeLimiter] under metric prefix `resilience.time_limiter`. */
+    public fun bindTimeLimiter(registry: MeterRegistry, name: String, timeLimiter: TimeLimiter) {
+        val tags = Tags.of("name", name)
+        gauge(registry, "resilience.time_limiter.calls.total", tags) {
+            timeLimiter.blockingStatistics().totalCalls.toDouble()
+        }
+        gauge(registry, "resilience.time_limiter.calls.timed_out", tags) {
+            timeLimiter.blockingStatistics().timedOutCalls.toDouble()
+        }
+        gauge(registry, "resilience.time_limiter.calls.failed", tags) {
+            timeLimiter.blockingStatistics().failedCalls.toDouble()
+        }
+        gauge(registry, "resilience.time_limiter.success_rate", tags) {
+            timeLimiter.blockingStatistics().successRate
+        }
+    }
+
+    /**
+     * Binds [FailoverProviderStatistics] gauges for every provider in [failover], under metric
+     * prefix `resilience.failover`, tagged by both `name` (the failover chain) and `provider`.
+     */
+    public fun <T> bindFailover(registry: MeterRegistry, name: String, failover: Failover<T>) {
+        failover.providerNames().forEach { providerName ->
+            val tags = Tags.of("name", name, "provider", providerName)
+            gauge(registry, "resilience.failover.successes", tags) {
+                failover.blockingProviderStatistics(providerName)?.successes?.toDouble() ?: 0.0
+            }
+            gauge(registry, "resilience.failover.failures", tags) {
+                failover.blockingProviderStatistics(providerName)?.failures?.toDouble() ?: 0.0
+            }
+            gauge(registry, "resilience.failover.skipped", tags) {
+                failover.blockingProviderStatistics(providerName)?.skipped?.toDouble() ?: 0.0
+            }
+            gauge(registry, "resilience.failover.state", tags) {
+                when (failover.blockingProviderStatistics(providerName)?.state) {
+                    CircuitBreakerState.Closed -> 0.0
+                    CircuitBreakerState.HalfOpen -> 1.0
+                    CircuitBreakerState.Open -> 2.0
+                    null -> -1.0
+                }
+            }
+        }
+    }
+
     private fun gauge(registry: MeterRegistry, metricName: String, tags: Tags, value: () -> Double) {
         registry.gauge(metricName, tags, Unit) { value() }
     }
@@ -108,3 +162,8 @@ private fun RateLimiter.blockingStatistics(): RateLimiterStatistics =
     runBlocking(Dispatchers.Unconfined) { statistics() }
 private fun AdaptiveLimiter.blockingStatistics(): AdaptiveLimiterStatistics =
     runBlocking(Dispatchers.Unconfined) { statistics() }
+private fun Cache<*, *>.blockingStatistics(): CacheStatistics = runBlocking(Dispatchers.Unconfined) { statistics() }
+private fun TimeLimiter.blockingStatistics(): TimeLimiterStatistics =
+    runBlocking(Dispatchers.Unconfined) { statistics() }
+private fun <T> Failover<T>.blockingProviderStatistics(providerName: String): FailoverProviderStatistics? =
+    runBlocking(Dispatchers.Unconfined) { statistics().find { it.name == providerName } }
