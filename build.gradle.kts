@@ -38,7 +38,9 @@ detekt {
             "src/commonMain/kotlin",
             "src/commonTest/kotlin",
             "src/jvmMain/kotlin",
-            "src/jvmTest/kotlin"
+            "src/jvmTest/kotlin",
+            "src/jsMain/kotlin",
+            "src/jsTest/kotlin"
         )
     )
 }
@@ -78,6 +80,29 @@ kotlin {
             }
         }
         nodejs()
+        binaries.library()
+        generateTypeScriptDefinitions()
+        compilations["main"].packageJson {
+            customField("description", "Kotlin Multiplatform resilience patterns built on Arrow-kt -- JS/TypeScript facade")
+            customField("license", "MIT")
+            customField("homepage", "https://github.com/sorinirimies/arrow-resilience-kit")
+            customField(
+                "repository",
+                mapOf(
+                    "type" to "git",
+                    "url" to "git+https://github.com/sorinirimies/arrow-resilience-kit.git",
+                ),
+            )
+            customField(
+                "bugs",
+                mapOf("url" to "https://github.com/sorinirimies/arrow-resilience-kit/issues"),
+            )
+            customField(
+                "keywords",
+                listOf("resilience", "circuit-breaker", "retry", "bulkhead", "rate-limiter", "arrow-kt", "kotlin"),
+            )
+            customField("author", "Sorin Albu-Irimies")
+        }
     }
 
     linuxX64()

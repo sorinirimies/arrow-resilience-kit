@@ -166,11 +166,12 @@ jobs:
       HAS_TOKEN: ${{ secrets.PACKAGES_PUBLISH != '' }}
       HAS_CENTRAL_TOKEN: ${{ secrets.MAVEN_CENTRAL_USERNAME != '' }}
       HAS_GITEA_TOKEN: ${{ secrets.GITEA_PACKAGES_TOKEN != '' }}
-      HAS_ANY_TARGET: ${{ secrets.PACKAGES_PUBLISH != '' || secrets.MAVEN_CENTRAL_USERNAME != '' || secrets.GITEA_PACKAGES_TOKEN != '' }}
+      HAS_NPM_TOKEN: ${{ secrets.NPM_TOKEN != '' }}
+      HAS_ANY_TARGET: ${{ secrets.PACKAGES_PUBLISH != '' || secrets.MAVEN_CENTRAL_USERNAME != '' || secrets.GITEA_PACKAGES_TOKEN != '' || secrets.NPM_TOKEN != '' }}
     steps:
       - name: Skip notice (no token)
         if: env.HAS_ANY_TARGET != 'true'
-        run: echo "⏭️  No publish token configured (PACKAGES_PUBLISH / MAVEN_CENTRAL_USERNAME / GITEA_PACKAGES_TOKEN) — skipping publish."
+        run: echo "⏭️  No publish token configured (PACKAGES_PUBLISH / MAVEN_CENTRAL_USERNAME / GITEA_PACKAGES_TOKEN / NPM_TOKEN) — skipping publish."
 
       - uses: actions/checkout@v4
         if: env.HAS_ANY_TARGET == 'true'
@@ -219,6 +220,27 @@ jobs:
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
           GPG_SIGNING_KEY: ${{ secrets.GPG_SIGNING_KEY }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+
+      - name: Set up Node.js (for npm publish)
+        if: env.HAS_NPM_TOKEN == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Publish to npm
+        if: env.HAS_NPM_TOKEN == 'true'
+        # jsNodeProductionLibraryDistribution builds the npm-publishable package
+        # (package.json + .d.ts + bundled JS, see build.gradle.kts's js { }
+        # block and src/jsMain/kotlin/ -- see INTEROP.md for exactly what JS/TS
+        # API surface this covers). actions/setup-node's registry-url already
+        # wrote a project .npmrc wired to NODE_AUTH_TOKEN.
+        run: |
+          ./gradlew jsNodeProductionLibraryDistribution --no-daemon
+          cd build/dist/js/productionLibrary
+          npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish complete
         if: env.HAS_ANY_TARGET == 'true'

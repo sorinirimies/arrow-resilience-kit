@@ -15,7 +15,7 @@ edge in the interop, it's called out explicitly rather than glossed over.
 | **Kotlin** | Full | The library's native language. See [README.md](README.md). |
 | **Swift (iOS)** | Supported, with adapters | Direct suspend functions bridge to `async throws` automatically. Lambda-parameter APIs (`execute { }`) and the `Clock` parameter need small, reusable Swift adapter types — shown below. DSL builder sugar (`circuitBreaker { }`, `saga { }`, `failover { }`, ...) is **not** practically usable from Swift; use the direct factories instead. |
 | **Java** | Supported, with caveats | Every pattern's API is `suspend`-based, so Java callers need `kotlinx.coroutines.BuildersKt.runBlocking` plus a hand-rolled `Function1` for each lambda parameter. Configuration types with a `Duration` property (e.g. `CircuitBreakerConfig.resetTimeout`) can only be constructed with their Kotlin *default* values from Java — see below. |
-| **JavaScript / TypeScript** | Not supported for raw JS/TS | Not published to npm. Kotlin/JS's `@JsExport` doesn't support `suspend` functions at all, and this library's entire public API is suspend-based. The `js` target is only consumable by *other Kotlin/JS projects* (i.e. you're still writing Kotlin, just targeting JS as the platform) — there is no separate plain-JavaScript or TypeScript API. |
+| **JavaScript / TypeScript** | Supported (facade), published to npm | `@JsExport` can't export `suspend` functions, so a hand-written Promise-based facade (not the Kotlin API as-is) covers most patterns -- see below for exactly what's covered. |
 
 ## Java
 
@@ -220,17 +220,45 @@ above.
 
 ## JavaScript / TypeScript
 
-This library builds a Kotlin/JS `js` target (Browser & Node.js), but it is
-**not published to npm** and isn't meant to be consumed from plain
-JavaScript or TypeScript code: Kotlin/JS's `@JsExport` doesn't support
-`suspend` functions at all, and this library's entire public surface is
-suspend-based (verified: attempting to `@JsExport` a suspend function is a
-compile error, not just an unsupported-at-runtime situation). Building a
-real npm package would mean hand-writing Promise-returning wrapper facades
-for every function across every pattern — a separate, substantial project.
+Published to npm as **[`arrow-resilience-kit`](https://www.npmjs.com/package/arrow-resilience-kit)**, with real, generated TypeScript definitions:
+
+```bash
+npm install arrow-resilience-kit
+```
+
+`@JsExport` can't export `suspend` functions at all (verified: it's a compile error, not just an unsupported-at-runtime situation), and this library's entire Kotlin API is suspend-based. So every pattern below is a **hand-written, Promise-based facade** (`src/jsMain/kotlin/`) over the real Kotlin implementation, not the Kotlin API exported as-is -- verified end to end by actually running the compiled output in Node (not just compiling it), including a real, subtle bug this caught: a rejected JS `Promise`'s error surfaces back in Kotlin as a plain `Throwable`, *not* an `Exception`, silently bypassing every pattern's internal `catch (e: Exception)` failure accounting unless the facade layer explicitly rewraps it (see `JsInterop.kt`'s `awaitBlock`).
+
+```ts
+import { CircuitBreaker } from "arrow-resilience-kit";
+
+const breaker = await CircuitBreaker.create({ failureThreshold: 5, resetTimeoutMillis: 30_000 });
+const result = await breaker.execute(() => callExternalService());
+```
+
+A block parameter is just `() => Promise<T>` -- an ordinary async function (or a sync one wrapped in `Promise.resolve(...)`), nothing special. `kotlin.time.Duration`-typed configuration (resetTimeout, maxWaitDuration, ...) is exposed as plain milliseconds (`...Millis: number`), since `Duration` itself doesn't export to JS as anything a JS/TS caller could construct.
+
+### What's covered
+
+`CircuitBreaker`, `SlidingWindowCircuitBreaker`, `Bulkhead`, `RateLimiter`, `SlidingWindowRateLimiter`, `TimeLimiter`, `RetryBudget`, `Retry` (the top-level `withExponentialBackoff`/`withConstantDelay`/`orDefault`/`ifMatches` functions), `AdaptiveLimiter`, `Cache` (specialized to `string` keys -- the common case for JS/TS), `Failover`, and `hedge`.
+
+`Failover`'s Kotlin DSL builder (`failover { provider(...) }`) isn't exposed directly -- it's a suspend, receiver-style builder lambda, which doesn't bridge to JS/TS the same way a plain callback does. Pass an array of `FailoverProviderSpec` instead:
+
+```ts
+import { Failover, FailoverProviderSpec } from "arrow-resilience-kit";
+
+const transport = await Failover.create([
+    new FailoverProviderSpec("websocket", () => connectWebSocket()),
+    new FailoverProviderSpec("mqtt", () => connectMqtt()),
+]);
+const connection = await transport.execute();
+```
+
+### What isn't covered (yet)
+
+`Saga` (same DSL-builder bridging problem as `Failover`, not yet given the array-of-specs treatment), `Policy`/`FlowResilience` (composition utilities tightly coupled to Kotlin's `Policy` interface), `SharedStateStore` (an extension-point interface, not something you'd instantiate from JS), the STM primitives (`StmCounter`/`StmGauge`/etc. -- low-level Kotlin-specific building blocks), and `Chaos`.
 
 If your project is Kotlin Multiplatform and simply targets JS as one of its
-platforms, none of this applies to you — you're still writing ordinary Kotlin
+platforms (rather than consuming the published npm package from plain
+JS/TS), none of this applies to you -- you're still writing ordinary Kotlin
 code (the same APIs as the README's Quick Start/Patterns sections), just
-compiling it to JS instead of JVM or Native. There's no separate
-"JavaScript API" to learn.
+compiling it to JS instead of JVM or Native.

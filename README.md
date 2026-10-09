@@ -3,6 +3,7 @@
 [![CI](https://github.com/sorinirimies/arrow-resilience-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/sorinirimies/arrow-resilience-kit/actions/workflows/ci.yml)
 [![Release](https://github.com/sorinirimies/arrow-resilience-kit/actions/workflows/release.yml/badge.svg)](https://github.com/sorinirimies/arrow-resilience-kit/actions/workflows/release.yml)
 [![Maven Central](https://img.shields.io/maven-central/v/com.sorinirmies.arrow/arrow-resilience-kit?label=Maven%20Central)](https://central.sonatype.com/artifact/com.sorinirmies.arrow/arrow-resilience-kit)
+[![npm](https://img.shields.io/npm/v/arrow-resilience-kit?label=npm)](https://www.npmjs.com/package/arrow-resilience-kit)
 [![GitHub Release](https://img.shields.io/github/v/release/sorinirimies/arrow-resilience-kit?label=latest)](https://github.com/sorinirimies/arrow-resilience-kit/releases/latest)
 [![JitPack](https://jitpack.io/v/sorinirimies/arrow-resilience-kit.svg)](https://jitpack.io/#sorinirimies/arrow-resilience-kit)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -97,6 +98,14 @@ Every release also ships a prebuilt `ArrowResilienceKit.xcframework` (iOS device
 ```
 
 Kotlin `suspend` functions are exposed as completion-handler methods, which Swift automatically bridges to `async`/`await` -- this works out of the box for direct calls like `CircuitBreaker.companion.create(config:clock:)`. Calls that take a *lambda* parameter (e.g. `execute { ... }`) need a couple of small, reusable Swift adapter types first; see **[INTEROP.md](INTEROP.md)** for verified, working examples and the `Duration`/DSL-builder caveats. See [Package.swift](Package.swift) (its `binaryTarget` always points at the exact latest release, updated automatically by CI).
+
+### npm (JavaScript / TypeScript)
+
+```bash
+npm install arrow-resilience-kit
+```
+
+A hand-written, Promise-based facade over most patterns, with real generated TypeScript definitions -- not the raw Kotlin API (which can't cross the JS boundary directly: `@JsExport` doesn't support `suspend` functions at all). See **[INTEROP.md](INTEROP.md)** for exactly what's covered, what isn't (yet), and a verified usage example.
 
 See [INSTALLATION.md](INSTALLATION.md) for Maven, Gitea Packages, and additional details.
 
@@ -567,7 +576,7 @@ MicrometerBridge.bindBulkhead(registry, "orders-api", bulkhead)
 
 ## Publishing
 
-Every `./gradlew publish`-capable target (JVM, JS, Linux x64, macOS ARM64, iOS x64/ARM64/Simulator ARM64) is published to:
+Every `./gradlew publish`-capable target (JVM, JS, Linux x64, macOS ARM64, iOS x64/ARM64/Simulator ARM64) is published as Kotlin/Maven artifacts to the targets below; npm gets a separate, hand-written JS/TS facade (see its row).
 
 | Target | Trigger | Notes |
 |---|---|---|
@@ -576,8 +585,7 @@ Every `./gradlew publish`-capable target (JVM, JS, Linux x64, macOS ARM64, iOS x
 | **Gitea Packages** (self-hosted) | Gitea release workflow only | Gated on `GITEA_PACKAGES_TOKEN`. Only wired into `.gitea/workflows/release.yml` — the Gitea instance is a private LAN address, unreachable from GitHub-hosted runners. |
 | **JitPack** | Passive, no workflow step | Builds on-demand from any GitHub tag; nothing to configure. |
 | **Swift Package Manager** (iOS) | GitHub release workflow only, `xcframework` job | Builds `ArrowResilienceKit.xcframework` on `macos-latest` (Kotlin/Native's iOS targets require Xcode), uploads it as a release asset, and updates [`Package.swift`](Package.swift)'s checksum. Not wired into the Gitea workflow — the self-hosted runner is Linux and can't build Apple frameworks. |
-
-**Not published: npm.** Kotlin/JS's `@JsExport` [does not support `suspend` functions](https://kotlinlang.org/docs/js-to-kotlin-interop.html) at all (verified: `Declaration of such kind (suspend function) cannot be exported to JavaScript`). Since this library's entire public API is suspend-based, an npm-consumable package would require hand-writing Promise-returning wrapper facades for every function across every pattern — a separate, substantial project, not a publishing-target toggle. Deferred. See [INTEROP.md](INTEROP.md) for what JS/TypeScript consumption does and doesn't mean in practice.
+| **npm** | Either release workflow | Gated on `NPM_TOKEN` (an npm automation/publish token). Publishes a hand-written Promise-based facade (`src/jsMain/kotlin/`), not the raw Kotlin API — `@JsExport` can't export `suspend` functions at all. Built via `./gradlew jsNodeProductionLibraryDistribution` (`binaries.library()` + `generateTypeScriptDefinitions()` in `build.gradle.kts`'s `js { }` block), then `npm publish` from `build/dist/js/productionLibrary`. See [INTEROP.md](INTEROP.md) for exactly what's covered. |
 
 ## Project Structure
 
@@ -606,7 +614,8 @@ arrow-resilience-kit/
 │   │   └── TimeLimiter.kt
 │   ├── commonTest/kotlin/
 │   ├── jvmMain/kotlin/       # MicrometerBridge.kt (optional, compileOnly)
-│   ├── jsMain/kotlin/
+│   ├── jsMain/kotlin/        # npm/TypeScript facade (see INTEROP.md)
+│   ├── jsTest/kotlin/
 │   └── nativeMain/kotlin/
 ├── docs/                    # Published Dokka HTML (GitHub Pages)
 ├── gradle/
