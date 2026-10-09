@@ -44,7 +44,7 @@
         </button>
         <div class="navigation-controls--break ui-kit_mobile-only"></div>
         <div class="library-version" id="library-version">
-0.7.1        </div>
+0.8.0        </div>
         <div class="navigation-controls">
         <ul class="filter-section filter-section_loading" id="filter-section" aria-label="Target filter">
                 <button class="platform-tag platform-selector common-like" data-active="" aria-pressed="true"
@@ -120,7 +120,7 @@
     <h1 class="cover"><span><span>Package-level</span></span> <span><span>declarations</span></span></h1>
     <div class="platform-hinted UnderCoverText with-platform-tabs" data-platform-hinted="data-platform-hinted">
       <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":/commonMain" data-filterable-set=":/commonMain" data-active="" data-toggle=":/commonMain">common</button><button class="platform-bookmark" data-filterable-current=":/jvmMain" data-filterable-set=":/jvmMain" data-toggle=":/jvmMain">jvm</button></div>
-<div class="content sourceset-dependent-content" data-active="" data-togglable=":/commonMain"><p class="paragraph">Core resilience patterns: Bulkhead, Cache, CircuitBreaker, RateLimiter, RetryRepeat, Saga, TimeLimiter, AdaptiveLimiter, Hedge, Failover, and Chaos (fault-injection test helpers). Each with DSL builders and named registries. <code class="lang-kotlin">Policy</code> composes patterns into reusable chains; <code class="lang-kotlin">FlowResilience</code> provides <code class="lang-kotlin">Flow</code>-native counterparts. <code class="lang-kotlin">SharedStateStore</code> is an extension point for distributing state across instances. <code class="lang-kotlin">MicrometerBridge</code> (JVM-only, optional) exports statistics as Micrometer gauges.</p></div><div class="content sourceset-dependent-content" data-togglable=":/jvmMain"></div>    </div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":/commonMain"><p class="paragraph">Core resilience patterns: Bulkhead, Cache, CircuitBreaker (consecutive-failure and SlidingWindowCircuitBreaker failure-rate variants), RateLimiter, RetryRepeat (plus RetryBudget against retry storms), Saga, TimeLimiter, AdaptiveLimiter, Hedge, Failover (with active health-probing), and Chaos (fault-injection test helpers). Each with DSL builders and named registries. <code class="lang-kotlin">Policy</code> composes patterns into reusable chains; <code class="lang-kotlin">FlowResilience</code> provides <code class="lang-kotlin">Flow</code>-native counterparts. <code class="lang-kotlin">SharedStateStore</code> is an extension point for distributing state across instances. <code class="lang-kotlin">MicrometerBridge</code> (JVM-only, optional) exports statistics as Micrometer gauges.</p></div><div class="content sourceset-dependent-content" data-togglable=":/jvmMain"></div>    </div>
   </div>
   <div class="tabbedcontent">
     <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="TYPE">Types</button><button class="section-tab" data-togglable="FUNCTION,EXTENSION_FUNCTION">Functions</button></div>
@@ -168,6 +168,21 @@
               <div>
                 <div class="title">
                   <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":/commonMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="-adaptive-limiter-config-builder/index.html">AdaptiveLimiterConfigBuilder</a></div><div class="brief "><p class="paragraph">Builder for <a href="-adaptive-limiter-config/index.html">AdaptiveLimiterConfig</a>.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="163132222%2FClasslikes%2F1558683979" anchor-label="AdaptiveLimiterRegistry" id="163132222%2FClasslikes%2F1558683979" data-filterable-set=":/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":/commonMain" data-filterable-set=":/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-adaptive-limiter-registry/index.html"><span>Adaptive</span><wbr></wbr><span>Limiter</span><wbr></wbr><span><span>Registry</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="163132222%2FClasslikes%2F1558683979"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":/commonMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="-adaptive-limiter-registry/index.html">AdaptiveLimiterRegistry</a></div><div class="brief "><p class="paragraph">Registry for managing multiple named adaptive limiters.</p></div></div></div>
                 </div>
               </div>
             </div>
@@ -697,6 +712,36 @@
               </div>
             </div>
           </div>
+<a data-name="-1044670961%2FClasslikes%2F1558683979" anchor-label="FailoverProviderStatistics" id="-1044670961%2FClasslikes%2F1558683979" data-filterable-set=":/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":/commonMain" data-filterable-set=":/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-failover-provider-statistics/index.html"><span>Failover</span><wbr></wbr><span>Provider</span><wbr></wbr><span><span>Statistics</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1044670961%2FClasslikes%2F1558683979"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":/commonMain"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">class </span><a href="-failover-provider-statistics/index.html">FailoverProviderStatistics</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>name<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>state<span class="token operator">: </span><a href="-circuit-breaker-state/index.html">CircuitBreakerState</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>successes<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-long/index.html">Long</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>failures<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-long/index.html">Long</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>skipped<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-long/index.html">Long</a></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Invocation statistics for a single provider within a <a href="-failover/index.html">Failover</a>, as of <a href="-failover/statistics.html">Failover.statistics</a>.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-399568282%2FClasslikes%2F1558683979" anchor-label="FailoverRegistry" id="-399568282%2FClasslikes%2F1558683979" data-filterable-set=":/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":/commonMain" data-filterable-set=":/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-failover-registry/index.html"><span>Failover</span><wbr></wbr><span><span>Registry</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-399568282%2FClasslikes%2F1558683979"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":/commonMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="-failover-registry/index.html">FailoverRegistry</a></div><div class="brief "><p class="paragraph">Registry for managing multiple named <a href="-failover/index.html">Failover</a> chains.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
 <a data-name="337655590%2FClasslikes%2F1558683979" anchor-label="HedgeConfig" id="337655590%2FClasslikes%2F1558683979" data-filterable-set=":/commonMain"></a>
           <div class="table-row table-row_content" data-filterable-current=":/commonMain" data-filterable-set=":/commonMain">
             <div class="main-subrow keyValue ">
@@ -909,6 +954,51 @@
               </div>
             </div>
           </div>
+<a data-name="-231142496%2FClasslikes%2F1558683979" anchor-label="RetryBudget" id="-231142496%2FClasslikes%2F1558683979" data-filterable-set=":/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":/commonMain" data-filterable-set=":/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-retry-budget/index.html"><span>Retry</span><wbr></wbr><span><span>Budget</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-231142496%2FClasslikes%2F1558683979"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":/commonMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="-retry-budget/index.html">RetryBudget</a></div><div class="brief "><p class="paragraph">Retry budget: a system-wide guard against retry storms.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1871265598%2FClasslikes%2F1558683979" anchor-label="RetryBudgetConfig" id="1871265598%2FClasslikes%2F1558683979" data-filterable-set=":/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":/commonMain" data-filterable-set=":/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-retry-budget-config/index.html"><span>Retry</span><wbr></wbr><span>Budget</span><wbr></wbr><span><span>Config</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1871265598%2FClasslikes%2F1558683979"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":/commonMain"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">class </span><a href="-retry-budget-config/index.html">RetryBudgetConfig</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>maxTokens<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token operator"> = </span><span class="token constant">10.0</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>tokenRatio<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token operator"> = </span><span class="token constant">0.1</span></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Configuration for a <a href="-retry-budget/index.html">RetryBudget</a>.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="463164794%2FClasslikes%2F1558683979" anchor-label="RetryBudgetExhaustedException" id="463164794%2FClasslikes%2F1558683979" data-filterable-set=":/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":/commonMain" data-filterable-set=":/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-retry-budget-exhausted-exception/index.html"><span>Retry</span><wbr></wbr><span>Budget</span><wbr></wbr><span>Exhausted</span><wbr></wbr><span><span>Exception</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="463164794%2FClasslikes%2F1558683979"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":/commonMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="-retry-budget-exhausted-exception/index.html">RetryBudgetExhaustedException</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>attempt<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-long/index.html">Long</a><span class="token punctuation">, </span></span><span class="parameter ">cause<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-throwable/index.html">Throwable</a></span></span><span class="token punctuation">)</span> : <a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-exception/index.html">Exception</a></div><div class="brief "><p class="paragraph">Thrown by <a href="retry-with-budget.html">retryWithBudget</a> when a retry would be warranted (the operation failed and attempts remain) but budget has no tokens left -- failing fast instead of piling onto a downstream that retries elsewhere in the system may already be overwhelming.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
 <a data-name="1582241224%2FClasslikes%2F1558683979" anchor-label="RetryResult" id="1582241224%2FClasslikes%2F1558683979" data-filterable-set=":/commonMain"></a>
           <div class="table-row table-row_content" data-filterable-current=":/commonMain" data-filterable-set=":/commonMain">
             <div class="main-subrow keyValue ">
@@ -969,6 +1059,21 @@
               </div>
             </div>
           </div>
+<a data-name="1081297008%2FClasslikes%2F1558683979" anchor-label="SagaRegistry" id="1081297008%2FClasslikes%2F1558683979" data-filterable-set=":/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":/commonMain" data-filterable-set=":/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-saga-registry/index.html"><span>Saga</span><wbr></wbr><span><span>Registry</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1081297008%2FClasslikes%2F1558683979"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":/commonMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="-saga-registry/index.html">SagaRegistry</a></div><div class="brief "><p class="paragraph">Registry for managing multiple named, reusable saga templates.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
 <a data-name="-934440048%2FClasslikes%2F1558683979" anchor-label="SagaResult" id="-934440048%2FClasslikes%2F1558683979" data-filterable-set=":/commonMain"></a>
           <div class="table-row table-row_content" data-filterable-current=":/commonMain" data-filterable-set=":/commonMain">
             <div class="main-subrow keyValue ">
@@ -1025,6 +1130,81 @@
               <div>
                 <div class="title">
                   <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":/commonMain"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-shared-state-store/index.html">SharedStateStore</a></div><div class="brief "><p class="paragraph">A minimal shared, string-keyed key-value store for cross-instance coordination of resilience state. See file-level docs for intended usage.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1145493772%2FClasslikes%2F1558683979" anchor-label="SlidingWindowCircuitBreaker" id="1145493772%2FClasslikes%2F1558683979" data-filterable-set=":/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":/commonMain" data-filterable-set=":/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-sliding-window-circuit-breaker/index.html"><span>Sliding</span><wbr></wbr><span>Window</span><wbr></wbr><span>Circuit</span><wbr></wbr><span><span>Breaker</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1145493772%2FClasslikes%2F1558683979"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":/commonMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="-sliding-window-circuit-breaker/index.html">SlidingWindowCircuitBreaker</a></div><div class="brief "><p class="paragraph">Sliding-window circuit breaker: trips on a <i>failure rate</i> over the last N calls, rather than <a href="-circuit-breaker/index.html">CircuitBreaker</a>'s consecutive-failure count.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-227914838%2FClasslikes%2F1558683979" anchor-label="SlidingWindowCircuitBreakerConfig" id="-227914838%2FClasslikes%2F1558683979" data-filterable-set=":/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":/commonMain" data-filterable-set=":/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-sliding-window-circuit-breaker-config/index.html"><span>Sliding</span><wbr></wbr><span>Window</span><wbr></wbr><span>Circuit</span><wbr></wbr><span>Breaker</span><wbr></wbr><span><span>Config</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-227914838%2FClasslikes%2F1558683979"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":/commonMain"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">class </span><a href="-sliding-window-circuit-breaker-config/index.html">SlidingWindowCircuitBreakerConfig</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>slidingWindowSize<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">100</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>minimumNumberOfCalls<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">10</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>failureRateThreshold<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token operator"> = </span><span class="token constant">0.5</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>resetTimeout<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.time/-duration/index.html">Duration</a><span class="token operator"> = </span>30.seconds<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>halfOpenSuccessThreshold<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">2</span></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Configuration for <a href="-sliding-window-circuit-breaker/index.html">SlidingWindowCircuitBreaker</a>.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="783236989%2FClasslikes%2F1558683979" anchor-label="SlidingWindowCircuitBreakerConfigBuilder" id="783236989%2FClasslikes%2F1558683979" data-filterable-set=":/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":/commonMain" data-filterable-set=":/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-sliding-window-circuit-breaker-config-builder/index.html"><span>Sliding</span><wbr></wbr><span>Window</span><wbr></wbr><span>Circuit</span><wbr></wbr><span>Breaker</span><wbr></wbr><span>Config</span><wbr></wbr><span><span>Builder</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="783236989%2FClasslikes%2F1558683979"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":/commonMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="-sliding-window-circuit-breaker-config-builder/index.html">SlidingWindowCircuitBreakerConfigBuilder</a></div><div class="brief "><p class="paragraph">Builder for <a href="-sliding-window-circuit-breaker-config/index.html">SlidingWindowCircuitBreakerConfig</a>.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1925518257%2FClasslikes%2F1558683979" anchor-label="SlidingWindowCircuitBreakerRegistry" id="-1925518257%2FClasslikes%2F1558683979" data-filterable-set=":/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":/commonMain" data-filterable-set=":/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-sliding-window-circuit-breaker-registry/index.html"><span>Sliding</span><wbr></wbr><span>Window</span><wbr></wbr><span>Circuit</span><wbr></wbr><span>Breaker</span><wbr></wbr><span><span>Registry</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1925518257%2FClasslikes%2F1558683979"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":/commonMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="-sliding-window-circuit-breaker-registry/index.html">SlidingWindowCircuitBreakerRegistry</a></div><div class="brief "><p class="paragraph">Registry for managing multiple named sliding-window circuit breakers.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1357649769%2FClasslikes%2F1558683979" anchor-label="SlidingWindowCircuitBreakerStatistics" id="1357649769%2FClasslikes%2F1558683979" data-filterable-set=":/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":/commonMain" data-filterable-set=":/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-sliding-window-circuit-breaker-statistics/index.html"><span>Sliding</span><wbr></wbr><span>Window</span><wbr></wbr><span>Circuit</span><wbr></wbr><span>Breaker</span><wbr></wbr><span><span>Statistics</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1357649769%2FClasslikes%2F1558683979"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":/commonMain"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="kotlinx.serialization/Serializable///PointingToDeclaration/"><span class="token annotation builtin">Serializable</span></span></div></div><span class="token keyword">data </span><span class="token keyword">class </span><a href="-sliding-window-circuit-breaker-statistics/index.html">SlidingWindowCircuitBreakerStatistics</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>state<span class="token operator">: </span><a href="-circuit-breaker-state/index.html">CircuitBreakerState</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>callsInWindow<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>failuresInWindow<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>failureRate<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Statistics for a <a href="-sliding-window-circuit-breaker/index.html">SlidingWindowCircuitBreaker</a>.</p></div></div></div>
                 </div>
               </div>
             </div>
@@ -1513,6 +1693,21 @@
               </div>
             </div>
           </div>
+<a data-name="1411690723%2FFunctions%2F1558683979" anchor-label="retryWithBudget" id="1411690723%2FFunctions%2F1558683979" data-filterable-set=":/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":/commonMain" data-filterable-set=":/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="retry-with-budget.html"><span>retry</span><wbr></wbr><span>With</span><wbr></wbr><span><span>Budget</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1411690723%2FFunctions%2F1558683979"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":/commonMain"><div class="symbol monospace"><span class="token keyword">suspend </span><span class="token keyword">fun </span><span class="token operator">&lt;</span><a href="retry-with-budget.html">T</a><span class="token operator">&gt; </span><a href="retry-with-budget.html"><span class="token function">retryWithBudget</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">budget<span class="token operator">: </span><a href="-retry-budget/index.html">RetryBudget</a><span class="token punctuation">, </span></span><span class="parameter ">retries<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-long/index.html">Long</a><span class="token operator"> = </span><span class="token constant">3</span><span class="token punctuation">, </span></span><span class="parameter ">initialDelay<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.time/-duration/index.html">Duration</a><span class="token operator"> = </span>100.milliseconds<span class="token punctuation">, </span></span><span class="parameter ">maxDelay<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.time/-duration/index.html">Duration</a><span class="token operator"> = </span>1.minutes<span class="token punctuation">, </span></span><span class="parameter ">factor<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token operator"> = </span><span class="token constant">2.0</span><span class="token punctuation">, </span></span><span class="parameter ">block<span class="token operator">: </span><span class="token keyword">suspend </span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><a href="retry-with-budget.html">T</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="retry-with-budget.html">T</a></div><div class="brief "><p class="paragraph">Like <a href="retry-with-exponential-backoff.html">retryWithExponentialBackoff</a>, but every retry (not the initial attempt) must first withdraw a token from <a href="retry-with-budget.html">budget</a> -- see <a href="-retry-budget/index.html">RetryBudget</a> for why this matters. A successful call (whether on the first attempt or a later one) deposits a token back into the budget.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
 <a data-name="-782812766%2FFunctions%2F1558683979" anchor-label="retryWithCappedBackoff" id="-782812766%2FFunctions%2F1558683979" data-filterable-set=":/commonMain"></a>
           <div class="table-row table-row_content" data-filterable-current=":/commonMain" data-filterable-set=":/commonMain">
             <div class="main-subrow keyValue ">
@@ -1599,6 +1794,21 @@
               <div>
                 <div class="title">
                   <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><span class="token operator">&lt;</span><a href="saga.html">T</a><span class="token operator">&gt; </span><a href="saga.html"><span class="token function">saga</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">clock<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.time/-clock/index.html">Clock</a><span class="token operator"> = </span>Clock.System<span class="token punctuation">, </span></span><span class="parameter ">configure<span class="token operator">: </span><a href="-saga-builder/index.html">SagaBuilder</a><span class="token operator">&lt;</span><a href="saga.html">T</a><span class="token operator">&gt;</span><span class="token punctuation">.</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-unit/index.html">Unit</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="-saga/index.html">Saga</a><span class="token operator">&lt;</span><a href="saga.html">T</a><span class="token operator">&gt;</span></div><div class="brief "><p class="paragraph">DSL function for creating a saga.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-175968647%2FFunctions%2F1558683979" anchor-label="slidingWindowCircuitBreaker" id="-175968647%2FFunctions%2F1558683979" data-filterable-set=":/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":/commonMain" data-filterable-set=":/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="sliding-window-circuit-breaker.html"><span>sliding</span><wbr></wbr><span>Window</span><wbr></wbr><span>Circuit</span><wbr></wbr><span><span>Breaker</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-175968647%2FFunctions%2F1558683979"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":/commonMain"><div class="symbol monospace"><span class="token keyword">suspend </span><span class="token keyword">fun </span><a href="sliding-window-circuit-breaker.html"><span class="token function">slidingWindowCircuitBreaker</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">configure<span class="token operator">: </span><a href="-sliding-window-circuit-breaker-config-builder/index.html">SlidingWindowCircuitBreakerConfigBuilder</a><span class="token punctuation">.</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-unit/index.html">Unit</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="-sliding-window-circuit-breaker/index.html">SlidingWindowCircuitBreaker</a></div><div class="brief "><p class="paragraph">Creates a sliding-window circuit breaker with DSL-style configuration.</p></div></div></div>
                 </div>
               </div>
             </div>
@@ -1697,17 +1907,17 @@
       </div>
       <div data-togglable="EXTENSION_FUNCTION">
         <h2 class="tableheader">Inherited functions</h2>
-        <div class="table"><a data-name="-1720896608%2FFunctions%2F1558683979" anchor-label="asPolicy" id="-1720896608%2FFunctions%2F1558683979" data-filterable-set=":/commonMain"></a>
+        <div class="table"><a data-name="1234227678%2FFunctions%2F1558683979" anchor-label="asPolicy" id="1234227678%2FFunctions%2F1558683979" data-filterable-set=":/commonMain"></a>
           <div class="table-row table-row_content" data-filterable-current=":/commonMain" data-filterable-set=":/commonMain">
             <div class="main-subrow keyValue ">
               <div class=""><span class="inline-flex">
                   <div><a href="as-policy.html"><span>as</span><wbr></wbr><span><span>Policy</span></span></a></div>
-<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1720896608%2FFunctions%2F1558683979"></span>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1234227678%2FFunctions%2F1558683979"></span>
                     <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
                   </span></span></div>
               <div>
                 <div class="title">
-                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="-adaptive-limiter/index.html">AdaptiveLimiter</a><span class="token punctuation">.</span><a href="as-policy.html"><span class="token function">asPolicy</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="-policy/index.html">Policy</a></div><div class="brief "><p class="paragraph">Adapts this <a href="-adaptive-limiter/index.html">AdaptiveLimiter</a> into a <a href="-policy/index.html">Policy</a>.</p></div><div class="symbol monospace"><span class="token keyword">fun </span><a href="-bulkhead/index.html">Bulkhead</a><span class="token punctuation">.</span><a href="as-policy.html"><span class="token function">asPolicy</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="-policy/index.html">Policy</a></div><div class="brief "><p class="paragraph">Adapts this <a href="-bulkhead/index.html">Bulkhead</a> into a <a href="-policy/index.html">Policy</a>.</p></div><div class="symbol monospace"><span class="token keyword">fun </span><a href="-circuit-breaker/index.html">CircuitBreaker</a><span class="token punctuation">.</span><a href="as-policy.html"><span class="token function">asPolicy</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="-policy/index.html">Policy</a></div><div class="brief "><p class="paragraph">Adapts this <a href="-circuit-breaker/index.html">CircuitBreaker</a> into a <a href="-policy/index.html">Policy</a>.</p></div><div class="symbol monospace"><span class="token keyword">fun </span><a href="-rate-limiter/index.html">RateLimiter</a><span class="token punctuation">.</span><a href="as-policy.html"><span class="token function">asPolicy</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="-policy/index.html">Policy</a></div><div class="brief "><p class="paragraph">Adapts this <a href="-rate-limiter/index.html">RateLimiter</a> into a <a href="-policy/index.html">Policy</a>.</p></div><div class="symbol monospace"><span class="token keyword">fun </span><a href="-sliding-window-rate-limiter/index.html">SlidingWindowRateLimiter</a><span class="token punctuation">.</span><a href="as-policy.html"><span class="token function">asPolicy</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="-policy/index.html">Policy</a></div><div class="brief "><p class="paragraph">Adapts this <a href="-sliding-window-rate-limiter/index.html">SlidingWindowRateLimiter</a> into a <a href="-policy/index.html">Policy</a>.</p></div><div class="symbol monospace"><span class="token keyword">fun </span><a href="-time-limiter/index.html">TimeLimiter</a><span class="token punctuation">.</span><a href="as-policy.html"><span class="token function">asPolicy</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="-policy/index.html">Policy</a></div><div class="brief "><p class="paragraph">Adapts this <a href="-time-limiter/index.html">TimeLimiter</a> into a <a href="-policy/index.html">Policy</a>.</p></div></div></div>
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="-adaptive-limiter/index.html">AdaptiveLimiter</a><span class="token punctuation">.</span><a href="as-policy.html"><span class="token function">asPolicy</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="-policy/index.html">Policy</a></div><div class="brief "><p class="paragraph">Adapts this <a href="-adaptive-limiter/index.html">AdaptiveLimiter</a> into a <a href="-policy/index.html">Policy</a>.</p></div><div class="symbol monospace"><span class="token keyword">fun </span><a href="-bulkhead/index.html">Bulkhead</a><span class="token punctuation">.</span><a href="as-policy.html"><span class="token function">asPolicy</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="-policy/index.html">Policy</a></div><div class="brief "><p class="paragraph">Adapts this <a href="-bulkhead/index.html">Bulkhead</a> into a <a href="-policy/index.html">Policy</a>.</p></div><div class="symbol monospace"><span class="token keyword">fun </span><a href="-circuit-breaker/index.html">CircuitBreaker</a><span class="token punctuation">.</span><a href="as-policy.html"><span class="token function">asPolicy</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="-policy/index.html">Policy</a></div><div class="brief "><p class="paragraph">Adapts this <a href="-circuit-breaker/index.html">CircuitBreaker</a> into a <a href="-policy/index.html">Policy</a>.</p></div><div class="symbol monospace"><span class="token keyword">fun </span><a href="-rate-limiter/index.html">RateLimiter</a><span class="token punctuation">.</span><a href="as-policy.html"><span class="token function">asPolicy</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="-policy/index.html">Policy</a></div><div class="brief "><p class="paragraph">Adapts this <a href="-rate-limiter/index.html">RateLimiter</a> into a <a href="-policy/index.html">Policy</a>.</p></div><div class="symbol monospace"><span class="token keyword">fun </span><a href="-sliding-window-circuit-breaker/index.html">SlidingWindowCircuitBreaker</a><span class="token punctuation">.</span><a href="as-policy.html"><span class="token function">asPolicy</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="-policy/index.html">Policy</a></div><div class="brief "><p class="paragraph">Adapts this <a href="-sliding-window-circuit-breaker/index.html">SlidingWindowCircuitBreaker</a> into a <a href="-policy/index.html">Policy</a>.</p></div><div class="symbol monospace"><span class="token keyword">fun </span><a href="-sliding-window-rate-limiter/index.html">SlidingWindowRateLimiter</a><span class="token punctuation">.</span><a href="as-policy.html"><span class="token function">asPolicy</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="-policy/index.html">Policy</a></div><div class="brief "><p class="paragraph">Adapts this <a href="-sliding-window-rate-limiter/index.html">SlidingWindowRateLimiter</a> into a <a href="-policy/index.html">Policy</a>.</p></div><div class="symbol monospace"><span class="token keyword">fun </span><a href="-time-limiter/index.html">TimeLimiter</a><span class="token punctuation">.</span><a href="as-policy.html"><span class="token function">asPolicy</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="-policy/index.html">Policy</a></div><div class="brief "><p class="paragraph">Adapts this <a href="-time-limiter/index.html">TimeLimiter</a> into a <a href="-policy/index.html">Policy</a>.</p></div></div></div>
                 </div>
               </div>
             </div>
