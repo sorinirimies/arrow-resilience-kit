@@ -9,7 +9,7 @@
 
 ## Overview
 
-Arrow Resilience Kit is a Kotlin Multiplatform library that provides production-ready resilience patterns built on [Arrow-kt](https://arrow-kt.io/). It offers composable, coroutine-first implementations of **Bulkhead**, **Cache**, **Circuit Breaker**, **Rate Limiter**, **Retry & Repeat**, **Saga**, **Time Limiter**, **Adaptive Limiter**, **Hedge**, **Failover**, and **STM Helpers** — plus a **Policy** combinator and **Flow** operators to compose them — everything you need to build fault-tolerant applications.
+Arrow Resilience Kit is a Kotlin Multiplatform library that provides production-ready resilience patterns built on [Arrow-kt](https://arrow-kt.io/). It offers composable, coroutine-first implementations of **Bulkhead**, **Cache**, **Circuit Breaker** (consecutive-failure and sliding-window/failure-rate variants), **Rate Limiter**, **Retry & Repeat** (plus a system-wide **Retry Budget** against retry storms), **Saga**, **Time Limiter**, **Adaptive Limiter**, **Hedge**, **Failover**, and **STM Helpers** — plus a **Policy** combinator and **Flow** operators to compose them — everything you need to build fault-tolerant applications.
 
 **Supported platforms:** JVM (17+), JavaScript (Browser & Node.js), Native (Linux x64, macOS ARM64, iOS x64/ARM64/Simulator ARM64).
 
@@ -215,6 +215,24 @@ when (cb.currentState()) {
 cb.addListener { old, new -> log.info("Circuit: $old -> $new") }
 ```
 
+### Sliding-Window Circuit Breaker
+
+Like [Circuit Breaker](#circuit-breaker), but trips on a **failure rate** over the last N calls instead of consecutive failures -- catches a steady, low-grade error rate (e.g. 1 in 3 calls failing, but never 5 *in a row*) that a consecutive-count trip would never notice.
+
+```/dev/null/SlidingWindowCircuitBreakerExample.kt#L1-L14
+val cb = slidingWindowCircuitBreaker {
+    slidingWindowSize = 20          // track the last 20 calls
+    minimumNumberOfCalls = 10        // don't evaluate until the window has enough samples
+    failureRateThreshold = 0.5       // trip once >= 50% of them failed
+    resetTimeout = 30.seconds
+}
+
+val result = cb.execute { externalService.call() }
+
+val stats = cb.statistics()
+println("${stats.callsInWindow} calls, ${stats.failureRate * 100}% failing")
+```
+
 ### Rate Limiter
 
 Controls request throughput using a token-bucket algorithm. Also includes a sliding-window variant.
@@ -280,6 +298,21 @@ val finalValue = repeatUntil(
 
 // Repeat and collect all results
 val all = repeatAndCollect(times = 5, delay = 500.milliseconds) { api.sample() }
+```
+
+### Retry Budget (retry-storm protection)
+
+Per-call retry has no idea how much *total* retry volume the rest of the system is generating. The well-known failure mode: a downstream outage causes every caller to retry simultaneously, multiplying load on an already-struggling service and making the outage worse. A `RetryBudget`, shared across every call site retrying against a given downstream, caps total retry volume as a fraction of successful traffic -- and self-heals on its own as the system recovers, with no manual reset.
+
+```/dev/null/RetryBudgetExample.kt#L1-L10
+val budget = RetryBudget.create() // one instance per downstream, shared across call sites
+
+val result = retryWithBudget(budget, retries = 5) {
+    callFlakyService()
+}
+
+// Or gate a custom retry loop directly with the primitive:
+if (budget.tryWithdraw()) { /* perform the retry */ } else { /* fail fast instead */ }
 ```
 
 ### Saga
@@ -469,6 +502,14 @@ transport.statistics() // List<FailoverProviderStatistics>: successes/failures/s
 
 If every provider is either skipped (circuit open) or fails, `execute()` throws `FailoverExhaustedException` describing why each one was unavailable. A `FailoverRegistry` manages multiple named failover chains, same as the other patterns' registries.
 
+By default, an open provider only gets re-tested passively, by the next real call that happens to reach it -- which can be a long wait on a quiet system, or never, for a lower-priority provider a healthy earlier one keeps shielding from traffic entirely. `startHealthProbing` decouples recovery detection from real traffic, so a recovered provider is already back in rotation by the time real traffic arrives:
+
+```/dev/null/FailoverProbingExample.kt#L1-L5
+val probing = transport.startHealthProbing(applicationScope, interval = 30.seconds)
+// ... later, on shutdown:
+probing.cancel()
+```
+
 ## Configuration
 
 Every pattern supports a DSL builder for configuration:
@@ -557,9 +598,11 @@ arrow-resilience-kit/
 │   │   ├── Hedge.kt
 │   │   ├── Policy.kt
 │   │   ├── RateLimiter.kt
+│   │   ├── RetryBudget.kt
 │   │   ├── RetryRepeat.kt
 │   │   ├── Saga.kt
 │   │   ├── SharedStateStore.kt
+│   │   ├── SlidingWindowCircuitBreaker.kt
 │   │   └── TimeLimiter.kt
 │   ├── commonTest/kotlin/
 │   ├── jvmMain/kotlin/       # MicrometerBridge.kt (optional, compileOnly)

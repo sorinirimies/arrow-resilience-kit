@@ -4,10 +4,17 @@
 package com.sorinirmies.arrow.resiliencekit
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import io.github.oshai.kotlinlogging.KotlinLogging
 import arrow.fx.stm.TVar
 import arrow.fx.stm.atomically
 import kotlin.time.Clock
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 private val logger = KotlinLogging.logger {}
 
@@ -110,6 +117,59 @@ public class Failover<T> internal constructor(
             failures = atomically { provider.failures.read() },
             skipped = atomically { provider.skipped.read() },
         )
+    }
+
+    /**
+     * Starts actively probing every currently-open provider on a fixed [interval], instead of
+     * waiting for real traffic to pass through [execute] and incidentally test them.
+     *
+     * Without this, a lower-priority provider that recovers while a higher-priority one keeps
+     * satisfying every call may never get re-tried at all (since [execute] always returns as
+     * soon as *any* provider succeeds) -- and even the top provider only gets re-tested exactly
+     * as often as real traffic happens to arrive, which can be a long wait on a quiet system.
+     * Active probing decouples recovery detection from real traffic entirely: by the time a real
+     * request arrives, an open provider that has actually recovered is already back in rotation
+     * (or at least progressing through its circuit breaker's half-open state).
+     *
+     * A probe that succeeds or fails updates that provider's statistics exactly like a real
+     * [execute] call would; a provider whose circuit isn't open yet (still within its own
+     * `resetTimeout`) is left alone -- probing never bypasses the breaker's own timing.
+     *
+     * ```kotlin
+     * val transport = failover<Connection> {
+     *     provider("websocket") { connectWebSocket() }
+     *     provider("mqtt") { connectMqtt() }
+     * }
+     * val probing = transport.startHealthProbing(applicationScope, interval = 30.seconds)
+     * // ... later, on shutdown:
+     * probing.cancel()
+     * ```
+     *
+     * @param scope Coroutine scope the background probing loop is launched in -- cancel the
+     *   returned [Job] (or cancel [scope] itself) to stop probing.
+     * @param interval How often to probe every currently-open provider.
+     * @return The [Job] running the probing loop.
+     */
+    public fun startHealthProbing(scope: CoroutineScope, interval: Duration = 30.seconds): Job = scope.launch {
+        while (isActive) {
+            delay(interval)
+            for (provider in providers) {
+                if (provider.circuitBreaker.currentState() != CircuitBreakerState.Open) continue
+
+                try {
+                    provider.circuitBreaker.execute(provider.block)
+                    atomically { provider.successes.write(provider.successes.read() + 1) }
+                    logger.info { "Failover: active health probe succeeded for provider '${provider.name}'" }
+                } catch (e: CircuitBreakerOpenException) {
+                    // Still within its own resetTimeout -- nothing to probe yet.
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    atomically { provider.failures.write(provider.failures.read() + 1) }
+                    logger.debug(e) { "Failover: active health probe failed for provider '${provider.name}'" }
+                }
+            }
+        }
     }
 }
 

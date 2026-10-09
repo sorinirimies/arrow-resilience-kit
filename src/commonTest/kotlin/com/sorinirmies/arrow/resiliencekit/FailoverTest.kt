@@ -6,6 +6,7 @@ package com.sorinirmies.arrow.resiliencekit
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import kotlin.js.JsName
 import kotlin.test.Test
@@ -296,5 +297,62 @@ class FailoverTest {
         removed shouldNotBe null
         registry.get<String>("transport") shouldBe null
         registry.getNames() shouldBe emptySet()
+    }
+
+    @JsName("failoverHealthProbingRecoversOpenProviderWithoutRealTraffic")
+    @Test
+    fun `failover health probing recovers open provider without real traffic`() = runTest {
+        val clock = TestClock()
+        var websocketShouldFail = true
+
+        val transport = failover<String> {
+            provider(
+                "websocket",
+                circuitBreakerConfig = { failureThreshold = 1; resetTimeout = 1.seconds },
+                clock = clock,
+            ) {
+                if (websocketShouldFail) throw RuntimeException("ws down") else "ws-connection"
+            }
+            provider("mqtt") { "mqtt-connection" }
+        }
+
+        // Trip websocket's breaker open -- no probing yet.
+        transport.execute() shouldBe "mqtt-connection"
+        transport.stateOf("websocket") shouldBe CircuitBreakerState.Open
+
+        // websocket has actually recovered, but nothing has told the breaker that --
+        // in production this is "the backend came back", here it's just flipping the flag.
+        websocketShouldFail = false
+        clock.advance(2.seconds) // past resetTimeout, so a probe attempt is eligible
+
+        val probing = backgroundScope.launch { transport.startHealthProbing(this, interval = 1.seconds).join() }
+        testScheduler.advanceTimeBy(1.seconds)
+        testScheduler.runCurrent()
+        probing.cancel()
+
+        // The probe (not a real caller) already found websocket healthy again --
+        // observable without this test ever calling transport.execute() itself.
+        transport.stateOf("websocket") shouldBe CircuitBreakerState.HalfOpen
+        transport.statistics().first { it.name == "websocket" }.successes shouldBe 1L
+    }
+
+    @JsName("failoverHealthProbingLeavesHealthyProvidersAlone")
+    @Test
+    fun `failover health probing leaves healthy providers alone`() = runTest {
+        var websocketCalls = 0
+        val transport = failover<String> {
+            provider("websocket") {
+                websocketCalls++
+                "ws-connection"
+            }
+        }
+
+        val probing = backgroundScope.launch { transport.startHealthProbing(this, interval = 1.seconds).join() }
+        testScheduler.advanceTimeBy(3.seconds)
+        testScheduler.runCurrent()
+        probing.cancel()
+
+        // websocket's circuit was never open, so the prober must never have invoked it.
+        websocketCalls shouldBe 0
     }
 }

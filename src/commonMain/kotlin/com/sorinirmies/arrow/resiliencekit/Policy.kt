@@ -85,6 +85,14 @@ public fun CircuitBreaker.asPolicy(): Policy {
     }
 }
 
+/** Adapts this [SlidingWindowCircuitBreaker] into a [Policy]. */
+public fun SlidingWindowCircuitBreaker.asPolicy(): Policy {
+    val circuitBreaker = this
+    return object : Policy {
+        override suspend fun <T> apply(block: suspend () -> T): T = circuitBreaker.execute(block)
+    }
+}
+
 /** Adapts this [RateLimiter] into a [Policy]. */
 public fun RateLimiter.asPolicy(): Policy {
     val rateLimiter = this
