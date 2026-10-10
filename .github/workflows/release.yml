@@ -196,7 +196,13 @@ jobs:
   # ── 4. Publish to GitHub Packages ───────────────────────────────────────────
   publish:
     name: Publish to GitHub Packages
-    needs: [validate, release]
+    needs: [validate]
+    # Deliberately doesn't depend on the `release` job succeeding: creating the
+    # GitHub/Gitea release page and publishing artifacts (Maven Central,
+    # GitHub/Gitea Packages, npm) are independent concerns, and coupling them
+    # meant a release-notes/API hiccup (e.g. create_gitea_release.nu's HTTP
+    # 422 against the Gitea API) silently blocked every publish target,
+    # npm included, with no actual relationship to why they'd fail.
     runs-on: ubuntu-latest
     env:
       HAS_TOKEN: ${{ secrets.PACKAGES_PUBLISH != '' }}

@@ -20,14 +20,26 @@ def main [tag: string, --gitea-url: string, --repo: string, --token: string] {
         prerelease: false
     }
 
+    # -e/--allow-errors + -f/--full: capture the full response (status + body)
+    # even on a non-2xx status, instead of nu throwing a bare "HTTP Error 422"
+    # with no detail -- that's all a prior failure here ever showed, making it
+    # undiagnosable from the Actions log alone.
     let response = (http post
         $"($gitea_url)/api/v1/repos/($repo)/releases"
         $payload
         --content-type application/json
         --headers [Authorization $"token ($token)"]
+        --allow-errors
+        --full
     )
 
-    let release_id = ($response | get id)
+    if $response.status >= 300 {
+        print $"❌ Gitea release creation failed \(HTTP ($response.status)\):"
+        print ($response.body | to text)
+        exit 1
+    }
+
+    let release_id = ($response.body | get id)
     print $"✅ Release created \(id: ($release_id)\)"
 
     # Upload assets

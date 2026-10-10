@@ -160,7 +160,12 @@ jobs:
   # ── 3. Publish to GitHub Packages ───────────────────────────────────────────
   publish:
     name: Publish to GitHub Packages
-    needs: [validate, release]
+    needs: [validate]
+    # Deliberately doesn't depend on the `release` job succeeding: see
+    # .github/workflows/release.yml's publish job for why (same reasoning,
+    # and this is literally the job that hit the coupling problem for real --
+    # create_gitea_release.nu's HTTP 422 against the Gitea API blocked every
+    # publish target here, npm included, with no actual relationship to it).
     runs-on: ubuntu-latest
     env:
       HAS_TOKEN: ${{ secrets.PACKAGES_PUBLISH != '' }}
