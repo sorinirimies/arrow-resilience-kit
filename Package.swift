@@ -19,8 +19,8 @@ let package = Package(
         // scripts/update_package_swift.nu — do not edit them by hand.
         .binaryTarget(
             name: "ArrowResilienceKit",
-            url: "https://github.com/sorinirimies/arrow-resilience-kit/releases/download/0.7.1/ArrowResilienceKit.xcframework.zip",
-            checksum: "0749765559f8ab8eee2a303b343832cc470552675d67b011862e2ce21e7531de"
+            url: "https://github.com/sorinirimies/arrow-resilience-kit/releases/download/0.8.0/ArrowResilienceKit.xcframework.zip",
+            checksum: "1ab820eb3796039333bdafe1e6983e1c158367ec5844c9c2b568c18b3bb4f89d"
         ),
     ]
 )
