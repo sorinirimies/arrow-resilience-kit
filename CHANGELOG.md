@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+### 🐛 Bug Fixes
+- fix: decouple publish job from release job + surface Gitea release API errors
+### 📚 Documentation
+- docs: update API documentation for 0.8.0
+### 🔧 Chores
+- chore: update Package.swift for 0.8.0
+## 0.8.0 - 2026-10-09
 ### ✨ Features
 - feat: self-healing primitives -- retry budget, sliding-window circuit breaker, failover health probing
 - feat: publish to npm as a real Promise/TypeScript facade
@@ -14,6 +21,8 @@ All notable changes to this project will be documented in this file.
 ### 🔧 Chores
 - chore: update Package.swift for 0.7.1
 - chore: bump version to 0.7.1
+- chore: bump version to 0.8.0
+**Full Changelog**: https://github.com/sorinirimies/arrow-resilience-kit/compare/0.7.1...0.8.0
 ## 0.7.1 - 2026-10-08
 ### 🐛 Bug Fixes
 - fix(ci): switch JDK distribution from Temurin to Corretto
