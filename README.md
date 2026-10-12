@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/sorinirimies/arrow-resilience-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/sorinirimies/arrow-resilience-kit/actions/workflows/ci.yml)
 [![Release](https://github.com/sorinirimies/arrow-resilience-kit/actions/workflows/release.yml/badge.svg)](https://github.com/sorinirimies/arrow-resilience-kit/actions/workflows/release.yml)
-[![Maven Central](https://img.shields.io/maven-central/v/com.sorinirmies.arrow/arrow-resilience-kit?label=Maven%20Central)](https://central.sonatype.com/artifact/com.sorinirmies.arrow/arrow-resilience-kit)
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.sorinirimies.arrow/arrow-resilience-kit?label=Maven%20Central)](https://central.sonatype.com/artifact/io.github.sorinirimies.arrow/arrow-resilience-kit)
 [![npm](https://img.shields.io/npm/v/arrow-resilience-kit?label=npm)](https://www.npmjs.com/package/arrow-resilience-kit)
 [![GitHub Release](https://img.shields.io/github/v/release/sorinirimies/arrow-resilience-kit?label=latest)](https://github.com/sorinirimies/arrow-resilience-kit/releases/latest)
 [![JitPack](https://jitpack.io/v/sorinirimies/arrow-resilience-kit.svg)](https://jitpack.io/#sorinirimies/arrow-resilience-kit)
@@ -35,7 +35,7 @@ Arrow Resilience Kit is a Kotlin Multiplatform library that provides production-
 
 | | |
 |---|---|
-| **Group ID** | `com.sorinirmies.arrow` |
+| **Group ID** | `io.github.sorinirimies.arrow` |
 | **Artifact ID** | `arrow-resilience-kit` |
 | **Version** | see the **Maven Central** / **latest** badges above — always current, never hand-edited |
 
@@ -70,7 +70,7 @@ repositories {
     }
 }
 
-implementation("com.sorinirmies.arrow:arrow-resilience-kit:<version>")
+implementation("io.github.sorinirimies.arrow:arrow-resilience-kit:<version>")
 ```
 
 > Requires a GitHub Personal Access Token with `read:packages` scope.
@@ -83,7 +83,7 @@ repositories {
 }
 
 dependencies {
-    implementation("com.sorinirmies.arrow:arrow-resilience-kit:<version>")
+    implementation("io.github.sorinirimies.arrow:arrow-resilience-kit:<version>")
 }
 ```
 
@@ -592,7 +592,7 @@ Every `./gradlew publish`-capable target (JVM, JS, Linux x64, macOS ARM64, iOS x
 | Target | Trigger | Notes |
 |---|---|---|
 | **GitHub Packages** | Either release workflow (GitHub or Gitea) | Gated on `PACKAGES_PUBLISH` secret (a GitHub PAT with `write:packages`). The destination is hardcoded to `maven.pkg.github.com`, so a Gitea-triggered release publishes to GitHub Packages too — as long as `PACKAGES_PUBLISH` is *also* configured as a Gitea Actions secret (Gitea and GitHub secrets are separate stores). |
-| **Maven Central** (Central Portal) | Either release workflow | Gated on `SONATYPE_TOKEN` (Central Portal token `<server>` XML with username+password) + `GPG_SIGNING_KEY`/`GPG_PASSPHRASE`. Requires a one-time, human-only step: verifying the `com.sorinirmies.arrow` namespace at [central.sonatype.com](https://central.sonatype.com/). Uploaded via `./gradlew publishToCentralPortal` (see [`gradle/central-portal.gradle.kts`](gradle/central-portal.gradle.kts)) — a hand-rolled call to the Central Portal Publisher API using only the JDK's `java.net.http.HttpClient`, no Gradle publish plugin dependency. |
+| **Maven Central** (Central Portal) | Either release workflow | Gated on `SONATYPE_TOKEN` (Central Portal token `<server>` XML with username+password) + `GPG_SIGNING_KEY`/`GPG_PASSPHRASE`. Requires a one-time, human-only step: verifying the `io.github.sorinirimies` namespace (covers every `io.github.sorinirimies.*` group) at [central.sonatype.com](https://central.sonatype.com/). Uploaded via `./gradlew publishToCentralPortal` (see [`gradle/central-portal.gradle.kts`](gradle/central-portal.gradle.kts)) — a hand-rolled call to the Central Portal Publisher API using only the JDK's `java.net.http.HttpClient`, no Gradle publish plugin dependency. |
 | **Gitea Packages** (self-hosted) | Gitea release workflow only | Gated on `GITEA_PACKAGES_TOKEN`. Only wired into `.gitea/workflows/release.yml` — the Gitea instance is a private LAN address, unreachable from GitHub-hosted runners. |
 | **JitPack** | Passive, no workflow step | Builds on-demand from any GitHub tag; nothing to configure. |
 | **Swift Package Manager** (iOS) | GitHub release workflow only, `xcframework` job | Builds `ArrowResilienceKit.xcframework` on `macos-latest` (Kotlin/Native's iOS targets require Xcode), uploads it as a release asset, and updates [`Package.swift`](Package.swift)'s checksum. Not wired into the Gitea workflow — the self-hosted runner is Linux and can't build Apple frameworks. |
