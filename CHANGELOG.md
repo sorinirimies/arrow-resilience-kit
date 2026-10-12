@@ -3,12 +3,19 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+### ✨ Features
+- feat: thread-pool bulkhead, distributed state, Ktor plugin, Spring auto-config, config-driven setup, mingwX64/wasmJs targets
+### 🔧 Chores
+- chore(just): fail fast on unreachable remotes
+## 0.8.1 - 2026-10-10
 ### 🐛 Bug Fixes
 - fix: decouple publish job from release job + surface Gitea release API errors
 ### 📚 Documentation
 - docs: update API documentation for 0.8.0
 ### 🔧 Chores
 - chore: update Package.swift for 0.8.0
+- chore: bump version to 0.8.1
+**Full Changelog**: https://github.com/sorinirimies/arrow-resilience-kit/compare/0.8.0...0.8.1
 ## 0.8.0 - 2026-10-09
 ### ✨ Features
 - feat: self-healing primitives -- retry budget, sliding-window circuit breaker, failover health probing
