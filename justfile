@@ -5,6 +5,10 @@
 
 set shell := ["sh", "-cu"]
 
+# Fail fast on unreachable remotes (e.g. a LAN host that's offline) so the
+# *-all recipes skip them quickly and carry on with the reachable ones.
+export GIT_SSH_COMMAND := "ssh -o ConnectTimeout=5 -o BatchMode=yes"
+
 # ── Default ────────────────────────────────────────────────────
 
 default:
