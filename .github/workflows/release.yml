@@ -191,7 +191,11 @@ jobs:
           git checkout main
           git add Package.swift
           git diff --staged --quiet || git commit -m "chore: update Package.swift for ${{ needs.validate.outputs.tag }}"
-          git push origin main
+          for i in 1 2 3 4 5; do
+            git push origin main && break
+            echo "push rejected (attempt $i) - rebasing onto latest main"
+            git pull --rebase origin main
+          done
 
   # ── Publish targets: independent jobs, run in parallel ──────────────────────
   publish-github-packages:
@@ -380,4 +384,8 @@ jobs:
           cp -r /tmp/docs-out/. docs/
           git add docs/
           git diff --staged --quiet || git commit -m "docs: update API documentation for ${{ needs.validate.outputs.tag }}"
-          git push origin main
+          for i in 1 2 3 4 5; do
+            git push origin main && break
+            echo "push rejected (attempt $i) - rebasing onto latest main"
+            git pull --rebase origin main
+          done
