@@ -206,13 +206,13 @@ jobs:
     runs-on: ubuntu-latest
     env:
       HAS_TOKEN: ${{ secrets.PACKAGES_PUBLISH != '' }}
-      HAS_CENTRAL_TOKEN: ${{ secrets.MAVEN_CENTRAL_USERNAME != '' }}
+      HAS_CENTRAL_TOKEN: ${{ secrets.SONATYPE_TOKEN != '' }}
       HAS_NPM_TOKEN: ${{ secrets.NPM_TOKEN != '' }}
-      HAS_ANY_TARGET: ${{ secrets.PACKAGES_PUBLISH != '' || secrets.MAVEN_CENTRAL_USERNAME != '' || secrets.NPM_TOKEN != '' }}
+      HAS_ANY_TARGET: ${{ secrets.PACKAGES_PUBLISH != '' || secrets.SONATYPE_TOKEN != '' || secrets.NPM_TOKEN != '' }}
     steps:
       - name: Skip notice (no token)
         if: env.HAS_ANY_TARGET != 'true'
-        run: echo "⏭️  None of PACKAGES_PUBLISH, MAVEN_CENTRAL_USERNAME, or NPM_TOKEN is configured — skipping publish."
+        run: echo "⏭️  None of PACKAGES_PUBLISH, SONATYPE_TOKEN, or NPM_TOKEN is configured — skipping publish."
 
       - uses: actions/checkout@v4
         if: env.HAS_ANY_TARGET == 'true'
@@ -245,10 +245,18 @@ jobs:
         # publishingType=AUTOMATIC (gradle/central-portal.gradle.kts), which
         # triggers Sonatype's auto validate+release; see INSTALLATION.md for
         # the one-time Central Portal namespace verification this requires.
-        run: ./gradlew publishToCentralPortal --no-daemon
+        # SONATYPE_TOKEN is the <server> XML snippet from Central Portal
+        # (contains <username> and <password>); parse it here.
+        run: |
+          U=$(printf '%s' "$SONATYPE_TOKEN" | sed -n 's:.*<username>\(.*\)</username>.*:\1:p' | head -1)
+          P=$(printf '%s' "$SONATYPE_TOKEN" | sed -n 's:.*<password>\(.*\)</password>.*:\1:p' | head -1)
+          if [ -z "$U" ] || [ -z "$P" ]; then echo "::error::SONATYPE_TOKEN missing <username>/<password>"; exit 1; fi
+          echo "::add-mask::$U"; echo "::add-mask::$P"
+          export ORG_GRADLE_PROJECT_mavenCentralUsername="$U"
+          export ORG_GRADLE_PROJECT_mavenCentralPassword="$P"
+          ./gradlew publishToCentralPortal --no-daemon
         env:
-          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
-          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          SONATYPE_TOKEN: ${{ secrets.SONATYPE_TOKEN }}
           GPG_SIGNING_KEY: ${{ secrets.GPG_SIGNING_KEY }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
 
