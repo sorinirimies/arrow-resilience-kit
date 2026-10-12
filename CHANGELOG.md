@@ -3,8 +3,13 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+### 📚 Documentation
+- docs: update API documentation for 0.8.5
 ### 📦 Build
 - build: publish under io.github.sorinirimies.arrow (verified Central namespace) instead of com.sorinirmies.arrow
+### 🔧 Chores
+- chore: update Package.swift for 0.8.5
+- chore: bump version to 0.8.6
 ## 0.8.5 - 2026-10-12
 ### 📚 Documentation
 - docs: update API documentation for 0.8.4
