@@ -21,7 +21,7 @@ apply(from = "gradle/publishing.gradle.kts")
 apply(from = "gradle/central-portal.gradle.kts")
 
 group = "io.github.sorinirimies.arrow"
-version = "0.8.9"
+version = "0.9.0"
 
 repositories {
     mavenCentral()

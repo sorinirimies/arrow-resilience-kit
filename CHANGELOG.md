@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+### 📚 Documentation
+- docs: update API documentation for 0.8.7
+- docs: update API documentation for 0.8.9
+### 🔄 CI
+- ci(release): build docs in temp dir so checkout of main doesn't clash
+- ci(release): retry main pushes with rebase on rejection
+### 🔧 Chores
+- chore: bump version to 0.8.9
 ## 0.8.7 - 2026-10-12
 ### 📚 Documentation
 - docs: update API documentation for 0.8.5
