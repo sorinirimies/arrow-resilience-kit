@@ -519,6 +519,17 @@ val probing = transport.startHealthProbing(applicationScope, interval = 30.secon
 probing.cancel()
 ```
 
+## Integrations & Extensions
+
+- **Thread-pool bulkhead** — `DispatcherBulkhead` (common) runs admitted calls on a dedicated dispatcher; `ThreadPoolBulkhead` (JVM) owns a fixed thread pool. `close()` it when done.
+- **Distributed state** — `DistributedRateLimiter` and `DistributedCircuitBreaker` keep state in any `SharedStateStore`; `RedisSharedStateStore` (JVM, Lettuce, atomic Lua CAS) shares it across instances.
+- **Ktor plugin** (JVM) — `install(ArrowResilience) { policy = ... }` on a route; rejections map to 429/503/504.
+- **Spring Boot auto-config** (JVM) — `arrow.resilience.circuit-breaker.<name>.*` (also `bulkhead`, `rate-limiter`, `time-limiter`) yields a `ResilienceInstances` bean.
+- **Config-driven setup** — `ResilienceConfig.fromJson(...)` / `fromProperties(...)` + `ResilienceInstances.create(...)`.
+- **Targets** — added `mingwX64` and `wasmJs`. Android consumers use the `jvm` artifact.
+
+Ktor, Lettuce and Spring are `compileOnly`: add the ones you use to your own build.
+
 ## Configuration
 
 Every pattern supports a DSL builder for configuration:

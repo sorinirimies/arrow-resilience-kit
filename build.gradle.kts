@@ -106,6 +106,11 @@ kotlin {
     }
 
     linuxX64()
+    mingwX64()
+    @OptIn(org.jetbrains.kotlin.gradle.ExperimentalWasmDsl::class)
+    wasmJs {
+        nodejs()
+    }
     // macosX64 (Intel Mac) dropped: Arrow 2.2.3+ no longer publishes klibs for
     // this target (last version that did was 2.2.2; see arrow-kt/arrow release
     // notes). Matches the wider Kotlin/Native ecosystem's deprioritization of
@@ -149,17 +154,32 @@ kotlin {
             }
         }
 
+        getByName("wasmJsMain") {
+            dependencies {
+                // Kotlin/Wasm klibs require the stdlib ABI to match the compiler exactly,
+                // so unlike other targets this one can't use the low-pinned stdlib.
+                api("org.jetbrains.kotlin:kotlin-stdlib:${project.extensions.getByType<org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension>().coreLibrariesVersion}")
+            }
+        }
+
         getByName("jvmMain") {
             dependencies {
                 // Optional: only needed if you use MicrometerBridge. compileOnly so
                 // consumers who don't touch it aren't forced to pull Micrometer in.
                 compileOnly(libs.micrometer.core)
+                // Optional integrations (Ktor plugin, Spring Boot auto-config, Redis
+                // SharedStateStore): compileOnly so consumers only pull what they use.
+                compileOnly(libs.ktor.server.core)
+                compileOnly(libs.lettuce.core)
+                compileOnly(libs.spring.boot.autoconfigure)
             }
         }
         getByName("jvmTest") {
             dependencies {
                 implementation(libs.logback.classic)
                 implementation(libs.micrometer.core)
+                implementation(libs.ktor.server.core)
+                implementation(libs.ktor.server.test.host)
             }
         }
     }
