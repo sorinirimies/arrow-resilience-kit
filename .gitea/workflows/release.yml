@@ -157,64 +157,112 @@ jobs:
         if: always()
         run: nu scripts/cleanup.nu --ci
 
-  # ── 3. Publish to GitHub Packages ───────────────────────────────────────────
-  publish:
-    name: Publish to GitHub Packages
+  # ── Publish targets: independent jobs, run in parallel ──────────────────────
+  publish-github-packages:
+    name: Publish → GitHub Packages
     needs: [validate]
-    # Deliberately doesn't depend on the `release` job succeeding: see
-    # .github/workflows/release.yml's publish job for why (same reasoning,
-    # and this is literally the job that hit the coupling problem for real --
-    # create_gitea_release.nu's HTTP 422 against the Gitea API blocked every
-    # publish target here, npm included, with no actual relationship to it).
     runs-on: ubuntu-latest
     env:
-      HAS_TOKEN: ${{ secrets.PACKAGES_PUBLISH != '' }}
-      HAS_CENTRAL_TOKEN: ${{ secrets.SONATYPE_TOKEN != '' }}
-      HAS_GITEA_TOKEN: ${{ secrets.GITEA_PACKAGES_TOKEN != '' }}
-      HAS_NPM_TOKEN: ${{ secrets.NPM_TOKEN != '' }}
-      HAS_ANY_TARGET: ${{ secrets.PACKAGES_PUBLISH != '' || secrets.SONATYPE_TOKEN != '' || secrets.GITEA_PACKAGES_TOKEN != '' || secrets.NPM_TOKEN != '' }}
+      HAS: ${{ secrets.PACKAGES_PUBLISH != '' }}
     steps:
-      - name: Skip notice (no token)
-        if: env.HAS_ANY_TARGET != 'true'
-        run: echo "⏭️  No publish token configured (PACKAGES_PUBLISH / SONATYPE_TOKEN / GITEA_PACKAGES_TOKEN / NPM_TOKEN) — skipping publish."
+      - name: Skip notice (no credentials)
+        if: env.HAS == 'false'
+        run: echo "⏭️  PACKAGES_PUBLISH not set — skipping."
 
       - uses: actions/checkout@v4
-        if: env.HAS_ANY_TARGET == 'true'
+        if: env.HAS == 'true'
         with:
           ref: ${{ needs.validate.outputs.tag }}
 
       - name: Set up JDK 17
-        if: env.HAS_ANY_TARGET == 'true'
+        if: env.HAS == 'true'
         uses: actions/setup-java@v4
         with:
           java-version: "17"
           distribution: "corretto"
 
       - name: Setup Gradle
-        if: env.HAS_ANY_TARGET == 'true'
+        if: env.HAS == 'true'
         uses: gradle/actions/setup-gradle@v3
         with:
           cache-read-only: false
 
       - name: Publish to GitHub Packages
-        if: env.HAS_TOKEN == 'true'
+        if: env.HAS == 'true'
         run: ./gradlew publishAllPublicationsToGitHubPackagesRepository --no-daemon
         env:
           PACKAGES_PUBLISH: ${{ secrets.PACKAGES_PUBLISH }}
           GITHUB_ACTOR: ${{ github.actor }}
 
+  publish-gitea-packages:
+    name: Publish → Gitea Packages
+    needs: [validate]
+    runs-on: ubuntu-latest
+    env:
+      HAS: ${{ secrets.GITEA_PACKAGES_TOKEN != '' }}
+    steps:
+      - name: Skip notice (no credentials)
+        if: env.HAS == 'false'
+        run: echo "⏭️  GITEA_PACKAGES_TOKEN not set — skipping."
+
+      - uses: actions/checkout@v4
+        if: env.HAS == 'true'
+        with:
+          ref: ${{ needs.validate.outputs.tag }}
+
+      - name: Set up JDK 17
+        if: env.HAS == 'true'
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "corretto"
+
+      - name: Setup Gradle
+        if: env.HAS == 'true'
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          cache-read-only: false
+
       - name: Publish to Gitea Packages
-        if: env.HAS_GITEA_TOKEN == 'true'
+        if: env.HAS == 'true'
         # Only meaningful from this self-hosted runner: GiteaPackages points at
-        # a private LAN address (192.168.1.44) unreachable from GitHub-hosted
-        # runners, so this step only exists in the Gitea workflow.
+        # a private LAN address unreachable from GitHub-hosted runners.
         run: ./gradlew publishAllPublicationsToGiteaPackagesRepository --no-daemon
         env:
           GITEA_PACKAGES_TOKEN: ${{ secrets.GITEA_PACKAGES_TOKEN }}
           GITEA_PACKAGES_URL: ${{ secrets.GITEA_PACKAGES_URL }}
 
+  publish-maven-central:
+    name: Publish → Maven Central
+    needs: [validate]
+    runs-on: ubuntu-latest
+    env:
+      HAS: ${{ secrets.SONATYPE_TOKEN != '' }}
+    steps:
+      - name: Skip notice (no credentials)
+        if: env.HAS == 'false'
+        run: echo "⏭️  SONATYPE_TOKEN not set — skipping."
+
+      - uses: actions/checkout@v4
+        if: env.HAS == 'true'
+        with:
+          ref: ${{ needs.validate.outputs.tag }}
+
+      - name: Set up JDK 17
+        if: env.HAS == 'true'
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "corretto"
+
+      - name: Setup Gradle
+        if: env.HAS == 'true'
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          cache-read-only: false
+
       - name: Publish to Maven Central
-        if: env.HAS_CENTRAL_TOKEN == 'true'
+        if: env.HAS == 'true'
         # publishToCentralPortal stages, zips, and uploads the bundle with
         # publishingType=AUTOMATIC (gradle/central-portal.gradle.kts), which
         # triggers Sonatype's auto validate+release; see INSTALLATION.md for
@@ -234,15 +282,44 @@ jobs:
           GPG_SIGNING_KEY: ${{ secrets.GPG_SIGNING_KEY }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
 
-      - name: Set up Node.js (for npm publish)
-        if: env.HAS_NPM_TOKEN == 'true'
+  publish-npm:
+    name: Publish → npm
+    needs: [validate]
+    runs-on: ubuntu-latest
+    env:
+      HAS: ${{ secrets.NPM_TOKEN != '' }}
+    steps:
+      - name: Skip notice (no credentials)
+        if: env.HAS == 'false'
+        run: echo "⏭️  NPM_TOKEN not set — skipping."
+
+      - uses: actions/checkout@v4
+        if: env.HAS == 'true'
+        with:
+          ref: ${{ needs.validate.outputs.tag }}
+
+      - name: Set up JDK 17
+        if: env.HAS == 'true'
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "corretto"
+
+      - name: Setup Gradle
+        if: env.HAS == 'true'
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          cache-read-only: false
+
+      - name: Set up Node.js
+        if: env.HAS == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: "22"
           registry-url: "https://registry.npmjs.org"
 
       - name: Publish to npm
-        if: env.HAS_NPM_TOKEN == 'true'
+        if: env.HAS == 'true'
         # jsNodeProductionLibraryDistribution builds the npm-publishable package
         # (package.json + .d.ts + bundled JS, see build.gradle.kts's js { }
         # block and src/jsMain/kotlin/ -- see INTEROP.md for exactly what JS/TS
@@ -254,11 +331,3 @@ jobs:
           npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Publish complete
-        if: env.HAS_ANY_TARGET == 'true'
-        run: echo "✅ Published ${{ needs.validate.outputs.tag }}."
-
-      - name: Cleanup workspace
-        if: always()
-        run: nu scripts/cleanup.nu --ci
