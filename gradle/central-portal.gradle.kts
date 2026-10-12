@@ -122,3 +122,10 @@ tasks.register("publishToCentralPortal") {
         println("Track validation/publishing status at https://central.sonatype.com/publishing/deployments")
     }
 }
+
+// Every publish task consumes artifacts signed by *all* Sign tasks (the shared
+// javadoc jar's .asc is produced by several of them); Gradle's validation
+// fails the build unless that ordering is declared.
+tasks.withType<PublishToMavenRepository>().configureEach {
+    mustRunAfter(tasks.withType<Sign>())
+}
