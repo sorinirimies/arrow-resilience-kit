@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## 0.8.7 - 2026-10-12
 ### 📚 Documentation
 - docs: update API documentation for 0.8.5
 ### 📦 Build
@@ -10,6 +10,8 @@ All notable changes to this project will be documented in this file.
 ### 🔧 Chores
 - chore: update Package.swift for 0.8.5
 - chore: bump version to 0.8.6
+- chore: bump version to 0.8.7
+**Full Changelog**: https://github.com/sorinirimies/arrow-resilience-kit/compare/0.8.5...0.8.7
 ## 0.8.5 - 2026-10-12
 ### 📚 Documentation
 - docs: update API documentation for 0.8.4
