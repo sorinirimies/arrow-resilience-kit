@@ -49,7 +49,7 @@ info:
     @echo "╔════════════════════════════════════════════╗"
     @echo "║   arrow-resilience-kit                     ║"
     @echo "╚════════════════════════════════════════════╝"
-    @echo "  Group:     com.sorinirmies.arrow"
+    @echo "  Group:     io.github.sorinirimies.arrow"
     @echo "  Version:   $(just version)"
     @echo "  Platforms: JVM, JS, Linux x64, macOS ARM64"
     @echo ""
