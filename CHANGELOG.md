@@ -3,10 +3,37 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+### 📦 Build
+- build: publish under io.github.sorinirimies.arrow (verified Central namespace) instead of com.sorinirmies.arrow
+## 0.8.5 - 2026-10-12
+### 📚 Documentation
+- docs: update API documentation for 0.8.4
+### 🔄 CI
+- ci: split publish into parallel per-target jobs; bump to 0.8.5
+### 🔧 Chores
+- chore: update Package.swift for 0.8.4
+**Full Changelog**: https://github.com/sorinirimies/arrow-resilience-kit/compare/0.8.4...0.8.5
+## 0.8.4 - 2026-10-12
+### 🔧 Chores
+- chore: bump to 0.8.4
+**Full Changelog**: https://github.com/sorinirimies/arrow-resilience-kit/compare/0.8.3...0.8.4
+## 0.8.3 - 2026-10-12
+### 🐛 Bug Fixes
+- fix(publish): order publish tasks after signing tasks
+### 📚 Documentation
+- docs: update API documentation for 0.8.2
+### 🔄 CI
+- ci: publish to Maven Central using SONATYPE_TOKEN; bump to 0.8.3
+### 🔧 Chores
+- chore: update Package.swift for 0.8.2
+**Full Changelog**: https://github.com/sorinirimies/arrow-resilience-kit/compare/0.8.2...0.8.3
+## 0.8.2 - 2026-10-12
 ### ✨ Features
 - feat: thread-pool bulkhead, distributed state, Ktor plugin, Spring auto-config, config-driven setup, mingwX64/wasmJs targets
 ### 🔧 Chores
 - chore(just): fail fast on unreachable remotes
+- chore: bump version to 0.8.2
+**Full Changelog**: https://github.com/sorinirimies/arrow-resilience-kit/compare/0.8.1...0.8.2
 ## 0.8.1 - 2026-10-10
 ### 🐛 Bug Fixes
 - fix: decouple publish job from release job + surface Gitea release API errors
