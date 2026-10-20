@@ -3,6 +3,19 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+### 🔄 CI
+- ci: stop calling api.github.com (runner can't resolve it); pin/derive Nushell via github.com
+- ci: use system node on runner; retry setup-java in npm publish
+## 0.9.1 - 2026-10-20
+### 📚 Documentation
+- docs: update API documentation for 0.9.0
+### 🔧 Chores
+- chore: update Package.swift for 0.9.0
+- chore(justfile): skip unconfigured remotes in *-all recipes
+- chore(justfile): push/pull current branch instead of hardcoded main
+- chore: bump version to 0.9.1
+**Full Changelog**: https://github.com/sorinirimies/arrow-resilience-kit/compare/0.9.0...0.9.1
+## 0.9.0 - 2026-10-12
 ### 📚 Documentation
 - docs: update API documentation for 0.8.7
 - docs: update API documentation for 0.8.9
@@ -11,6 +24,8 @@ All notable changes to this project will be documented in this file.
 - ci(release): retry main pushes with rebase on rejection
 ### 🔧 Chores
 - chore: bump version to 0.8.9
+- chore: bump version to 0.9.0
+**Full Changelog**: https://github.com/sorinirimies/arrow-resilience-kit/compare/0.8.7...0.9.0
 ## 0.8.7 - 2026-10-12
 ### 📚 Documentation
 - docs: update API documentation for 0.8.5
