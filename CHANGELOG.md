@@ -2,10 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## 0.9.2 - 2026-10-20
 ### 🔄 CI
 - ci: stop calling api.github.com (runner can't resolve it); pin/derive Nushell via github.com
 - ci: use system node on runner; retry setup-java in npm publish
+### 🔧 Chores
+- chore: bump version to 0.9.2
+**Full Changelog**: https://github.com/sorinirimies/arrow-resilience-kit/compare/0.9.1...0.9.2
 ## 0.9.1 - 2026-10-20
 ### 📚 Documentation
 - docs: update API documentation for 0.9.0
