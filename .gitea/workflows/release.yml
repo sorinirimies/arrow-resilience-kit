@@ -298,8 +298,18 @@ jobs:
         with:
           ref: ${{ needs.validate.outputs.tag }}
 
+      # Retry: runner DNS flakes (getaddrinfo EAI_AGAIN corretto.github.io).
       - name: Set up JDK 17
+        id: jdk1
         if: env.HAS == 'true'
+        continue-on-error: true
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "corretto"
+
+      - name: Set up JDK 17 (retry)
+        if: env.HAS == 'true' && steps.jdk1.outcome == 'failure'
         uses: actions/setup-java@v4
         with:
           java-version: "17"

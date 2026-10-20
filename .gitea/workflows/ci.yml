@@ -117,6 +117,9 @@ jobs:
           restore-keys: konan-${{ runner.os }}-
 
       - name: Run tests (JVM + JS)
+        env:
+          # Runner can't reach nodejs.org/maven for the Node download; use image's node.
+          USE_SYSTEM_NODE: "true"
         run: ./gradlew jvmTest jsNodeTest --no-daemon --stacktrace
 
       - name: Cleanup workspace

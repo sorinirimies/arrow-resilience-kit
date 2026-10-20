@@ -244,3 +244,12 @@ tasks.register<Copy>("prepareDocs") {
         println("Commit and push docs/ to publish to GitHub Pages")
     }
 }
+
+// CI hosts that can't reach nodejs.org / github.com (the self-hosted Gitea Act
+// Runner) can't let the Kotlin plugin download Node.js/Yarn. Set
+// USE_SYSTEM_NODE=true to use the `node`/`yarn` already on PATH instead.
+if (System.getenv("USE_SYSTEM_NODE") == "true") {
+    rootProject.plugins.withType<org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsRootPlugin> {
+        rootProject.extensions.getByType<org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsEnvSpec>().download.set(false)
+    }
+}
