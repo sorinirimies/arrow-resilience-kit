@@ -6,6 +6,7 @@ import com.sorinirmies.arrow.resiliencekit.retryOrDefault
 import com.sorinirmies.arrow.resiliencekit.retryWithConstantDelay
 import com.sorinirmies.arrow.resiliencekit.retryWithBackoff
 import com.sorinirmies.arrow.resiliencekit.retryWithExponentialBackoff
+import kotlinx.coroutines.currentCoroutineContext
 import kotlin.js.Promise
 import kotlin.time.Duration
 
@@ -116,15 +117,21 @@ public object Retry {
             val shouldRetry = options?.shouldRetry
             val delayMillis = options?.delayMillis
             val onRetry = options?.onRetry
+            // The callbacks below are plain (non-suspend) lambdas, so bind the caller's async
+            // context here, where it's still reachable (see JsAsyncContext).
+            val context = currentCoroutineContext()[JsAsyncContext]
+            fun <R> inContext(fn: () -> R): R = context?.run(fn) ?: fn()
             retryWithBackoff(
                 retries = (options?.retries ?: 3).toLong(),
                 base = (options?.baseMillis ?: 200.0).millisAsDuration,
                 factor = options?.factor ?: 2.0,
                 maxDelay = options?.maxDelayMillis?.millisAsDuration ?: Duration.INFINITE,
                 jitterFactor = options?.jitter ?: 0.1,
-                shouldRetry = { e, retry -> shouldRetry?.invoke(jsError(e), retry.toInt()) ?: true },
-                delayFor = { e, retry -> delayMillis?.invoke(jsError(e), retry.toInt())?.millisAsDuration },
-                onRetry = { e, retry, wait -> onRetry?.invoke(jsError(e), retry.toInt(), wait.inWholeMilliseconds.toDouble()) },
+                shouldRetry = { e, retry -> shouldRetry?.let { inContext { it(jsError(e), retry.toInt()) } } ?: true },
+                delayFor = { e, retry -> delayMillis?.let { inContext { it(jsError(e), retry.toInt()) } }?.millisAsDuration },
+                onRetry = { e, retry, wait ->
+                    onRetry?.let { inContext { it(jsError(e), retry.toInt(), wait.inWholeMilliseconds.toDouble()) } }
+                },
             ) { awaitBlock(block) }
         }
 }

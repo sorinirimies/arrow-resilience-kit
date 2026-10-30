@@ -2,6 +2,7 @@
 // Run via `node scripts/npm_smoke/run.mjs` (installs build/dist/js/productionLibrary as a dependency).
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync, realpathSync, statSync } from "node:fs";
+import { AsyncLocalStorage } from "node:async_hooks";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
@@ -153,4 +154,26 @@ test("AbortSignal cancels waits and rejects with signal.reason", async () => {
     await assert.rejects(budget.retry(() => Promise.reject(new Error("x")), 3, 10_000, 60_000, 2, ac3.signal), { name: "AbortError" });
 
     assert.equal(await hedge(() => Promise.resolve("h"), 10, 1, undefined), "h");
+});
+
+test("callbacks run in the caller's AsyncLocalStorage context, also under concurrency", async () => {
+    const als = new AsyncLocalStorage();
+    const breaker = await CircuitBreaker.create();
+    const ids = ["A", "B", "C"];
+    assert.deepEqual(await Promise.all(ids.map((id) => als.run(id, () => breaker.execute(async () => als.getStore())))), ids);
+    const retried = ids.map((id) =>
+        als.run(id, () => {
+            let n = 0;
+            const seen = [];
+            return Retry.withBackoff(
+                async () => {
+                    seen.push(als.getStore());
+                    if (n++ === 0) throw new Error("again");
+                    return seen;
+                },
+                { baseMillis: 5, jitter: 0, shouldRetry: () => (seen.push(als.getStore()), true), onRetry: () => seen.push(als.getStore()) },
+            );
+        }),
+    );
+    assert.deepEqual(await Promise.all(retried), ids.map((id) => [id, id, id, id]));
 });

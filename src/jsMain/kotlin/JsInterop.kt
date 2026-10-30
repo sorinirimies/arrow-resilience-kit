@@ -5,7 +5,11 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.await
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.launch
+import kotlin.coroutines.AbstractCoroutineContextElement
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.js.Promise
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -49,6 +53,44 @@ public external interface AbortSignal {
 }
 
 /**
+ * The caller's async context (Node/Bun `AsyncLocalStorage.snapshot()`), captured when a facade
+ * method is called and used to invoke that call's JS callbacks.
+ *
+ * Without it, callbacks run in whatever context the coroutine dispatcher's queue happened to be
+ * drained from -- the *first* concurrent caller's -- so under concurrency every callback saw
+ * caller A's AsyncLocalStorage values (request ids, tracing spans, abort signals, ...).
+ * No-op where the API is missing (browsers, Node < 20.16): callbacks run as before.
+ */
+internal class JsAsyncContext(private val snapshot: dynamic) : AbstractCoroutineContextElement(Key) {
+    companion object Key : CoroutineContext.Key<JsAsyncContext>
+
+    /** Calls [fn] inside the captured context. */
+    fun <R> run(fn: () -> R): R = snapshot(fn).unsafeCast<R>()
+}
+
+private val asyncLocalStorage: dynamic = js(
+    """(function () {
+        try {
+            // getBuiltinModule instead of require: no static import for browser bundlers to trip over.
+            var hooks = typeof process === "object" && process && typeof process.getBuiltinModule === "function"
+                ? process.getBuiltinModule("node:async_hooks") : null;
+            var als = hooks && hooks.AsyncLocalStorage;
+            return als && typeof als.snapshot === "function" ? als : null;
+        } catch (e) {
+            return null;
+        }
+    })()"""
+)
+
+/** Captures the current async context, or `null` where that isn't supported. */
+internal fun captureAsyncContext(): JsAsyncContext? =
+    if (asyncLocalStorage == null) null else JsAsyncContext(asyncLocalStorage.snapshot())
+
+/** Runs a JS callback in the async context of the facade call this coroutine belongs to. */
+internal suspend fun <R> inCallerContext(fn: () -> R): R =
+    currentCoroutineContext()[JsAsyncContext]?.run(fn) ?: fn()
+
+/**
  * Runs [block] on [jsInteropScope], exposing its suspend result as a [Promise].
  *
  * The promise rejects with exactly what the caller's own callback rejected with (see [jsError]),
@@ -59,8 +101,9 @@ public external interface AbortSignal {
 internal fun <T> runAsPromise(signal: AbortSignal? = null, block: suspend () -> T): Promise<T> {
     JsLogging.ensureConfigured()
     if (signal?.aborted == true) return Promise.reject(signal.reason.unsafeCast<Throwable>())
+    val context = captureAsyncContext() ?: EmptyCoroutineContext
     return Promise { resolve, reject ->
-        val job = jsInteropScope.launch {
+        val job = jsInteropScope.launch(context) {
             try {
                 resolve(block())
             } catch (e: Throwable) {
@@ -83,7 +126,7 @@ internal fun jsError(e: Throwable): Any? = if (e is JsCallbackException) e.cause
 
 /** Awaits a plain JS/TS callback (`() => Promise<T>`) from suspending Kotlin code. */
 internal suspend fun <T> awaitBlock(block: () -> Promise<T>): T = try {
-    block().await()
+    inCallerContext(block).await()
 } catch (e: Exception) {
     throw e
 } catch (e: Throwable) {

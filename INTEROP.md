@@ -273,6 +273,10 @@ const data = await Retry.withBackoff(() => fetchJson(url), {
 
 `execute(...)` on `CircuitBreaker`, `SlidingWindowCircuitBreaker`, `Bulkhead`, `RateLimiter`, `SlidingWindowRateLimiter`, `AdaptiveLimiter`, `TimeLimiter` and `Failover`, plus `RetryBudget.retry(...)`, `hedge(...)` and the `Retry` functions take an optional `signal` as their last argument. Aborting cancels whatever the library is waiting on (a retry delay, a permit, a timeout) and rejects with `signal.reason` -- the same contract as `fetch(url, { signal })`. Your block's own work isn't interrupted unless you pass the signal into it too.
 
+### Async context (`AsyncLocalStorage`)
+
+On Node.js (≥ 20.16) and Bun, your callbacks run in the async context of the call that passed them, so `AsyncLocalStorage` values (request ids, tracing spans, per-call abort signals) are the caller's own -- also when many calls run concurrently. Elsewhere (browsers, older Node) callbacks run as plain functions.
+
 ### Logging
 
 The library logs nothing by default (a library shouldn't write to your app's console). Turn it on, or route it into your logger:
