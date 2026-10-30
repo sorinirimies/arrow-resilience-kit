@@ -45,7 +45,7 @@ class RetryWithBackoffTest {
 
     @JsName("onlyRetriesWhatShouldRetryAccepts")
     @Test
-    fun `only retries failures shouldRetry accepts, with 1-based retry numbers`() = runTest {
+    fun `only retries failures shouldRetry accepts with 1-based retry numbers`() = runTest {
         val seen = mutableListOf<Pair<Int, Long>>()
         var calls = 0
         val error = shouldThrow<HttpException> {
@@ -65,7 +65,7 @@ class RetryWithBackoffTest {
 
     @JsName("delayForOverridesBackoff")
     @Test
-    fun `delayFor overrides the backoff exactly (Retry-After), negative is treated as zero`() = runTest {
+    fun `delayFor overrides the backoff exactly and negative delays count as zero`() = runTest {
         val waits = mutableListOf<Duration>()
         var calls = 0
         val result = retryWithBackoff(
