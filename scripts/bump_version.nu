@@ -27,7 +27,7 @@ def main [version: string] {
     # Generate changelog
     if (which git-cliff | is-not-empty) {
         print "▸ Generating changelog..."
-        run-external "git-cliff" "-o" "CHANGELOG.md"
+        run-external "git-cliff" "--tag" $version "-o" "CHANGELOG.md"
     }
 
     # Git commit and tag
