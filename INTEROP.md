@@ -229,17 +229,64 @@ npm install arrow-resilience-kit
 `@JsExport` can't export `suspend` functions at all (verified: it's a compile error, not just an unsupported-at-runtime situation), and this library's entire Kotlin API is suspend-based. So every pattern below is a **hand-written, Promise-based facade** (`src/jsMain/kotlin/`) over the real Kotlin implementation, not the Kotlin API exported as-is -- verified end to end by actually running the compiled output in Node (not just compiling it), including a real, subtle bug this caught: a rejected JS `Promise`'s error surfaces back in Kotlin as a plain `Throwable`, *not* an `Exception`, silently bypassing every pattern's internal `catch (e: Exception)` failure accounting unless the facade layer explicitly rewraps it (see `JsInterop.kt`'s `awaitBlock`).
 
 ```ts
-import { CircuitBreaker } from "arrow-resilience-kit";
+import { CircuitBreaker } from "arrow-resilience-kit"; // ES modules and require() both work
 
-const breaker = await CircuitBreaker.create({ failureThreshold: 5, resetTimeoutMillis: 30_000 });
+const breaker = await CircuitBreaker.create(5, 30_000); // failures to open, ms until half-open
 const result = await breaker.execute(() => callExternalService());
 ```
 
-A block parameter is just `() => Promise<T>` -- an ordinary async function (or a sync one wrapped in `Promise.resolve(...)`), nothing special. `kotlin.time.Duration`-typed configuration (resetTimeout, maxWaitDuration, ...) is exposed as plain milliseconds (`...Millis: number`), since `Duration` itself doesn't export to JS as anything a JS/TS caller could construct.
+A block parameter is just `() => Promise<T>` -- an ordinary async function (or a sync one wrapped in `Promise.resolve(...)`), nothing special. `create(...)` takes positional arguments in the order of the generated `.d.ts` (all optional). `kotlin.time.Duration`-typed configuration (resetTimeout, maxWaitDuration, ...) is exposed as plain milliseconds (`...Millis: number`), since `Duration` itself doesn't export to JS as anything a JS/TS caller could construct. (`X.Companion.create(...)` from earlier versions still works.)
+
+### Errors
+
+A rejected promise carries **exactly the error your block rejected with** -- same object, so `instanceof`, `status` and other fields work:
+
+```ts
+try {
+    await breaker.execute(() => fetchJson(url));
+} catch (e) {
+    if (e instanceof HttpError && e.status === 404) { /* ... */ }
+}
+```
+
+Errors the library itself raises (circuit open, bulkhead full, timeout, retry budget exhausted, ...) are its own `Error`s with a descriptive message.
+
+### Retry with backoff, `Retry-After` and cancellation
+
+`Retry.withBackoff(block, options?)` is the one to use for network calls: the predicate sees your error, a per-error delay can honor the server's `Retry-After`, and an `AbortSignal` cancels the wait:
+
+```ts
+import { Retry } from "arrow-resilience-kit";
+
+const data = await Retry.withBackoff(() => fetchJson(url), {
+    retries: 5,                 // default 3
+    baseMillis: 200,            // first backoff, doubled (factor) per retry
+    maxDelayMillis: 10_000,     // cap for the computed backoff
+    shouldRetry: (e) => e.status === 429 || e.status >= 500,
+    delayMillis: (e) => e.retryAfterMillis, // exact wait for this error; undefined = backoff
+    onRetry: (e, retry, delay) => console.debug(`retry ${retry} in ${delay} ms`),
+    signal,                     // AbortSignal
+});
+```
+
+### Cancellation (`AbortSignal`)
+
+`execute(...)` on `CircuitBreaker`, `SlidingWindowCircuitBreaker`, `Bulkhead`, `RateLimiter`, `SlidingWindowRateLimiter`, `AdaptiveLimiter`, `TimeLimiter` and `Failover`, plus `RetryBudget.retry(...)`, `hedge(...)` and the `Retry` functions take an optional `signal` as their last argument. Aborting cancels whatever the library is waiting on (a retry delay, a permit, a timeout) and rejects with `signal.reason` -- the same contract as `fetch(url, { signal })`. Your block's own work isn't interrupted unless you pass the signal into it too.
+
+### Logging
+
+The library logs nothing by default (a library shouldn't write to your app's console). Turn it on, or route it into your logger:
+
+```ts
+import { Logging } from "arrow-resilience-kit";
+
+Logging.setLevel("WARN"); // OFF (default), ERROR, WARN, INFO, DEBUG, TRACE
+Logging.setHandler((level, message, error) => logger.log(level, message, error)); // null = console
+```
 
 ### What's covered
 
-`CircuitBreaker`, `SlidingWindowCircuitBreaker`, `Bulkhead`, `RateLimiter`, `SlidingWindowRateLimiter`, `TimeLimiter`, `RetryBudget`, `Retry` (the top-level `withExponentialBackoff`/`withConstantDelay`/`orDefault`/`ifMatches` functions), `AdaptiveLimiter`, `Cache` (specialized to `string` keys -- the common case for JS/TS), `Failover`, and `hedge`.
+`CircuitBreaker`, `SlidingWindowCircuitBreaker`, `Bulkhead`, `RateLimiter`, `SlidingWindowRateLimiter`, `TimeLimiter`, `RetryBudget`, `Retry` (`withBackoff`, plus `withExponentialBackoff`/`withConstantDelay`/`orDefault`/`ifMatches`), `Logging`, `AdaptiveLimiter`, `Cache` (specialized to `string` keys -- the common case for JS/TS), `Failover`, and `hedge`.
 
 `Failover`'s Kotlin DSL builder (`failover { provider(...) }`) isn't exposed directly -- it's a suspend, receiver-style builder lambda, which doesn't bridge to JS/TS the same way a plain callback does. Pass an array of `FailoverProviderSpec` instead:
 

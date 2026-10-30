@@ -105,13 +105,26 @@ Kotlin `suspend` functions are exposed as completion-handler methods, which Swif
 npm install arrow-resilience-kit
 ```
 
-A hand-written, Promise-based facade over most patterns, with real generated TypeScript definitions -- not the raw Kotlin API (which can't cross the JS boundary directly: `@JsExport` doesn't support `suspend` functions at all). See **[INTEROP.md](INTEROP.md)** for exactly what's covered, what isn't (yet), and a verified usage example.
+```ts
+import { CircuitBreaker, Retry } from "arrow-resilience-kit";
+
+const breaker = await CircuitBreaker.create(5, 30_000);
+const data = await breaker.execute(() =>
+    Retry.withBackoff(() => fetchJson(url), {
+        shouldRetry: (e) => e.status === 429 || e.status >= 500,
+        delayMillis: (e) => e.retryAfterMillis, // honor Retry-After
+        signal,                                 // AbortSignal
+    }),
+);
+```
+
+A hand-written, Promise-based facade over most patterns, with real generated TypeScript definitions -- not the raw Kotlin API (which can't cross the JS boundary directly: `@JsExport` doesn't support `suspend` functions at all). ES modules and CommonJS, no runtime dependencies, silent by default (`Logging.setLevel(...)` to enable), rejections carry your own error, and waits are cancellable with an `AbortSignal`. See **[INTEROP.md](INTEROP.md)** for exactly what's covered, what isn't (yet), and verified usage examples.
 
 See [INSTALLATION.md](INSTALLATION.md) for Maven, Gitea Packages, and additional details.
 
 ## Quick Start
 
-```/dev/null/QuickStart.kt#L1-L24
+```kotlin
 import com.sorinirmies.arrow.resiliencekit.*
 import kotlin.time.Duration.Companion.seconds
 
@@ -144,7 +157,7 @@ val guarded = withBulkhead(BulkheadConfig(maxConcurrentCalls = 10)) {
 
 Limits concurrent access to a resource using a semaphore, with optional wait-queue limits and timeouts.
 
-```/dev/null/BulkheadExample.kt#L1-L21
+```kotlin
 // DSL builder
 val bh = bulkhead {
     maxConcurrentCalls = 10
@@ -170,7 +183,7 @@ val apiBulkhead = registry.getOrCreate("api") {
 
 Thread-safe cache with TTL, size limits, and configurable eviction strategies (LRU, LFU, FIFO).
 
-```/dev/null/CacheExample.kt#L1-L22
+```kotlin
 // DSL builder
 val userCache = cache<String, User> {
     maxSize = 1_000
@@ -184,7 +197,7 @@ val user = userCache.getOrPut("user-123") {
 }
 
 // Loading cache (auto-fetch on miss)
-val loader = LoadingCache<String, User>(
+val loader = LoadingCache.create<String, User>(
     config = CacheConfig(maxSize = 500, ttl = 10.minutes),
     loader = { id -> userService.fetch(id) }
 )
@@ -198,7 +211,7 @@ val stats = userCache.statistics() // hits, misses, hitRate, evictions
 
 Prevents cascading failures with three states: **Closed** → **Open** → **Half-Open**.
 
-```/dev/null/CircuitBreakerExample.kt#L1-L24
+```kotlin
 val cb = circuitBreaker {
     failureThreshold = 5        // failures before opening
     resetTimeout = 60.seconds   // wait before half-open
@@ -228,7 +241,7 @@ cb.addListener { old, new -> log.info("Circuit: $old -> $new") }
 
 Like [Circuit Breaker](#circuit-breaker), but trips on a **failure rate** over the last N calls instead of consecutive failures -- catches a steady, low-grade error rate (e.g. 1 in 3 calls failing, but never 5 *in a row*) that a consecutive-count trip would never notice.
 
-```/dev/null/SlidingWindowCircuitBreakerExample.kt#L1-L14
+```kotlin
 val cb = slidingWindowCircuitBreaker {
     slidingWindowSize = 20          // track the last 20 calls
     minimumNumberOfCalls = 10        // don't evaluate until the window has enough samples
@@ -246,7 +259,7 @@ println("${stats.callsInWindow} calls, ${stats.failureRate * 100}% failing")
 
 Controls request throughput using a token-bucket algorithm. Also includes a sliding-window variant.
 
-```/dev/null/RateLimiterExample.kt#L1-L16
+```kotlin
 // Token bucket
 val rl = rateLimiter {
     permitsPerSecond = 10.0
@@ -269,23 +282,21 @@ val stats = rl.statistics() // accepted, rejected, acceptanceRate
 
 Flexible retry strategies with exponential, constant, Fibonacci, and capped backoff. Repeat helpers for polling.
 
-```/dev/null/RetryRepeatExample.kt#L1-L32
-// Exponential backoff
-val data = retryWithExponentialBackoff(
-    retries = 5,
-    initialDelay = 100.milliseconds,
-    maxDelay = 10.seconds,
-    factor = 2.0
-) { api.fetch() }
+```kotlin
+// Exponential backoff with jitter
+val data = retryWithExponentialBackoff(retries = 5, base = 100.milliseconds, factor = 2.0) { api.fetch() }
 
 // Constant delay
 val d2 = retryWithConstantDelay(retries = 3, delay = 500.milliseconds) { api.fetch() }
 
 // Fibonacci backoff
-val d3 = retryWithFibonacci(retries = 5, baseDelay = 100.milliseconds) { api.fetch() }
+val d3 = retryWithFibonacci(retries = 5, base = 100.milliseconds) { api.fetch() }
+
+// Capped exponential backoff
+val d3b = retryWithCappedBackoff(retries = 8, base = 100.milliseconds, maxDelay = 10.seconds) { api.fetch() }
 
 // Conditional retry
-val d4 = retryIf(retries = 3, delay = 1.seconds, predicate = { it is IOException }) {
+val d4 = retryIf(retries = 3, delay = 1.seconds, shouldRetry = { it is IOException }) {
     api.fetch()
 }
 
@@ -295,14 +306,24 @@ val d4b = retryIfWithExponentialBackoff(retries = 5, shouldRetry = { it is IOExc
     api.fetch()
 }
 
+// Everything configurable: only retry what's worth retrying, cap the backoff, and honor a
+// server-provided wait (e.g. HTTP Retry-After) for a specific failure
+val d4c = retryWithBackoff(
+    retries = 5,
+    maxDelay = 10.seconds,
+    shouldRetry = { e, _ -> e is HttpException && (e.status == 429 || e.status >= 500) },
+    delayFor = { e, _ -> (e as? HttpException)?.retryAfter },
+    onRetry = { e, retry, delay -> log.debug { "retry $retry in $delay after $e" } },
+) { api.fetch() }
+
 // Retry with fallback default
-val d5 = retryOrDefault(retries = 3, defaultValue = emptyList()) { api.fetchList() }
+val d5 = retryOrDefault(retries = 3, fallback = { emptyList() }) { api.fetchList() }
 
 // Repeat until condition
 val finalValue = repeatUntil(
     maxAttempts = 10,
     delay = 1.seconds,
-    predicate = { it.status == "COMPLETE" }
+    condition = { it.status == "COMPLETE" }
 ) { api.pollStatus() }
 
 // Repeat and collect all results
@@ -313,7 +334,7 @@ val all = repeatAndCollect(times = 5, delay = 500.milliseconds) { api.sample() }
 
 Per-call retry has no idea how much *total* retry volume the rest of the system is generating. The well-known failure mode: a downstream outage causes every caller to retry simultaneously, multiplying load on an already-struggling service and making the outage worse. A `RetryBudget`, shared across every call site retrying against a given downstream, caps total retry volume as a fraction of successful traffic -- and self-heals on its own as the system recovers, with no manual reset.
 
-```/dev/null/RetryBudgetExample.kt#L1-L10
+```kotlin
 val budget = RetryBudget.create() // one instance per downstream, shared across call sites
 
 val result = retryWithBudget(budget, retries = 5) {
@@ -328,7 +349,7 @@ if (budget.tryWithdraw()) { /* perform the retry */ } else { /* fail fast instea
 
 Distributed transaction coordination with automatic compensation on failure.
 
-```/dev/null/SagaExample.kt#L1-L25
+```kotlin
 val orderSaga = saga<OrderResult> {
     step(
         name = "Reserve inventory",
@@ -360,7 +381,7 @@ when (val result = orderSaga.execute()) {
 
 Timeout enforcement with fallback, retry-on-timeout, race, and batch execution.
 
-```/dev/null/TimeLimiterExample.kt#L1-L19
+```kotlin
 val tl = timeLimiter {
     timeout = 5.seconds
 }
@@ -385,7 +406,7 @@ val quick = withTimeLimit(2.seconds) { fastOp() }
 
 Lock-free, composable transactional primitives built on Arrow's Software Transactional Memory.
 
-```/dev/null/StmExample.kt#L1-L30
+```kotlin
 import com.sorinirmies.arrow.resiliencekit.stm.*
 import arrow.fx.stm.atomically
 
@@ -421,7 +442,7 @@ stmTransaction { tvar.write(tvar.read() + 10) }
 
 Wraps [Bulkhead], [CircuitBreaker], [RateLimiter], [TimeLimiter], and retry into one reusable, order-explicit chain. `a + b` means *a wraps b* — the leftmost policy is outermost.
 
-```/dev/null/PolicyExample.kt#L1-L10
+```kotlin
 val policy = retryPolicy(retries = 3) + circuitBreaker.asPolicy() + bulkhead.asPolicy()
 val result = policy.apply { api.fetchData() }
 
@@ -438,7 +459,7 @@ val combined = Policy.combine(retryPolicy(), circuitBreaker.asPolicy(), bulkhead
 
 `Flow`-native counterparts of the same patterns, protecting a whole collection instead of a single call.
 
-```/dev/null/FlowExample.kt#L1-L12
+```kotlin
 api.streamUpdates()
     .throughCircuitBreaker(circuitBreaker)
     .throughBulkhead(bulkhead)
@@ -450,7 +471,7 @@ api.streamUpdates()
 
 Fires a duplicate attempt after a delay if the first hasn't completed yet; the first to *succeed* wins. Cuts tail latency before a slow call has even failed — complements retry, which only reacts after failure.
 
-```/dev/null/HedgeExample.kt#L1-L6
+```kotlin
 val result = hedge(hedgeDelay = 50.milliseconds, maxHedges = 2) {
     api.fetchData() // must be safe to call more than once concurrently
 }
@@ -460,7 +481,7 @@ val result = hedge(hedgeDelay = 50.milliseconds, maxHedges = 2) {
 
 AIMD (additive-increase / multiplicative-decrease) concurrency limiter, in the spirit of TCP congestion control and Netflix's `concurrency-limits`. Grows its limit on success, shrinks it multiplicatively on failure or excess latency — no hand-tuned fixed capacity required.
 
-```/dev/null/AdaptiveLimiterExample.kt#L1-L10
+```kotlin
 val limiter = AdaptiveLimiter.create(AdaptiveLimiterConfig(
     initialLimit = 20,
     latencyThreshold = 200.milliseconds, // slow-but-successful calls still count as overload
@@ -473,7 +494,7 @@ println(limiter.statistics().currentLimit)
 
 Wraps a real or fake call so it randomly fails and/or adds latency — exercise your retry/circuit-breaker/bulkhead usage without hand-rolling flaky fakes.
 
-```/dev/null/ChaosExample.kt#L1-L8
+```kotlin
 val flaky = chaos({ failureRate = 0.3; latency = 50.milliseconds }) {
     realApi.call()
 }
@@ -488,7 +509,7 @@ val result = retryWithExponentialBackoff(retries = 5) { flaky() }
 
 Tries a prioritized list of named providers, falling through to the next one when the current one's circuit is open or it fails outright — e.g. prefer a WebSocket transport, degrade to MQTT, then to HTTP long-polling if both are down. Each provider gets its own [CircuitBreaker]; a provider that keeps failing trips its breaker open so later calls skip it immediately (no repeated timeout cost), and the breaker's own half-open/reset-timeout behavior periodically re-probes it — so `Failover` self-heals back to the preferred provider once it recovers, with no extra bookkeeping from the caller.
 
-```/dev/null/FailoverExample.kt#L1-L17
+```kotlin
 val transport = failover<Connection> {
     provider("websocket") { connectWebSocket() }
     provider("mqtt") { connectMqtt() }
@@ -513,7 +534,7 @@ If every provider is either skipped (circuit open) or fails, `execute()` throws 
 
 By default, an open provider only gets re-tested passively, by the next real call that happens to reach it -- which can be a long wait on a quiet system, or never, for a lower-priority provider a healthy earlier one keeps shielding from traffic entirely. `startHealthProbing` decouples recovery detection from real traffic, so a recovered provider is already back in rotation by the time real traffic arrives:
 
-```/dev/null/FailoverProbingExample.kt#L1-L5
+```kotlin
 val probing = transport.startHealthProbing(applicationScope, interval = 30.seconds)
 // ... later, on shutdown:
 probing.cancel()
@@ -534,7 +555,7 @@ Ktor, Lettuce and Spring are `compileOnly`: add the ones you use to your own bui
 
 Every pattern supports a DSL builder for configuration:
 
-```/dev/null/ConfigExamples.kt#L1-L22
+```kotlin
 val cb = circuitBreaker {
     failureThreshold = 10
     resetTimeout = 60.seconds
@@ -578,7 +599,7 @@ See [`gradle/libs.versions.toml`](gradle/libs.versions.toml) for the full versio
 
 `MicrometerBridge` exports pattern statistics (call counts, rejection rates, circuit state, adaptive limits, cache hit rate, per-provider failover health, ...) as Micrometer gauges. It's `compileOnly` on the JVM target — add `io.micrometer:micrometer-core` yourself to use it, everyone else pays nothing. Covers `Bulkhead`, `CircuitBreaker`, `RateLimiter`, `AdaptiveLimiter`, `Cache`, `TimeLimiter`, and `Failover` (`bindBulkhead`/`bindCircuitBreaker`/`bindRateLimiter`/`bindAdaptiveLimiter`/`bindCache`/`bindTimeLimiter`/`bindFailover`):
 
-```/dev/null/MicrometerExample.kt#L1-L4
+```kotlin
 val registry = SimpleMeterRegistry() // or PrometheusMeterRegistry, etc.
 MicrometerBridge.bindCircuitBreaker(registry, "orders-api", circuitBreaker)
 MicrometerBridge.bindBulkhead(registry, "orders-api", bulkhead)
@@ -599,7 +620,7 @@ Every `./gradlew publish`-capable target (JVM, JS, Linux x64, macOS ARM64, iOS x
 
 ## Project Structure
 
-```/dev/null/tree.txt#L1-L38
+```text
 arrow-resilience-kit/
 ├── src/
 │   ├── commonMain/kotlin/com/sorinirmies/arrow/resiliencekit/
