@@ -857,6 +857,75 @@ public suspend fun <R> retryIfWithCappedBackoff(
     throw lastException ?: IllegalStateException("Retry failed without exception")
 }
 
+/**
+ * The fully configurable retry: exponential backoff with jitter, capped at [maxDelay], retrying
+ * only failures accepted by [shouldRetry], with an optional per-failure delay override
+ * ([delayFor]) and a hook ([onRetry]) before each wait.
+ *
+ * [delayFor] is how a server-provided wait is honored, e.g. an HTTP `Retry-After` header on a 429
+ * response: return that duration and it is used as-is (no jitter, not capped by [maxDelay]);
+ * return `null` to use the computed backoff.
+ *
+ * Attempt numbers passed to the callbacks are the 1-based number of the *retry* about to happen
+ * (1 = first retry). Cancellation is never retried.
+ *
+ * @param retries Maximum retries after the initial attempt (defaults to 3)
+ * @param base First backoff delay (defaults to 200 milliseconds)
+ * @param factor Backoff growth per retry (defaults to 2.0)
+ * @param maxDelay Upper bound for the computed backoff (defaults to unbounded)
+ * @param jitterFactor Random spread applied to the computed backoff, 0..1 (defaults to 0.1 = ±10%)
+ * @param shouldRetry Decides whether a failure is retried (defaults to every failure)
+ * @param delayFor Optional exact delay for a failure, overriding the computed backoff
+ * @param onRetry Called before each wait with the failure, the retry number and the delay
+ * @param block The operation
+ *
+ * Example usage:
+ * ```
+ * val body = retryWithBackoff(
+ *     retries = 5,
+ *     maxDelay = 10.seconds,
+ *     shouldRetry = { e, _ -> e is HttpException && (e.status == 429 || e.status >= 500) },
+ *     delayFor = { e, _ -> (e as? HttpException)?.retryAfter },
+ * ) { http.get("/api/data") }
+ * ```
+ */
+public suspend fun <R> retryWithBackoff(
+    retries: Long = 3,
+    base: Duration = 200.milliseconds,
+    factor: Double = 2.0,
+    maxDelay: Duration = Duration.INFINITE,
+    jitterFactor: Double = 0.1,
+    shouldRetry: (error: Throwable, retry: Long) -> Boolean = { _, _ -> true },
+    delayFor: (error: Throwable, retry: Long) -> Duration? = { _, _ -> null },
+    onRetry: (error: Throwable, retry: Long, delay: Duration) -> Unit = { _, _, _ -> },
+    block: suspend () -> R,
+): R {
+    require(retries >= 0) { "retries must be >= 0, but was $retries" }
+    require(base >= Duration.ZERO) { "base delay must be >= 0, but was $base" }
+    require(factor > 0) { "factor must be > 0, but was $factor" }
+    require(maxDelay > Duration.ZERO) { "maxDelay must be > 0, but was $maxDelay" }
+    require(jitterFactor in 0.0..1.0) { "jitterFactor must be in 0..1, but was $jitterFactor" }
+
+    var retry = 0L
+    var backoff = base
+    while (true) {
+        try {
+            return block()
+        } catch (exception: kotlinx.coroutines.CancellationException) {
+            throw exception
+        } catch (exception: Exception) {
+            retry++
+            if (retry > retries || !shouldRetry(exception, retry)) throw exception
+            val wait = delayFor(exception, retry)?.coerceAtLeast(Duration.ZERO)
+                ?: applyJitter(if (backoff > maxDelay) maxDelay else backoff, jitterFactor)
+            logger.debug { "Retrying after ${exception::class.simpleName} (retry $retry/$retries, delay=$wait)" }
+            onRetry(exception, retry, wait)
+            delay(wait)
+            if (backoff < maxDelay) backoff *= factor
+        }
+    }
+}
+
 // ============================================================================
 // ADDITIONAL REPEAT OPERATIONS
 // ============================================================================
