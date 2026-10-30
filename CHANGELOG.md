@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [0.10.0](https://github.com/sorinirimies/arrow-resilience-kit/releases/tag/0.10.0) - 2026-10-30
 
 ### ✨ Features
 
@@ -11,9 +11,16 @@ All notable changes to this project will be documented in this file.
 - **npm:** ESM entry + exports map (named imports), keep X.Companion.create working, drop unused kotlinx-datetime (removes @js-joda/core) ([e7e2450](https://github.com/sorinirimies/arrow-resilience-kit/commit/e7e2450e6cf85a6de9440591bbdb411391260bd6))
 - **scripts:** nightly upgrade updates the version catalog itself (newest stable within the major, kotlin-stdlib kept on 2.2.x) instead of relying on a missing Gradle plugin ([25a00bc](https://github.com/sorinirimies/arrow-resilience-kit/commit/25a00bc674014449b6d52fe694627dc0e0d88d06))
 
+### 🐛 Bug Fixes
+
+- **npm:** clear the distribution directory before packaging so files of removed dependencies can't be published; smoke test checks for unreferenced code ([b2026cd](https://github.com/sorinirimies/arrow-resilience-kit/commit/b2026cdc15c63b05a13f1230d592f1dcd997cb50))
+- **js:** run callbacks in the caller's AsyncLocalStorage context (concurrent calls saw the first caller's context) ([64f538d](https://github.com/sorinirimies/arrow-resilience-kit/commit/64f538dbe926e29a44391624b499758ae857e535))
+- **scripts:** bump_version renders the new version's changelog section (git-cliff --tag) instead of Unreleased ([47a70e2](https://github.com/sorinirimies/arrow-resilience-kit/commit/47a70e24368dfeb3fa98ea9578b14e36c8fbe832))
+
 ### 📚 Documentation
 
 - correct JS/TS and Kotlin examples (positional create, real retry parameter names, LoadingCache.create), document errors, AbortSignal, Retry.withBackoff and logging, fix code fences ([54dd61c](https://github.com/sorinirimies/arrow-resilience-kit/commit/54dd61c736f8c85b59c31e6c50c8a1c692e37b5c))
+- **changelog:** readable git-cliff output - ordered sections, scope instead of type prefix, commit links, blank lines, release-automation commits hidden but releases kept; regenerate CHANGELOG (adds 0.9.3) ([f6bca01](https://github.com/sorinirimies/arrow-resilience-kit/commit/f6bca017a228dfca77a2aa30175dfd4e0a9df9e8))
 
 ### 🧪 Testing
 
@@ -23,6 +30,8 @@ All notable changes to this project will be documented in this file.
 ### ⬆️ Dependencies
 
 - Kotlin 2.4.21, Arrow 2.3.0.1, kotlinx-serialization 1.12.0, Ktor 3.6.1, kotest 6.2.6 and patch updates ([31b3b32](https://github.com/sorinirimies/arrow-resilience-kit/commit/31b3b321b024ce37589d072cc2ef0a8aa203708b))
+
+**Full Changelog**: https://github.com/sorinirimies/arrow-resilience-kit/compare/0.9.3...0.10.0
 
 ## [0.9.3](https://github.com/sorinirimies/arrow-resilience-kit/releases/tag/0.9.3) - 2026-10-20
 
