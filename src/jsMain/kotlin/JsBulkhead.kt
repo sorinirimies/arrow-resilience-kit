@@ -10,7 +10,7 @@ import kotlin.js.Promise
  * ```ts
  * import { Bulkhead } from "arrow-resilience-kit";
  *
- * const bh = await Bulkhead.create({ maxConcurrentCalls: 10, maxWaitingCalls: 20 });
+ * const bh = await Bulkhead.create(10, 20); // concurrent calls, waiting calls
  * const result = await bh.execute(() => dbPool.query());
  * ```
  */
@@ -21,6 +21,7 @@ public class Bulkhead internal constructor(
 ) {
     public companion object {
         /** Creates a new bulkhead. [maxWaitDurationMillis] of `undefined`/omitted means no wait-time limit. */
+        @JsStatic
         public fun create(
             maxConcurrentCalls: Int = 10,
             maxWaitingCalls: Int = 10,
@@ -48,7 +49,7 @@ public class Bulkhead internal constructor(
     public fun resetStatistics(): Promise<Unit> = runAsPromise { delegate.resetStatistics() }
 
     /** Executes [block], waiting for a permit. Rejects if the bulkhead is full (or times out waiting). */
-    public fun <T> execute(block: () -> Promise<T>): Promise<T> = runAsPromise {
+    public fun <T> execute(block: () -> Promise<T>, signal: AbortSignal? = null): Promise<T> = runAsPromise(signal) {
         delegate.execute { awaitBlock(block) }
     }
 
@@ -66,6 +67,7 @@ public class Bulkhead internal constructor(
 /** JS/TS-friendly snapshot of [com.sorinirmies.arrow.resiliencekit.BulkheadStatistics]. */
 @OptIn(kotlin.js.ExperimentalJsExport::class)
 @JsExport
+@ConsistentCopyVisibility
 public data class BulkheadStatistics internal constructor(
     public val totalCalls: Double,
     public val successfulCalls: Double,

@@ -26,6 +26,7 @@ public class Cache<T> internal constructor(
          * Creates a new cache. [ttlMillis] of `undefined`/omitted means no expiration.
          * [evictionStrategy] is one of `"LRU"`, `"LFU"`, `"FIFO"` (default `"LRU"`).
          */
+        @JsStatic
         public fun <T> create(
             maxSize: Int = 100,
             ttlMillis: Double? = 300_000.0,
@@ -76,6 +77,7 @@ public class Cache<T> internal constructor(
 /** JS/TS-friendly snapshot of [com.sorinirmies.arrow.resiliencekit.CacheStatistics]. */
 @OptIn(kotlin.js.ExperimentalJsExport::class)
 @JsExport
+@ConsistentCopyVisibility
 public data class CacheStatistics internal constructor(
     public val hits: Double,
     public val misses: Double,

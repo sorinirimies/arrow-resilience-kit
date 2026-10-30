@@ -5,7 +5,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.await
-import kotlinx.coroutines.promise
+import kotlinx.coroutines.launch
 import kotlin.js.Promise
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -36,8 +36,50 @@ import kotlin.time.Duration.Companion.milliseconds
 // every subsequent call with JobCancellationException until this was added.
 internal val jsInteropScope: CoroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
-/** Runs [block] on [jsInteropScope], exposing its suspend result as a [Promise]. */
-internal fun <T> runAsPromise(block: suspend () -> T): Promise<T> = jsInteropScope.promise { block() }
+/**
+ * The standard `AbortSignal` (DOM / Node.js), declared here because Kotlin's DOM bindings don't
+ * include it. Being `external`, it isn't emitted into the generated `.d.ts`, so TypeScript
+ * resolves the name to the global `AbortSignal` type.
+ */
+public external interface AbortSignal {
+    public val aborted: Boolean
+    public val reason: Any?
+    public fun addEventListener(type: String, listener: (Any?) -> Unit)
+    public fun removeEventListener(type: String, listener: (Any?) -> Unit)
+}
+
+/**
+ * Runs [block] on [jsInteropScope], exposing its suspend result as a [Promise].
+ *
+ * The promise rejects with exactly what the caller's own callback rejected with (see [jsError]),
+ * not with this library's internal [JsCallbackException] wrapper. With a [signal], aborting it
+ * cancels [block] (including any pending retry/backoff delay or permit wait) and rejects with
+ * `signal.reason` -- the same contract as `fetch(url, { signal })`.
+ */
+internal fun <T> runAsPromise(signal: AbortSignal? = null, block: suspend () -> T): Promise<T> {
+    JsLogging.ensureConfigured()
+    if (signal?.aborted == true) return Promise.reject(signal.reason.unsafeCast<Throwable>())
+    return Promise { resolve, reject ->
+        val job = jsInteropScope.launch {
+            try {
+                resolve(block())
+            } catch (e: Throwable) {
+                reject(if (signal?.aborted == true) signal.reason.unsafeCast<Throwable>() else jsError(e).unsafeCast<Throwable>())
+            }
+        }
+        if (signal != null) {
+            val onAbort: (Any?) -> Unit = { job.cancel() }
+            signal.addEventListener("abort", onAbort)
+            job.invokeOnCompletion { signal.removeEventListener("abort", onAbort) }
+        }
+    }
+}
+
+/**
+ * The error as the JS/TS caller knows it: the original rejection reason of their callback if
+ * [e] is this library's internal [JsCallbackException] wrapper, otherwise [e] itself.
+ */
+internal fun jsError(e: Throwable): Any? = if (e is JsCallbackException) e.cause else e
 
 /** Awaits a plain JS/TS callback (`() => Promise<T>`) from suspending Kotlin code. */
 internal suspend fun <T> awaitBlock(block: () -> Promise<T>): T = try {

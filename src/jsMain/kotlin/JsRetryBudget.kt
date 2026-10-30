@@ -23,6 +23,7 @@ public class RetryBudget internal constructor(
 ) {
     public companion object {
         /** Creates a new retry budget. */
+        @JsStatic
         public fun create(maxTokens: Double = 10.0, tokenRatio: Double = 0.1): Promise<RetryBudget> = runAsPromise {
             RetryBudget(
                 com.sorinirmies.arrow.resiliencekit.RetryBudget.create(
@@ -54,7 +55,8 @@ public class RetryBudget internal constructor(
         initialDelayMillis: Double = 100.0,
         maxDelayMillis: Double = 60_000.0,
         factor: Double = 2.0,
-    ): Promise<T> = runAsPromise {
+        signal: AbortSignal? = null,
+    ): Promise<T> = runAsPromise(signal) {
         com.sorinirmies.arrow.resiliencekit.retryWithBudget(
             budget = delegate,
             retries = retries.toLong(),

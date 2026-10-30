@@ -18,7 +18,12 @@ import kotlin.js.Promise
  */
 @OptIn(kotlin.js.ExperimentalJsExport::class)
 @JsExport
-public fun <T> hedge(block: () -> Promise<T>, hedgeDelayMillis: Double = 100.0, maxHedges: Int = 1): Promise<T> =
-    runAsPromise {
+public fun <T> hedge(
+    block: () -> Promise<T>,
+    hedgeDelayMillis: Double = 100.0,
+    maxHedges: Int = 1,
+    signal: AbortSignal? = null,
+): Promise<T> =
+    runAsPromise(signal) {
         hedge(hedgeDelay = hedgeDelayMillis.millisAsDuration, maxHedges = maxHedges) { awaitBlock(block) }
     }

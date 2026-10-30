@@ -10,7 +10,7 @@ import kotlin.js.Promise
  * ```ts
  * import { TimeLimiter } from "arrow-resilience-kit";
  *
- * const tl = await TimeLimiter.create({ timeoutMillis: 5_000 });
+ * const tl = await TimeLimiter.create(5_000); // default timeout (ms)
  * const result = await tl.execute(() => slowOp());
  * ```
  */
@@ -21,6 +21,7 @@ public class TimeLimiter internal constructor(
 ) {
     public companion object {
         /** Creates a new time limiter. */
+        @JsStatic
         public fun create(timeoutMillis: Double = 30_000.0): Promise<TimeLimiter> = runAsPromise {
             TimeLimiter(
                 com.sorinirmies.arrow.resiliencekit.TimeLimiter.create(
@@ -37,7 +38,11 @@ public class TimeLimiter internal constructor(
     public fun resetStatistics(): Promise<Unit> = runAsPromise { delegate.resetStatistics() }
 
     /** Executes [block], rejecting with a timeout error if it exceeds [timeoutMillis] (or this limiter's default). */
-    public fun <T> execute(timeoutMillis: Double? = null, block: () -> Promise<T>): Promise<T> = runAsPromise {
+    public fun <T> execute(
+        timeoutMillis: Double? = null,
+        block: () -> Promise<T>,
+        signal: AbortSignal? = null,
+    ): Promise<T> = runAsPromise(signal) {
         delegate.execute(timeoutMillis?.millisAsDuration) { awaitBlock(block) }
     }
 
@@ -65,6 +70,7 @@ public class TimeLimiter internal constructor(
 /** JS/TS-friendly snapshot of [com.sorinirmies.arrow.resiliencekit.TimeLimiterStatistics]. */
 @OptIn(kotlin.js.ExperimentalJsExport::class)
 @JsExport
+@ConsistentCopyVisibility
 public data class TimeLimiterStatistics internal constructor(
     public val totalCalls: Double,
     public val successfulCalls: Double,

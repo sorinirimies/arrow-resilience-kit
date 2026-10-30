@@ -21,11 +21,11 @@ class JsFacadeTest {
     fun circuitBreakerAccountsForAFailureThrownFromAJsCallback() = runTest {
         val breaker = CircuitBreaker.create(failureThreshold = 1).await()
 
-        breaker.execute { Promise.resolve("ok") }.await() shouldBe "ok"
+        breaker.execute({ Promise.resolve("ok") }).await() shouldBe "ok"
 
         var threw = false
         try {
-            breaker.execute { Promise.reject(Throwable("boom")) }.await()
+            breaker.execute({ Promise.reject(Throwable("boom")) }).await()
         } catch (e: Throwable) {
             threw = true
         }
@@ -43,7 +43,7 @@ class JsFacadeTest {
         val bulkhead = Bulkhead.create(maxConcurrentCalls = 2, maxWaitingCalls = 0).await()
 
         try {
-            bulkhead.execute<String> { Promise.reject(Throwable("boom")) }.await()
+            bulkhead.execute<String>({ Promise.reject(Throwable("boom")) }).await()
         } catch (e: Throwable) {
             // expected
         }
@@ -81,7 +81,7 @@ class JsFacadeTest {
 
         repeat(2) {
             try {
-                breaker.execute { Promise.reject(Throwable("boom")) }.await()
+                breaker.execute({ Promise.reject(Throwable("boom")) }).await()
             } catch (e: Throwable) {
                 // expected
             }
@@ -132,5 +132,80 @@ class JsFacadeTest {
 
         result shouldBe "ok"
     }
-}
 
+    // ---- Errors reach the JS caller unwrapped ------------------------------------------------
+
+    @Test
+    fun rejectionsCarryTheCallersOwnErrorNotTheInternalWrapper() = runTest {
+        val original = Throwable("boom")
+        val breaker = CircuitBreaker.create(failureThreshold = 5).await()
+        val seen = try {
+            breaker.execute<String>({ Promise.reject(original) }).await()
+            null
+        } catch (e: Throwable) {
+            e
+        }
+        (seen === original) shouldBe true
+        breaker.failures().await() shouldBe 1 // still accounted for internally
+    }
+
+    // ---- Retry.withBackoff -----------------------------------------------------------------------
+
+    @Test
+    fun withBackoffPassesTheOriginalErrorAndRetryNumberAndHonorsDelayOverride() = runTest {
+        val first = Throwable("rate limited")
+        val second = Throwable("not found")
+        var calls = 0
+        val seen = mutableListOf<Pair<Any?, Int>>()
+        val waits = mutableListOf<Double>()
+        val options: RetryOptions = js("({})")
+        options.asDynamic().retries = 5
+        options.asDynamic().shouldRetry = { e: Any?, retry: Int -> seen += e to retry; e === first }
+        options.asDynamic().delayMillis = { e: Any?, _: Int -> if (e === first) 7.0 else null }
+        options.asDynamic().onRetry = { _: Any?, _: Int, delay: Double -> waits += delay }
+
+        val error = try {
+            Retry.withBackoff<String>({ calls++; Promise.reject(if (calls == 1) first else second) }, options).await()
+            null
+        } catch (e: Throwable) {
+            e
+        }
+        (error === second) shouldBe true
+        calls shouldBe 2
+        seen.map { it.second } shouldBe listOf(1, 2)
+        (seen[0].first === first) shouldBe true
+        waits shouldBe listOf(7.0)
+    }
+
+    @Test
+    fun withBackoffWorksWithoutOptions() = runTest {
+        Retry.withBackoff<String>({ Promise.resolve("ok") }).await() shouldBe "ok"
+    }
+
+    // ---- Logging ---------------------------------------------------------------------------------
+
+    @Test
+    fun loggingIsOffByDefaultAndConfigurable() = runTest {
+        CircuitBreaker.create().await() // any facade call applies the JS defaults
+        Logging.level() shouldBe "OFF"
+        val events = mutableListOf<String>()
+        Logging.setLevel("debug")
+        Logging.setHandler { level, _, _ -> events += level }
+        try {
+            Retry.ifMatches<String>({ Promise.reject(Throwable("x")) }, { false }, 1, 1.0).await()
+        } catch (_: Throwable) {
+            // expected
+        }
+        events.contains("WARN") shouldBe true
+        Logging.setHandler(null)
+        Logging.setLevel("OFF")
+        Logging.level() shouldBe "OFF"
+        val rejected = try {
+            Logging.setLevel("LOUD")
+            false
+        } catch (_: IllegalArgumentException) {
+            true
+        }
+        rejected shouldBe true
+    }
+}

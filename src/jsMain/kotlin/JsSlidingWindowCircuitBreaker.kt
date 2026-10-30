@@ -10,7 +10,7 @@ import kotlin.js.Promise
  * ```ts
  * import { SlidingWindowCircuitBreaker } from "arrow-resilience-kit";
  *
- * const cb = await SlidingWindowCircuitBreaker.create({ slidingWindowSize: 20, failureRateThreshold: 0.5 });
+ * const cb = await SlidingWindowCircuitBreaker.create(20, 10, 0.5); // window, min calls, failure rate
  * const result = await cb.execute(() => externalService.call());
  * ```
  */
@@ -21,6 +21,7 @@ public class SlidingWindowCircuitBreaker internal constructor(
 ) {
     public companion object {
         /** Creates a new sliding-window circuit breaker. */
+        @JsStatic
         public fun create(
             slidingWindowSize: Int = 100,
             minimumNumberOfCalls: Int = 10,
@@ -51,7 +52,7 @@ public class SlidingWindowCircuitBreaker internal constructor(
     }
 
     /** Executes [block] through the circuit breaker. Rejects with an error if the circuit is open. */
-    public fun <T> execute(block: () -> Promise<T>): Promise<T> = runAsPromise {
+    public fun <T> execute(block: () -> Promise<T>, signal: AbortSignal? = null): Promise<T> = runAsPromise(signal) {
         delegate.execute { awaitBlock(block) }
     }
 
@@ -72,6 +73,7 @@ public class SlidingWindowCircuitBreaker internal constructor(
 /** JS/TS-friendly snapshot of [com.sorinirmies.arrow.resiliencekit.SlidingWindowCircuitBreakerStatistics]. */
 @OptIn(kotlin.js.ExperimentalJsExport::class)
 @JsExport
+@ConsistentCopyVisibility
 public data class SlidingWindowCircuitBreakerStatistics internal constructor(
     public val state: String,
     public val callsInWindow: Int,

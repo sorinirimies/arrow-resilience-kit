@@ -11,7 +11,7 @@ import kotlin.time.Duration.Companion.seconds
  * ```ts
  * import { CircuitBreaker } from "arrow-resilience-kit";
  *
- * const breaker = await CircuitBreaker.create({ failureThreshold: 5, resetTimeoutMillis: 30_000 });
+ * const breaker = await CircuitBreaker.create(5, 30_000); // failures to open, ms until half-open
  * const result = await breaker.execute(() => callExternalService());
  * ```
  */
@@ -22,6 +22,7 @@ public class CircuitBreaker internal constructor(
 ) {
     public companion object {
         /** Creates a new circuit breaker. */
+        @JsStatic
         public fun create(
             failureThreshold: Int = 5,
             resetTimeoutMillis: Double = 30.seconds.inWholeMilliseconds.toDouble(),
@@ -51,7 +52,7 @@ public class CircuitBreaker internal constructor(
     public fun successes(): Promise<Int> = runAsPromise { delegate.successes() }
 
     /** Executes [block] through the circuit breaker. Rejects with an error if the circuit is open. */
-    public fun <T> execute(block: () -> Promise<T>): Promise<T> = runAsPromise {
+    public fun <T> execute(block: () -> Promise<T>, signal: AbortSignal? = null): Promise<T> = runAsPromise(signal) {
         delegate.execute { awaitBlock(block) }
     }
 

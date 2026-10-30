@@ -45,6 +45,7 @@ public class Failover<T> internal constructor(
 ) {
     public companion object {
         /** Creates a new failover chain from [providers], in priority order. */
+        @JsStatic
         public fun <T> create(providers: Array<FailoverProviderSpec<T>>): Promise<Failover<T>> = runAsPromise {
             val built = failover<T> {
                 for (spec in providers) {
@@ -58,7 +59,7 @@ public class Failover<T> internal constructor(
     }
 
     /** Tries each provider in priority order, resolving with the first one that succeeds. */
-    public fun execute(): Promise<T> = runAsPromise { delegate.execute() }
+    public fun execute(signal: AbortSignal? = null): Promise<T> = runAsPromise(signal) { delegate.execute() }
 
     /** Names of all configured providers, in priority order. */
     public fun providerNames(): Array<String> = delegate.providerNames().toTypedArray()
@@ -85,6 +86,7 @@ public class Failover<T> internal constructor(
 /** JS/TS-friendly snapshot of [com.sorinirmies.arrow.resiliencekit.FailoverProviderStatistics]. */
 @OptIn(kotlin.js.ExperimentalJsExport::class)
 @JsExport
+@ConsistentCopyVisibility
 public data class FailoverProviderStatistics internal constructor(
     public val name: String,
     public val state: String,

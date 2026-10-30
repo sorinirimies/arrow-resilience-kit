@@ -10,7 +10,7 @@ import kotlin.js.Promise
  * ```ts
  * import { AdaptiveLimiter } from "arrow-resilience-kit";
  *
- * const limiter = await AdaptiveLimiter.create({ initialLimit: 20 });
+ * const limiter = await AdaptiveLimiter.create(20); // initial limit
  * const result = await limiter.execute(() => downstream.call());
  * ```
  */
@@ -21,6 +21,7 @@ public class AdaptiveLimiter internal constructor(
 ) {
     public companion object {
         /** Creates a new AIMD adaptive concurrency limiter. [latencyThresholdMillis] of `undefined` disables latency-based back-off. */
+        @JsStatic
         public fun create(
             initialLimit: Int = 20,
             minLimit: Int = 1,
@@ -51,7 +52,7 @@ public class AdaptiveLimiter internal constructor(
     public fun currentLimit(): Promise<Int> = runAsPromise { delegate.currentLimit() }
 
     /** Executes [block], counting it toward the current concurrency limit and adapting the limit based on its outcome/latency. */
-    public fun <T> execute(block: () -> Promise<T>): Promise<T> = runAsPromise {
+    public fun <T> execute(block: () -> Promise<T>, signal: AbortSignal? = null): Promise<T> = runAsPromise(signal) {
         delegate.execute { awaitBlock(block) }
     }
 }
@@ -59,6 +60,7 @@ public class AdaptiveLimiter internal constructor(
 /** JS/TS-friendly snapshot of [com.sorinirmies.arrow.resiliencekit.AdaptiveLimiterStatistics]. */
 @OptIn(kotlin.js.ExperimentalJsExport::class)
 @JsExport
+@ConsistentCopyVisibility
 public data class AdaptiveLimiterStatistics internal constructor(
     public val currentLimit: Int,
     public val inFlight: Int,
