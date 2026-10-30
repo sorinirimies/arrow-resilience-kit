@@ -269,6 +269,9 @@ tasks.register<Copy>("prepareDocs") {
 //    options objects, e.g. RetryOptions, which Kotlin's d.ts generator can't emit for
 //    external interfaces).
 tasks.named("jsNodeProductionLibraryDistribution") {
+    // The task copies into the directory without clearing it, so files of removed dependencies
+    // (e.g. a dropped library's .js) would linger and get published from a local build.
+    doFirst { delete(layout.buildDirectory.dir("dist/js/productionLibrary")) }
     doLast {
         val dist = layout.buildDirectory.dir("dist/js/productionLibrary").get().asFile
         val dts = dist.resolve("arrow-resilience-kit.d.ts")

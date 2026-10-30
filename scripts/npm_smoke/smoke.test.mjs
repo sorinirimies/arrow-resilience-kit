@@ -1,7 +1,9 @@
 // End-to-end checks of the *published* npm package, the way a JS/TS consumer uses it.
 // Run via `node scripts/npm_smoke/run.mjs` (installs build/dist/js/productionLibrary as a dependency).
 import assert from "node:assert/strict";
+import { readFileSync, readdirSync, realpathSync, statSync } from "node:fs";
 import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
 import { test } from "node:test";
 import kit, { Bulkhead, CircuitBreaker, Logging, Retry, RetryBudget, TimeLimiter, hedge } from "arrow-resilience-kit";
 
@@ -32,6 +34,22 @@ test("ESM named exports, default export and CommonJS agree", () => {
     assert.equal(kit.Retry, Retry);
     assert.equal(typeof hedge, "function");
     assert.equal(createRequire(import.meta.url)("arrow-resilience-kit/arrow-resilience-kit.js").Retry, Retry, "deep imports still resolve");
+});
+
+// Kotlin emits a ~0.5 KB empty module stub for every library whose code was eliminated entirely;
+// those are harmless. An unreferenced file *with code* is a leftover that shouldn't ship.
+test("package ships no unreferenced .js code (stale leftovers)", () => {
+    const dir = dirname(realpathSync(createRequire(import.meta.url).resolve("arrow-resilience-kit")));
+    const reached = new Set();
+    const visit = (file) => {
+        if (reached.has(file)) return;
+        reached.add(file);
+        for (const [, dep] of readFileSync(join(dir, file), "utf8").matchAll(/(?:require\(|from )['"]\.\/([^'"]+)['"]/g)) visit(dep);
+    };
+    visit("index.cjs");
+    visit("index.mjs");
+    const shipped = readdirSync(dir).filter((f) => /\.(c|m)?js$/.test(f));
+    assert.deepEqual(shipped.filter((f) => !reached.has(f) && statSync(join(dir, f)).size > 1024), []);
 });
 
 test("static create() works, Companion.create() still works", async () => {
