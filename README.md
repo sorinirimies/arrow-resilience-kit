@@ -563,17 +563,16 @@ Named registries (`CircuitBreakerRegistry`, `BulkheadRegistry`, `RateLimiterRegi
 
 | Dependency | Version |
 |---|---|
-| Kotlin | 2.4.20 |
-| Arrow-kt (Core, FX Coroutines, FX STM, Resilience) | 2.2.3 |
+| Kotlin | 2.4.21 (stdlib API pinned to 2.2) |
+| Arrow-kt (Core, FX Coroutines, FX STM, Resilience) | 2.3.0.1 |
 | Kotlinx Coroutines | 1.11.0 |
-| Kotlinx DateTime | 0.8.0 |
-| Kotlinx Serialization (JSON) | 1.11.0 |
+| Kotlinx Serialization (JSON) | 1.12.0 |
 | Kotlin Logging | 8.0.4 |
-| Kotest (test) | 6.2.5 |
+| Kotest (test) | 6.2.6 |
 | Detekt | 1.23.8 |
 | Dokka | 2.2.0 |
 
-See [`gradle/libs.versions.toml`](gradle/libs.versions.toml) for the full version catalog — kept current by an automated nightly dependency-upgrade workflow.
+See [`gradle/libs.versions.toml`](gradle/libs.versions.toml) for the full version catalog. A nightly workflow (`scripts/upgrade_deps.nu`, or `just outdated` / `just update-deps` locally) moves every entry to its newest stable release within the same major version and commits only if the build and tests pass; major upgrades stay manual.
 
 ### Optional: Micrometer metrics bridge (JVM only)
 
