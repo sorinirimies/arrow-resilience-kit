@@ -122,6 +122,14 @@ jobs:
           USE_SYSTEM_NODE: "true"
         run: ./gradlew jvmTest jsNodeTest --no-daemon --stacktrace
 
+      - name: Smoke-test the npm package (ESM/CJS, errors, abort, logging)
+        env:
+          USE_SYSTEM_NODE: "true"
+        # --skip-types: the runner can't reach the npm registry to fetch TypeScript.
+        run: |
+          ./gradlew jsNodeProductionLibraryDistribution --no-daemon
+          node scripts/npm_smoke/run.mjs --skip-types
+
       - name: Cleanup workspace
         if: always()
         run: |

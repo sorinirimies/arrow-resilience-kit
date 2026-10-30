@@ -329,6 +329,7 @@ jobs:
         # wrote a project .npmrc wired to NODE_AUTH_TOKEN.
         run: |
           ./gradlew jsNodeProductionLibraryDistribution --no-daemon
+          node scripts/npm_smoke/run.mjs
           cd build/dist/js/productionLibrary
           npm publish --access public
         env:

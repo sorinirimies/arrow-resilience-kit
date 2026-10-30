@@ -93,6 +93,11 @@ test-all:
 test-js:
     ./gradlew jsTest --no-daemon
 
+# Build the npm package and smoke-test it like a consumer (ESM/CJS, errors, abort, logging, .d.ts)
+test-npm:
+    ./gradlew jsNodeProductionLibraryDistribution --no-daemon
+    node scripts/npm_smoke/run.mjs
+
 # Run Linux native tests
 test-linux:
     ./gradlew linuxX64Test --no-daemon

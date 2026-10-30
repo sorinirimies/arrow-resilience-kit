@@ -84,6 +84,16 @@ jobs:
       - name: Run tests (JVM + JS)
         run: ./gradlew jvmTest jsNodeTest --no-daemon --stacktrace
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Smoke-test the npm package (ESM/CJS, errors, abort, logging, .d.ts)
+        run: |
+          ./gradlew jsNodeProductionLibraryDistribution --no-daemon
+          node scripts/npm_smoke/run.mjs
+
       - name: Upload test results
         uses: actions/upload-artifact@v4
         if: always()
