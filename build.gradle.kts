@@ -268,13 +268,17 @@ tasks.register<Copy>("prepareDocs") {
 //  - appends src/jsMain/typescript/extra.d.ts to the generated .d.ts (types for the plain
 //    options objects, e.g. RetryOptions, which Kotlin's d.ts generator can't emit for
 //    external interfaces).
+//  - README.md (src/jsMain/npm/README.md: the JS/TS documentation shown on npmjs.com) and LICENSE.
 tasks.named("jsNodeProductionLibraryDistribution") {
     // The task copies into the directory without clearing it, so files of removed dependencies
     // (e.g. a dropped library's .js) would linger and get published from a local build.
+    inputs.files("src/jsMain/npm/README.md", "src/jsMain/typescript/extra.d.ts", "LICENSE")
     doFirst { delete(layout.buildDirectory.dir("dist/js/productionLibrary")) }
     doLast {
         val dist = layout.buildDirectory.dir("dist/js/productionLibrary").get().asFile
         val dts = dist.resolve("arrow-resilience-kit.d.ts")
+        file("src/jsMain/npm/README.md").copyTo(dist.resolve("README.md"), overwrite = true)
+        file("LICENSE").copyTo(dist.resolve("LICENSE"), overwrite = true)
         val extra = file("src/jsMain/typescript/extra.d.ts").readText()
         if (!dts.readText().contains("Appended by build.gradle.kts")) dts.appendText(extra)
         val names = Regex("""^export declare (?:abstract )?(?:class|function|const|namespace|interface) (\w+)""", RegexOption.MULTILINE)

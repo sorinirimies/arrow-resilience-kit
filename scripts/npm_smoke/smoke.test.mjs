@@ -177,3 +177,9 @@ test("callbacks run in the caller's AsyncLocalStorage context, also under concur
     );
     assert.deepEqual(await Promise.all(retried), ids.map((id) => [id, id, id, id]));
 });
+
+test("package ships a README and the LICENSE", () => {
+    const dir = dirname(realpathSync(createRequire(import.meta.url).resolve("arrow-resilience-kit")));
+    assert.ok(readFileSync(join(dir, "README.md"), "utf8").length > 2000, "README.md");
+    assert.match(readFileSync(join(dir, "LICENSE"), "utf8"), /MIT License/);
+});

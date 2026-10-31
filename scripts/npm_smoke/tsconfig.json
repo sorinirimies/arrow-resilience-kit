@@ -1,4 +1,4 @@
 {
   "compilerOptions": { "strict": true, "noEmit": true, "module": "nodenext", "moduleResolution": "nodenext", "target": "es2022", "lib": ["es2022", "dom"], "skipLibCheck": false },
-  "files": ["types.ts"]
+  "include": ["types.ts", "readme_*.ts"]
 }
