@@ -248,19 +248,19 @@ dependencies:
 # Bump, commit, tag, then push to GitHub — triggers Release workflow
 release VERSION: (bump VERSION)
     @echo "Pushing release {{ VERSION }} to GitHub…"
-    git push --follow-tags github "$(git branch --show-current)"
+    git push --atomic --follow-tags github "$(git branch --show-current)"
     @echo "✅ Release {{ VERSION }} pushed to GitHub — workflow will trigger automatically."
 
 # Bump, commit, tag, then push to Gitea only
 release-gitea VERSION: (bump VERSION)
     @echo "Pushing release {{ VERSION }} to Gitea…"
-    git push --follow-tags gitea "$(git branch --show-current)"
+    git push --atomic --follow-tags gitea "$(git branch --show-current)"
     @echo "✅ Release {{ VERSION }} live on Gitea."
 
 # Bump, commit, tag, then push to Gitea Starscream only
 release-gitea-starscream VERSION: (bump VERSION)
     @echo "Pushing release {{ VERSION }} to Gitea Starscream…"
-    git push --follow-tags gitea_starscream "$(git branch --show-current)"
+    git push --atomic --follow-tags gitea_starscream "$(git branch --show-current)"
     @echo "✅ Release {{ VERSION }} live on Gitea Starscream."
 
 # Bump, commit, tag, then push to all remotes (continues on failure)
@@ -273,9 +273,9 @@ release-all VERSION: (bump VERSION)
     skipped=""
     echo "Pushing release {{ VERSION }} to all remotes…"
     failed=""
-    git_try github git push --follow-tags github "$(git branch --show-current)"             || failed="$failed github"
-    git_try gitea git push --follow-tags gitea "$(git branch --show-current)"              || failed="$failed gitea"
-    git_try gitea_starscream git push --follow-tags gitea_starscream "$(git branch --show-current)"   || failed="$failed gitea_starscream"
+    git_try github git push --atomic --follow-tags github "$(git branch --show-current)"             || failed="$failed github"
+    git_try gitea git push --atomic --follow-tags gitea "$(git branch --show-current)"              || failed="$failed gitea"
+    git_try gitea_starscream git push --atomic --follow-tags gitea_starscream "$(git branch --show-current)"   || failed="$failed gitea_starscream"
     if [ -n "$skipped" ]; then echo "ℹ️  Skipped (not configured):$skipped"; fi
     if [ -n "$failed" ]; then
         echo "⚠️  Release {{ VERSION }} failed to push to:$failed"
@@ -302,9 +302,9 @@ push-release-all: check-all
     }
     skipped=""
     failed=""
-    git_try github git push --follow-tags github "$(git branch --show-current)"             || failed="$failed github"
-    git_try gitea git push --follow-tags gitea "$(git branch --show-current)"              || failed="$failed gitea"
-    git_try gitea_starscream git push --follow-tags gitea_starscream "$(git branch --show-current)"   || failed="$failed gitea_starscream"
+    git_try github git push --atomic --follow-tags github "$(git branch --show-current)"             || failed="$failed github"
+    git_try gitea git push --atomic --follow-tags gitea "$(git branch --show-current)"              || failed="$failed gitea"
+    git_try gitea_starscream git push --atomic --follow-tags gitea_starscream "$(git branch --show-current)"   || failed="$failed gitea_starscream"
     if [ -n "$skipped" ]; then echo "ℹ️  Skipped (not configured):$skipped"; fi
     if [ -n "$failed" ]; then
         echo "⚠️  Failed to push to:$failed"

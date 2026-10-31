@@ -187,8 +187,12 @@ jobs:
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
+          # The tag can be behind main (e.g. main already has the previous release's
+          # Package.swift commit), so a plain checkout would refuse to overwrite the edited file.
+          cp Package.swift "$RUNNER_TEMP/Package.swift"
           git fetch origin main
-          git checkout main
+          git checkout -f -B main origin/main
+          cp "$RUNNER_TEMP/Package.swift" Package.swift
           git add Package.swift
           git diff --staged --quiet || git commit -m "chore: update Package.swift for ${{ needs.validate.outputs.tag }}"
           for i in 1 2 3 4 5; do
