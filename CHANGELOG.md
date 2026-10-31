@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.10.1](https://github.com/sorinirimies/arrow-resilience-kit/releases/tag/0.10.1) - 2026-10-31
+
+### 📚 Documentation
+
+- **npm:** ship a JS/TS README and the LICENSE in the npm package (the npm page and package README were empty); smoke test type-checks every README example against the generated .d.ts ([a178018](https://github.com/sorinirimies/arrow-resilience-kit/commit/a178018a5cc5b3a2d9e4aa80f932f7f6fcff7f28))
+
+**Full Changelog**: https://github.com/sorinirimies/arrow-resilience-kit/compare/0.10.0...0.10.1
+
 ## [0.10.0](https://github.com/sorinirimies/arrow-resilience-kit/releases/tag/0.10.0) - 2026-10-30
 
 ### ✨ Features
