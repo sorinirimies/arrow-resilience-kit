@@ -44,7 +44,7 @@
         </button>
         <div class="navigation-controls--break ui-kit_mobile-only"></div>
         <div class="library-version" id="library-version">
-0.9.3        </div>
+0.10.1        </div>
         <div class="navigation-controls">
         <ul class="filter-section filter-section_loading" id="filter-section" aria-label="Target filter">
                 <button class="platform-tag platform-selector js-like" data-active="" aria-pressed="true"
@@ -110,7 +110,7 @@
     <h1 class="cover"><span><span>Bulkhead</span></span></h1>
     <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
       <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":/jsMain" data-filterable-set=":/jsMain" data-active="" data-toggle=":/jsMain">js</button></div>
-<div class="content sourceset-dependent-content" data-active="" data-togglable=":/jsMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="index.html">Bulkhead</a></div><p class="paragraph">JS/TS-friendly facade over <span data-unresolved-link="com.sorinirmies.arrow.resiliencekit/Bulkhead///PointingToDeclaration/">com.sorinirmies.arrow.resiliencekit.Bulkhead</span>.</p><div class="sample-container"><pre><code class="block lang-ts" theme="idea">import { Bulkhead } from &quot;arrow-resilience-kit&quot;;<br><br>const bh = await Bulkhead.create({ maxConcurrentCalls: 10, maxWaitingCalls: 20 });<br>const result = await bh.execute(() =&gt; dbPool.query());</code></pre><span class="copy-tooltip"><div class="copy-popup-wrapper popup-to-left"><span class="copy-popup-icon"></span><span>Content copied to clipboard</span></div><span class="copy-icon"></span></span></div></div>    </div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":/jsMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="index.html">Bulkhead</a></div><p class="paragraph">JS/TS-friendly facade over <span data-unresolved-link="com.sorinirmies.arrow.resiliencekit/Bulkhead///PointingToDeclaration/">com.sorinirmies.arrow.resiliencekit.Bulkhead</span>.</p><div class="sample-container"><pre><code class="block lang-ts" theme="idea">import { Bulkhead } from &quot;arrow-resilience-kit&quot;;<br><br>const bh = await Bulkhead.create(10, 20); // concurrent calls, waiting calls<br>const result = await bh.execute(() =&gt; dbPool.query());</code></pre><span class="copy-tooltip"><div class="copy-popup-wrapper popup-to-left"><span class="copy-popup-icon"></span><span>Content copied to clipboard</span></div><span class="copy-icon"></span></span></div></div>    </div>
   </div>
   <div class="tabbedcontent">
     <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="CONSTRUCTOR,TYPE,PROPERTY,FUNCTION">Members</button></div>
@@ -155,19 +155,19 @@
               </div>
             </div>
           </div>
-<a data-name="1572990234%2FFunctions%2F-649084563" anchor-label="execute" id="1572990234%2FFunctions%2F-649084563" data-filterable-set=":/jsMain"></a>
+<a data-name="-177663650%2FFunctions%2F-649084563" anchor-label="execute" id="-177663650%2FFunctions%2F-649084563" data-filterable-set=":/jsMain"></a>
           <div class="table-row table-row_content" data-filterable-current=":/jsMain" data-filterable-set=":/jsMain">
             <div class="main-subrow keyValue ">
               <div class=""><span class="inline-flex">
                   <div><a href="execute.html"><span><span>execute</span></span></a></div>
-<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1572990234%2FFunctions%2F-649084563"></span>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-177663650%2FFunctions%2F-649084563"></span>
                     <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
                   </span></span></div>
               <div>
                 <div class="title">
                   <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
                     <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":/jsMain" data-filterable-set=":/jsMain" data-active="" data-toggle=":/jsMain">js</button></div>
-<div class="content sourceset-dependent-content" data-active="" data-togglable=":/jsMain"><div class="symbol monospace"><span class="token keyword">fun </span><span class="token operator">&lt;</span><a href="execute.html">T</a><span class="token operator">&gt; </span><a href="execute.html"><span class="token function">execute</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">block<span class="token operator">: </span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.js/-promise/index.html">Promise</a><span class="token operator">&lt;</span><a href="execute.html">T</a><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.js/-promise/index.html">Promise</a><span class="token operator">&lt;</span><a href="execute.html">T</a><span class="token operator">&gt;</span></div><div class="brief "><p class="paragraph">Executes <a href="execute.html">block</a>, waiting for a permit. Rejects if the bulkhead is full (or times out waiting).</p></div></div>                  </div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":/jsMain"><div class="symbol monospace"><span class="token keyword">fun </span><span class="token operator">&lt;</span><a href="execute.html">T</a><span class="token operator">&gt; </span><a href="execute.html"><span class="token function">execute</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">block<span class="token operator">: </span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.js/-promise/index.html">Promise</a><span class="token operator">&lt;</span><a href="execute.html">T</a><span class="token operator">&gt;</span><span class="token punctuation">, </span></span><span class="parameter ">signal<span class="token operator">: </span><a href="../-abort-signal/index.html">AbortSignal</a><span class="token operator">?</span><span class="token operator"> = </span>null</span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.js/-promise/index.html">Promise</a><span class="token operator">&lt;</span><a href="execute.html">T</a><span class="token operator">&gt;</span></div><div class="brief "><p class="paragraph">Executes <a href="execute.html">block</a>, waiting for a permit. Rejects if the bulkhead is full (or times out waiting).</p></div></div>                  </div>
                 </div>
               </div>
             </div>
