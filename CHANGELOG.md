@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.10.2](https://github.com/sorinirimies/arrow-resilience-kit/releases/tag/0.10.2) - 2026-11-01
+
+### 🐛 Bug Fixes
+
+- **release:** atomic tag+branch pushes, refuse to bump a branch behind GitHub, and let the iOS job commit Package.swift when main is ahead of the tag ([caa6b92](https://github.com/sorinirimies/arrow-resilience-kit/commit/caa6b92426755c6eebe3a88f6fe703753663a0bd))
+- **npm:** no environment access in the package - pin kotlin-logging's startup-banner env read to 'off' (JsLogging disables it anyway); smoke test asserts no shipped .js reads process.env ([1011647](https://github.com/sorinirimies/arrow-resilience-kit/commit/10116471d94afc2492ce95a9686b011a73380fda))
+
+### 📦 Other Changes
+
+- Merge remote-tracking branch 'github/main' ([3bb261c](https://github.com/sorinirimies/arrow-resilience-kit/commit/3bb261c5f37124e122f7adc5f89fb0eaae34ee58))
+
+**Full Changelog**: https://github.com/sorinirimies/arrow-resilience-kit/compare/0.10.1...0.10.2
+
 ## [0.10.1](https://github.com/sorinirimies/arrow-resilience-kit/releases/tag/0.10.1) - 2026-10-31
 
 ### 📚 Documentation
