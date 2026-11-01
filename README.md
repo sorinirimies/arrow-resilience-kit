@@ -1,513 +1,165 @@
 # Arrow Resilience Kit
 
 [![CI](https://github.com/sorinirimies/arrow-resilience-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/sorinirimies/arrow-resilience-kit/actions/workflows/ci.yml)
-[![Release](https://github.com/sorinirimies/arrow-resilience-kit/actions/workflows/release.yml/badge.svg)](https://github.com/sorinirimies/arrow-resilience-kit/actions/workflows/release.yml)
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.sorinirimies.arrow/arrow-resilience-kit?label=Maven%20Central)](https://central.sonatype.com/artifact/io.github.sorinirimies.arrow/arrow-resilience-kit)
 [![npm](https://img.shields.io/npm/v/arrow-resilience-kit?label=npm)](https://www.npmjs.com/package/arrow-resilience-kit)
-[![GitHub Release](https://img.shields.io/github/v/release/sorinirimies/arrow-resilience-kit?label=latest)](https://github.com/sorinirimies/arrow-resilience-kit/releases/latest)
-[![JitPack](https://jitpack.io/v/sorinirimies/arrow-resilience-kit.svg)](https://jitpack.io/#sorinirimies/arrow-resilience-kit)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-## Overview
+Coroutine-first resilience patterns for Kotlin Multiplatform, built on [Arrow](https://arrow-kt.io/): retry, circuit breakers, bulkheads, rate limiting, timeouts, hedging, failover, sagas and caching. They compose, report statistics, and run unchanged on every target.
 
-Arrow Resilience Kit is a Kotlin Multiplatform library that provides production-ready resilience patterns built on [Arrow-kt](https://arrow-kt.io/). It offers composable, coroutine-first implementations of **Bulkhead**, **Cache**, **Circuit Breaker** (consecutive-failure and sliding-window/failure-rate variants), **Rate Limiter**, **Retry & Repeat** (plus a system-wide **Retry Budget** against retry storms), **Saga**, **Time Limiter**, **Adaptive Limiter**, **Hedge**, **Failover**, and **STM Helpers** — plus a **Policy** combinator and **Flow** operators to compose them — everything you need to build fault-tolerant applications.
+**Targets:** JVM 17+ (and Android), JS (browser, Node.js), Wasm, Linux, Windows, macOS, iOS.
+**Docs:** [API reference](https://sorinirimies.github.io/arrow-resilience-kit/) · [Java, Swift and JS/TS usage](INTEROP.md) · [Changelog](CHANGELOG.md)
 
-**Supported platforms:** JVM (17+), JavaScript (Browser & Node.js), Native (Linux x64, macOS ARM64, iOS x64/ARM64/Simulator ARM64).
-
-📚 **[Full API documentation (Dokka)](https://sorinirimies.github.io/arrow-resilience-kit/)**
-
-🌐 Consuming this from Java, Swift (iOS), or JavaScript/TypeScript instead of Kotlin? See **[INTEROP.md](INTEROP.md)** for verified, per-language usage and caveats.
-
-## Why Arrow Resilience Kit?
-
-| | |
-|---|---|
-| **Coroutine-native** | Every pattern is a `suspend` function or operates on one — no thread blocking, no callback soup. |
-| **Composable** | Patterns wrap plain lambdas, so you freely nest `retry { circuitBreaker.execute { bulkhead.execute { ... } } }`. |
-| **DSL builders** | Every config type has a `{ }` builder with sane, documented defaults. |
-| **Observable** | Listeners and `*Statistics` snapshots (hit rate, rejection rate, state transitions) on every pattern. |
-| **Named registries** | Manage many instances (per-endpoint circuit breakers, per-tenant rate limiters, ...) by key. |
-| **Multiplatform** | One dependency, same API on JVM, JS, and Native — no platform-specific forks. |
-
-## Installation
-
-**Coordinates:**
-
-| | |
-|---|---|
-| **Group ID** | `io.github.sorinirimies.arrow` |
-| **Artifact ID** | `arrow-resilience-kit` |
-| **Version** | see the **Maven Central** / **latest** badges above — always current, never hand-edited |
-
-In every snippet below, replace `<version>` with whatever those badges show
-(or use a [dynamic Gradle version](https://docs.gradle.org/current/userguide/dynamic_versions.html)
-like `+` / `latest.release` to always resolve the newest published release —
-convenient, but not reproducible, so pin an exact version for real builds).
-
-### JitPack
-
-```arrow-resilience-kit/build.gradle.kts#L1-L8
-repositories {
-    maven { url = uri("https://jitpack.io") }
-}
-
-dependencies {
-    implementation("com.github.sorinirimies:arrow-resilience-kit:<version>")
-}
-```
-
-### GitHub Packages
-
-```arrow-resilience-kit/build.gradle.kts#L1-L13
-repositories {
-    maven {
-        name = "GitHubPackages"
-        url = uri("https://maven.pkg.github.com/sorinirimies/arrow-resilience-kit")
-        credentials {
-            username = project.findProperty("gpr.user") as String? ?: System.getenv("GITHUB_ACTOR")
-            password = project.findProperty("gpr.token") as String? ?: System.getenv("GITHUB_PACKAGES_TOKEN")
-        }
-    }
-}
-
-implementation("io.github.sorinirimies.arrow:arrow-resilience-kit:<version>")
-```
-
-> Requires a GitHub Personal Access Token with `read:packages` scope.
-
-### Maven Central
+## Install
 
 ```kotlin
-repositories {
-    mavenCentral()
-}
-
 dependencies {
-    implementation("io.github.sorinirimies.arrow:arrow-resilience-kit:<version>")
+    implementation("io.github.sorinirimies.arrow:arrow-resilience-kit:<version>") // Maven Central
 }
 ```
-
-> Published via the [Central Portal](https://central.sonatype.com/) — no token needed to consume it.
-
-### Swift Package Manager (iOS)
-
-Every release also ships a prebuilt `ArrowResilienceKit.xcframework` (iOS device + simulator, arm64/x86_64) via SPM:
 
 ```swift
-.package(url: "https://github.com/sorinirimies/arrow-resilience-kit", from: "<version>")
+.package(url: "https://github.com/sorinirimies/arrow-resilience-kit", from: "<version>") // iOS, prebuilt XCFramework
 ```
-
-Kotlin `suspend` functions are exposed as completion-handler methods, which Swift automatically bridges to `async`/`await` -- this works out of the box for direct calls like `CircuitBreaker.companion.create(config:clock:)`. Calls that take a *lambda* parameter (e.g. `execute { ... }`) need a couple of small, reusable Swift adapter types first; see **[INTEROP.md](INTEROP.md)** for verified, working examples and the `Duration`/DSL-builder caveats. See [Package.swift](Package.swift) (its `binaryTarget` always points at the exact latest release, updated automatically by CI).
-
-### npm (JavaScript / TypeScript)
 
 ```bash
-npm install arrow-resilience-kit
+npm install arrow-resilience-kit # JS/TS: Promise API with TypeScript types (see its README on npm)
 ```
 
-```ts
-import { CircuitBreaker, Retry } from "arrow-resilience-kit";
+Use the version from the badges above. JitPack, GitHub Packages and Maven: [INSTALLATION.md](INSTALLATION.md).
 
-const breaker = await CircuitBreaker.create(5, 30_000);
-const data = await breaker.execute(() =>
-    Retry.withBackoff(() => fetchJson(url), {
-        shouldRetry: (e) => e.status === 429 || e.status >= 500,
-        delayMillis: (e) => e.retryAfterMillis, // honor Retry-After
-        signal,                                 // AbortSignal
-    }),
-);
-```
-
-A hand-written, Promise-based facade over most patterns, with real generated TypeScript definitions -- not the raw Kotlin API (which can't cross the JS boundary directly: `@JsExport` doesn't support `suspend` functions at all). ES modules and CommonJS, no runtime dependencies, silent by default (`Logging.setLevel(...)` to enable), rejections carry your own error, and waits are cancellable with an `AbortSignal`. See **[INTEROP.md](INTEROP.md)** for exactly what's covered, what isn't (yet), and verified usage examples.
-
-See [INSTALLATION.md](INSTALLATION.md) for Maven, Gitea Packages, and additional details.
-
-## Quick Start
+## Quick start
 
 ```kotlin
 import com.sorinirmies.arrow.resiliencekit.*
 import kotlin.time.Duration.Companion.seconds
 
-// Retry a flaky call
-val data = retryWithExponentialBackoff(retries = 3) {
-    api.fetchData()
-}
-
-// Protect with a circuit breaker
 val breaker = circuitBreaker {
     failureThreshold = 5
     resetTimeout = 30.seconds
 }
-val result = breaker.execute { api.fetchData() }
 
-// Enforce a deadline
-val fast = withTimeLimit(5.seconds) {
-    slowService.query()
-}
-
-// Limit concurrency
-val guarded = withBulkhead(BulkheadConfig(maxConcurrentCalls = 10)) {
-    db.query()
+val data = retryWithBackoff(
+    retries = 3,
+    shouldRetry = { e, _ -> e is HttpException && (e.status == 429 || e.status >= 500) },
+    delayFor = { e, _ -> (e as? HttpException)?.retryAfter }, // honor Retry-After
+) {
+    breaker.execute { withTimeLimit(5.seconds) { api.fetchData() } }
 }
 ```
 
 ## Patterns
 
-### Bulkhead
+| Pattern | Use it to | Entry point |
+|---|---|---|
+| [Retry & repeat](#retry) | retry transient failures, poll until done | `retryWithBackoff`, `retryIf`, `repeatUntil` |
+| [Retry budget](#retry-budget) | stop retries from amplifying an outage | `RetryBudget`, `retryWithBudget` |
+| [Circuit breaker](#circuit-breaker) | fail fast while a dependency is down | `circuitBreaker { }`, `slidingWindowCircuitBreaker { }` |
+| [Bulkhead](#bulkhead) | cap concurrent calls | `bulkhead { }`, `withBulkhead` |
+| [Rate limiter](#rate-limiter) | cap throughput | `rateLimiter { }`, `SlidingWindowRateLimiter` |
+| [Adaptive limiter](#adaptive-limiter) | find the concurrency limit from latency | `AdaptiveLimiter` |
+| [Time limiter](#time-limiter) | enforce deadlines | `timeLimiter { }`, `withTimeLimit` |
+| [Hedge](#hedge) | cut tail latency with a backup request | `hedge` |
+| [Failover](#failover) | fall back across providers | `failover { }` |
+| [Saga](#saga) | undo completed steps when a later one fails | `saga { }` |
+| [Cache](#cache) | TTL cache with LRU/LFU/FIFO eviction | `cache { }`, `LoadingCache` |
+| [Composition](#composition) | combine patterns, or apply them to a `Flow` | `Policy`, `throughCircuitBreaker` |
+| [Testing](#chaos) | inject failures and latency | `chaos` |
 
-Limits concurrent access to a resource using a semaphore, with optional wait-queue limits and timeouts.
+Every pattern has a DSL builder with documented defaults, a `statistics()` snapshot, and a named registry (`CircuitBreakerRegistry`, `BulkheadRegistry`, ...) for per-endpoint or per-tenant instances.
+
+### Retry
 
 ```kotlin
-// DSL builder
+retryWithExponentialBackoff(retries = 5, base = 100.milliseconds) { api.fetch() }
+retryWithCappedBackoff(retries = 8, base = 100.milliseconds, maxDelay = 10.seconds) { api.fetch() }
+retryIf(retries = 3, delay = 1.seconds, shouldRetry = { it is IOException }) { api.fetch() }
+retryOrDefault(retries = 3, fallback = { emptyList() }) { api.fetchList() }
+
+repeatUntil(maxAttempts = 10, delay = 1.seconds, condition = { it.status == "COMPLETE" }) { api.pollStatus() }
+```
+
+Also `retryWithConstantDelay`, `retryWithFibonacci`, `retryIfWithExponentialBackoff` and `repeatAndCollect`. `retryWithBackoff` (see [Quick start](#quick-start)) takes all options at once: retry filter, per-error delay, cap, jitter and an `onRetry` hook.
+
+### Retry budget
+
+One budget per downstream, shared by every caller. Retries are allowed only up to a fraction of successful traffic, so a failing service isn't hammered by everyone retrying at once.
+
+```kotlin
+val budget = RetryBudget.create()
+retryWithBudget(budget, retries = 5) { callFlakyService() }
+```
+
+### Circuit breaker
+
+```kotlin
+val cb = circuitBreaker {
+    failureThreshold = 5          // consecutive failures before opening
+    resetTimeout = 60.seconds     // then half-open: let trial calls through
+    halfOpenSuccessThreshold = 2  // successes needed to close again
+}
+cb.executeOrFallback(fallback = { defaultResponse }) { service.call() }
+cb.addListener { from, to -> log.info("circuit $from -> $to") }
+
+// Trips on a failure rate instead: at least 50 % of the last 20 calls
+val rate = slidingWindowCircuitBreaker {
+    slidingWindowSize = 20
+    minimumNumberOfCalls = 10
+    failureRateThreshold = 0.5
+}
+```
+
+### Bulkhead
+
+```kotlin
 val bh = bulkhead {
     maxConcurrentCalls = 10
     maxWaitingCalls = 20
     maxWaitDuration = 5.seconds
 }
-
-val result = bh.execute { dbPool.query() }
-
-// With fallback on rejection
-val safe = bh.executeOrFallback(
-    fallback = { cachedValue }
-) { dbPool.query() }
-
-// Registry for named bulkheads
-val registry = BulkheadRegistry()
-val apiBulkhead = registry.getOrCreate("api") {
-    maxConcurrentCalls = 50
-}
+bh.execute { dbPool.query() }
 ```
 
-### Cache
+`DispatcherBulkhead` runs admitted calls on a dedicated dispatcher; `ThreadPoolBulkhead` (JVM) owns a thread pool.
 
-Thread-safe cache with TTL, size limits, and configurable eviction strategies (LRU, LFU, FIFO).
+### Rate limiter
 
 ```kotlin
-// DSL builder
-val userCache = cache<String, User> {
-    maxSize = 1_000
-    ttl = 5.minutes
-    evictionStrategy = EvictionStrategy.LRU
-}
+val rl = rateLimiter { permitsPerSecond = 10.0; burstCapacity = 20 }  // token bucket
+rl.execute { api.request() }
 
-// Get or compute
-val user = userCache.getOrPut("user-123") {
-    userService.fetch("user-123")
-}
-
-// Loading cache (auto-fetch on miss)
-val loader = LoadingCache.create<String, User>(
-    config = CacheConfig(maxSize = 500, ttl = 10.minutes),
-    loader = { id -> userService.fetch(id) }
-)
-val u = loader.get("user-456") // fetches automatically
-
-// Statistics
-val stats = userCache.statistics() // hits, misses, hitRate, evictions
+val window = SlidingWindowRateLimiter(SlidingWindowConfig(maxRequests = 100, windowDuration = 1.seconds))
 ```
 
-### Circuit Breaker
+### Adaptive limiter
 
-Prevents cascading failures with three states: **Closed** → **Open** → **Half-Open**.
+Additive-increase, multiplicative-decrease, like TCP congestion control: the limit grows while calls succeed quickly and shrinks on failures or slow calls.
 
 ```kotlin
-val cb = circuitBreaker {
-    failureThreshold = 5        // failures before opening
-    resetTimeout = 60.seconds   // wait before half-open
-    halfOpenSuccessThreshold = 2 // successes to close again
-}
-
-// Basic execution
-val result = cb.execute { externalService.call() }
-
-// With fallback
-val safe = cb.executeOrFallback(
-    fallback = { ex -> defaultResponse }
-) { externalService.call() }
-
-// Inspect state
-when (cb.currentState()) {
-    CircuitBreakerState.Closed -> println("Healthy")
-    CircuitBreakerState.Open -> println("Failing fast")
-    CircuitBreakerState.HalfOpen -> println("Testing recovery")
-}
-
-// Listen for transitions
-cb.addListener { old, new -> log.info("Circuit: $old -> $new") }
+val limiter = AdaptiveLimiter.create(AdaptiveLimiterConfig(initialLimit = 20, latencyThreshold = 200.milliseconds))
+limiter.execute { downstream.call() }
 ```
 
-### Sliding-Window Circuit Breaker
-
-Like [Circuit Breaker](#circuit-breaker), but trips on a **failure rate** over the last N calls instead of consecutive failures -- catches a steady, low-grade error rate (e.g. 1 in 3 calls failing, but never 5 *in a row*) that a consecutive-count trip would never notice.
+### Time limiter
 
 ```kotlin
-val cb = slidingWindowCircuitBreaker {
-    slidingWindowSize = 20          // track the last 20 calls
-    minimumNumberOfCalls = 10        // don't evaluate until the window has enough samples
-    failureRateThreshold = 0.5       // trip once >= 50% of them failed
-    resetTimeout = 30.seconds
-}
-
-val result = cb.execute { externalService.call() }
-
-val stats = cb.statistics()
-println("${stats.callsInWindow} calls, ${stats.failureRate * 100}% failing")
+val tl = timeLimiter { timeout = 5.seconds }
+tl.executeOrNull { slowOp() }
+tl.executeOrFallback(fallback = { cachedValue }) { slowOp() }
+tl.executeWithRetry(retries = 3) { slowOp() }
 ```
 
-### Rate Limiter
+### Hedge
 
-Controls request throughput using a token-bucket algorithm. Also includes a sliding-window variant.
+Starts another attempt if the first is slow; the first success wins. Only for calls that are safe to run twice.
 
 ```kotlin
-// Token bucket
-val rl = rateLimiter {
-    permitsPerSecond = 10.0
-    burstCapacity = 20
-}
-
-val result = rl.execute { api.request() }
-
-// Sliding window
-val sw = SlidingWindowRateLimiter(
-    SlidingWindowConfig(maxRequests = 100, windowDuration = 1.seconds)
-)
-sw.execute { api.request() }
-
-// Check stats
-val stats = rl.statistics() // accepted, rejected, acceptanceRate
+hedge(hedgeDelay = 50.milliseconds, maxHedges = 2) { api.fetchData() }
 ```
 
-### Retry & Repeat
+### Failover
 
-Flexible retry strategies with exponential, constant, Fibonacci, and capped backoff. Repeat helpers for polling.
-
-```kotlin
-// Exponential backoff with jitter
-val data = retryWithExponentialBackoff(retries = 5, base = 100.milliseconds, factor = 2.0) { api.fetch() }
-
-// Constant delay
-val d2 = retryWithConstantDelay(retries = 3, delay = 500.milliseconds) { api.fetch() }
-
-// Fibonacci backoff
-val d3 = retryWithFibonacci(retries = 5, base = 100.milliseconds) { api.fetch() }
-
-// Capped exponential backoff
-val d3b = retryWithCappedBackoff(retries = 8, base = 100.milliseconds, maxDelay = 10.seconds) { api.fetch() }
-
-// Conditional retry
-val d4 = retryIf(retries = 3, delay = 1.seconds, shouldRetry = { it is IOException }) {
-    api.fetch()
-}
-
-// Conditional retry with exponential backoff - combines retryIf's filtering with
-// retryWithExponentialBackoff's backoff strategy, which neither offers alone
-val d4b = retryIfWithExponentialBackoff(retries = 5, shouldRetry = { it is IOException }) {
-    api.fetch()
-}
-
-// Everything configurable: only retry what's worth retrying, cap the backoff, and honor a
-// server-provided wait (e.g. HTTP Retry-After) for a specific failure
-val d4c = retryWithBackoff(
-    retries = 5,
-    maxDelay = 10.seconds,
-    shouldRetry = { e, _ -> e is HttpException && (e.status == 429 || e.status >= 500) },
-    delayFor = { e, _ -> (e as? HttpException)?.retryAfter },
-    onRetry = { e, retry, delay -> log.debug { "retry $retry in $delay after $e" } },
-) { api.fetch() }
-
-// Retry with fallback default
-val d5 = retryOrDefault(retries = 3, fallback = { emptyList() }) { api.fetchList() }
-
-// Repeat until condition
-val finalValue = repeatUntil(
-    maxAttempts = 10,
-    delay = 1.seconds,
-    condition = { it.status == "COMPLETE" }
-) { api.pollStatus() }
-
-// Repeat and collect all results
-val all = repeatAndCollect(times = 5, delay = 500.milliseconds) { api.sample() }
-```
-
-### Retry Budget (retry-storm protection)
-
-Per-call retry has no idea how much *total* retry volume the rest of the system is generating. The well-known failure mode: a downstream outage causes every caller to retry simultaneously, multiplying load on an already-struggling service and making the outage worse. A `RetryBudget`, shared across every call site retrying against a given downstream, caps total retry volume as a fraction of successful traffic -- and self-heals on its own as the system recovers, with no manual reset.
-
-```kotlin
-val budget = RetryBudget.create() // one instance per downstream, shared across call sites
-
-val result = retryWithBudget(budget, retries = 5) {
-    callFlakyService()
-}
-
-// Or gate a custom retry loop directly with the primitive:
-if (budget.tryWithdraw()) { /* perform the retry */ } else { /* fail fast instead */ }
-```
-
-### Saga
-
-Distributed transaction coordination with automatic compensation on failure.
-
-```kotlin
-val orderSaga = saga<OrderResult> {
-    step(
-        name = "Reserve inventory",
-        action = { inventoryService.reserve(items) },
-        compensation = { reservation -> inventoryService.release(reservation.id) }
-    )
-    step(
-        name = "Charge payment",
-        action = { paymentService.charge(amount) },
-        compensation = { payment -> paymentService.refund(payment.txId) }
-    )
-    stepWithRetry(
-        name = "Send confirmation",
-        retries = 3,
-        action = { emailService.send(confirmation) }
-    )
-}
-
-when (val result = orderSaga.execute()) {
-    is SagaResult.Success -> println("Order placed: ${result.result}")
-    is SagaResult.Failure -> {
-        println("Order failed: ${result.error.message}")
-        println("Compensated ${result.compensatedSteps} steps")
-    }
-}
-```
-
-### Time Limiter
-
-Timeout enforcement with fallback, retry-on-timeout, race, and batch execution.
-
-```kotlin
-val tl = timeLimiter {
-    timeout = 5.seconds
-}
-
-// Execute or throw on timeout
-val result = tl.execute { slowOp() }
-
-// Execute or return null
-val maybe = tl.executeOrNull { slowOp() }
-
-// Execute with fallback
-val safe = tl.executeOrFallback(fallback = { cachedValue }) { slowOp() }
-
-// Retry on timeout
-val retried = tl.executeWithRetry(retries = 3) { slowOp() }
-
-// Convenience free function
-val quick = withTimeLimit(2.seconds) { fastOp() }
-```
-
-### STM Helpers
-
-Lock-free, composable transactional primitives built on Arrow's Software Transactional Memory.
-
-```kotlin
-import com.sorinirmies.arrow.resiliencekit.stm.*
-import arrow.fx.stm.atomically
-
-// Atomic counter
-val counter = StmCounter.create(0L)
-atomically { with(counter) { increment() } }
-println(counter.value()) // 1
-
-// Gauge with min/max tracking
-val gauge = StmGauge.create(0.0)
-atomically { with(gauge) { set(42.0) } }
-
-// Typed state machine
-val sm = StmStateMachine.create("IDLE")
-atomically { with(sm) { transitionIf("IDLE", "RUNNING") } }
-
-// Composable semaphore
-val sem = StmSemaphore.create(5)
-atomically { with(sem) { acquire() } }
-
-// Sliding-window rate tracking
-val window = StmRateWindow.create(windowMs = 1000L)
-atomically { with(window) { tryAcquire(maxRequests = 10, nowMs = currentTimeMs) } }
-
-// TVar extensions
-val tvar = TVar.new(0)
-tvar.modify { it + 1 }
-tvar.compareAndSet(expected = 1, new = 2)
-stmTransaction { tvar.write(tvar.read() + 10) }
-```
-
-### Policy (composition)
-
-Wraps [Bulkhead], [CircuitBreaker], [RateLimiter], [TimeLimiter], and retry into one reusable, order-explicit chain. `a + b` means *a wraps b* — the leftmost policy is outermost.
-
-```kotlin
-val policy = retryPolicy(retries = 3) + circuitBreaker.asPolicy() + bulkhead.asPolicy()
-val result = policy.apply { api.fetchData() }
-
-// retryIfPolicy: like retryPolicy, but only for exceptions matching shouldRetry - use this
-// instead whenever some failures are permanent and shouldn't be retried at all
-val conditionalPolicy = retryIfPolicy(retries = 3, shouldRetry = { it is IOException }) +
-    circuitBreaker.asPolicy()
-
-// Or fold a list of policies:
-val combined = Policy.combine(retryPolicy(), circuitBreaker.asPolicy(), bulkhead.asPolicy())
-```
-
-### Flow operators
-
-`Flow`-native counterparts of the same patterns, protecting a whole collection instead of a single call.
-
-```kotlin
-api.streamUpdates()
-    .throughCircuitBreaker(circuitBreaker)
-    .throughBulkhead(bulkhead)
-    .retryWithBackoff(retries = 3)
-    .collect { println(it) }
-```
-
-### Hedge (speculative requests)
-
-Fires a duplicate attempt after a delay if the first hasn't completed yet; the first to *succeed* wins. Cuts tail latency before a slow call has even failed — complements retry, which only reacts after failure.
-
-```kotlin
-val result = hedge(hedgeDelay = 50.milliseconds, maxHedges = 2) {
-    api.fetchData() // must be safe to call more than once concurrently
-}
-```
-
-### Adaptive Limiter
-
-AIMD (additive-increase / multiplicative-decrease) concurrency limiter, in the spirit of TCP congestion control and Netflix's `concurrency-limits`. Grows its limit on success, shrinks it multiplicatively on failure or excess latency — no hand-tuned fixed capacity required.
-
-```kotlin
-val limiter = AdaptiveLimiter.create(AdaptiveLimiterConfig(
-    initialLimit = 20,
-    latencyThreshold = 200.milliseconds, // slow-but-successful calls still count as overload
-))
-val result = limiter.execute { downstream.call() }
-println(limiter.statistics().currentLimit)
-```
-
-### Chaos (fault injection for tests)
-
-Wraps a real or fake call so it randomly fails and/or adds latency — exercise your retry/circuit-breaker/bulkhead usage without hand-rolling flaky fakes.
-
-```kotlin
-val flaky = chaos({ failureRate = 0.3; latency = 50.milliseconds }) {
-    realApi.call()
-}
-val result = retryWithExponentialBackoff(retries = 5) { flaky() }
-```
-
-### Shared State Store (extension point)
-
-`SharedStateStore` is a minimal key-value seam for backing resilience state with a distributed store (Redis, a database, ...) instead of in-memory STM — useful when circuit-breaker/rate-limiter decisions need to be coordinated across a horizontally-scaled fleet. Ships with `InMemorySharedStateStore` (single-process reference implementation); wiring a real backend is left to your application.
-
-### Failover (protocol/transport fallback)
-
-Tries a prioritized list of named providers, falling through to the next one when the current one's circuit is open or it fails outright — e.g. prefer a WebSocket transport, degrade to MQTT, then to HTTP long-polling if both are down. Each provider gets its own [CircuitBreaker]; a provider that keeps failing trips its breaker open so later calls skip it immediately (no repeated timeout cost), and the breaker's own half-open/reset-timeout behavior periodically re-probes it — so `Failover` self-heals back to the preferred provider once it recovers, with no extra bookkeeping from the caller.
+Each provider has its own circuit breaker: failing providers are skipped and re-tried after their reset timeout, so traffic returns to the preferred one once it recovers.
 
 ```kotlin
 val transport = failover<Connection> {
@@ -515,165 +167,78 @@ val transport = failover<Connection> {
     provider("mqtt") { connectMqtt() }
     provider("http-polling") { connectHttpPolling() }
 }
+val connection = transport.execute() // FailoverExhaustedException if all are down
 
-val connection = transport.execute()
-
-// Per-provider circuit breaker tuning
-val tuned = failover<Connection> {
-    provider("websocket", circuitBreakerConfig = { failureThreshold = 3 }) { connectWebSocket() }
-    provider("mqtt") { connectMqtt() }
-}
-
-// Inspecting provider health
-transport.providerNames() // ["websocket", "mqtt", "http-polling"]
-transport.stateOf("websocket") // CircuitBreakerState.Open, once it's known-bad
-transport.statistics() // List<FailoverProviderStatistics>: successes/failures/skipped per provider
+transport.startHealthProbing(scope, interval = 30.seconds) // re-check skipped providers without real traffic
 ```
 
-If every provider is either skipped (circuit open) or fails, `execute()` throws `FailoverExhaustedException` describing why each one was unavailable. A `FailoverRegistry` manages multiple named failover chains, same as the other patterns' registries.
-
-By default, an open provider only gets re-tested passively, by the next real call that happens to reach it -- which can be a long wait on a quiet system, or never, for a lower-priority provider a healthy earlier one keeps shielding from traffic entirely. `startHealthProbing` decouples recovery detection from real traffic, so a recovered provider is already back in rotation by the time real traffic arrives:
+### Saga
 
 ```kotlin
-val probing = transport.startHealthProbing(applicationScope, interval = 30.seconds)
-// ... later, on shutdown:
-probing.cancel()
+val order = saga<OrderResult> {
+    step("Reserve inventory", action = { inventory.reserve(items) }, compensation = { inventory.release(it.id) })
+    step("Charge payment", action = { payments.charge(amount) }, compensation = { payments.refund(it.txId) })
+    stepWithRetry("Send confirmation", retries = 3, action = { email.send(confirmation) })
+}
+when (val result = order.execute()) {
+    is SagaResult.Success -> println(result.result)
+    is SagaResult.Failure -> println("failed, ${result.compensatedSteps} steps undone: ${result.error}")
+}
 ```
 
-## Integrations & Extensions
-
-- **Thread-pool bulkhead** — `DispatcherBulkhead` (common) runs admitted calls on a dedicated dispatcher; `ThreadPoolBulkhead` (JVM) owns a fixed thread pool. `close()` it when done.
-- **Distributed state** — `DistributedRateLimiter` and `DistributedCircuitBreaker` keep state in any `SharedStateStore`; `RedisSharedStateStore` (JVM, Lettuce, atomic Lua CAS) shares it across instances.
-- **Ktor plugin** (JVM) — `install(ArrowResilience) { policy = ... }` on a route; rejections map to 429/503/504.
-- **Spring Boot auto-config** (JVM) — `arrow.resilience.circuit-breaker.<name>.*` (also `bulkhead`, `rate-limiter`, `time-limiter`) yields a `ResilienceInstances` bean.
-- **Config-driven setup** — `ResilienceConfig.fromJson(...)` / `fromProperties(...)` + `ResilienceInstances.create(...)`.
-- **Targets** — added `mingwX64` and `wasmJs`. Android consumers use the `jvm` artifact.
-
-Ktor, Lettuce and Spring are `compileOnly`: add the ones you use to your own build.
-
-## Configuration
-
-Every pattern supports a DSL builder for configuration:
+### Cache
 
 ```kotlin
-val cb = circuitBreaker {
-    failureThreshold = 10
-    resetTimeout = 60.seconds
-    halfOpenSuccessThreshold = 3
-}
+val users = cache<String, User> { maxSize = 1_000; ttl = 5.minutes; evictionStrategy = EvictionStrategy.LRU }
+users.getOrPut("user-123") { userService.fetch("user-123") }
 
-val bh = bulkhead {
-    maxConcurrentCalls = 25
-    maxWaitingCalls = 50
-    maxWaitDuration = 10.seconds
-}
-
-val rl = rateLimiter {
-    permitsPerSecond = 100.0
-    burstCapacity = 200
-}
-
-val tl = timeLimiter {
-    timeout = 15.seconds
-}
+val loader = LoadingCache.create<String, User>(CacheConfig(maxSize = 500, ttl = 10.minutes)) { id -> userService.fetch(id) }
+loader.get("user-456")
 ```
 
-Named registries (`CircuitBreakerRegistry`, `BulkheadRegistry`, `RateLimiterRegistry`, `TimeLimiterRegistry`, `CacheRegistry`, `AdaptiveLimiterRegistry`, `SagaRegistry`, `FailoverRegistry`) let you manage instances by name and collect statistics across all instances.
+### Composition
 
-## Dependencies
-
-| Dependency | Version |
-|---|---|
-| Kotlin | 2.4.21 (stdlib API pinned to 2.2) |
-| Arrow-kt (Core, FX Coroutines, FX STM, Resilience) | 2.3.0.1 |
-| Kotlinx Coroutines | 1.11.0 |
-| Kotlinx Serialization (JSON) | 1.12.0 |
-| Kotlin Logging | 8.0.4 |
-| Kotest (test) | 6.2.6 |
-| Detekt | 1.23.8 |
-| Dokka | 2.2.0 |
-
-See [`gradle/libs.versions.toml`](gradle/libs.versions.toml) for the full version catalog. A nightly workflow (`scripts/upgrade_deps.nu`, or `just outdated` / `just update-deps` locally) moves every entry to its newest stable release within the same major version and commits only if the build and tests pass; major upgrades stay manual.
-
-### Optional: Micrometer metrics bridge (JVM only)
-
-`MicrometerBridge` exports pattern statistics (call counts, rejection rates, circuit state, adaptive limits, cache hit rate, per-provider failover health, ...) as Micrometer gauges. It's `compileOnly` on the JVM target — add `io.micrometer:micrometer-core` yourself to use it, everyone else pays nothing. Covers `Bulkhead`, `CircuitBreaker`, `RateLimiter`, `AdaptiveLimiter`, `Cache`, `TimeLimiter`, and `Failover` (`bindBulkhead`/`bindCircuitBreaker`/`bindRateLimiter`/`bindAdaptiveLimiter`/`bindCache`/`bindTimeLimiter`/`bindFailover`):
+`a + b` means *a wraps b*.
 
 ```kotlin
-val registry = SimpleMeterRegistry() // or PrometheusMeterRegistry, etc.
-MicrometerBridge.bindCircuitBreaker(registry, "orders-api", circuitBreaker)
-MicrometerBridge.bindBulkhead(registry, "orders-api", bulkhead)
+val policy = retryPolicy(retries = 3) + circuitBreaker.asPolicy() + bulkhead.asPolicy()
+policy.apply { api.fetchData() }
+
+api.streamUpdates()
+    .throughCircuitBreaker(circuitBreaker)
+    .retryWithBackoff(retries = 3)
+    .collect { println(it) }
 ```
 
-## Publishing
+### Chaos
 
-Every `./gradlew publish`-capable target (JVM, JS, Linux x64, macOS ARM64, iOS x64/ARM64/Simulator ARM64) is published as Kotlin/Maven artifacts to the targets below; npm gets a separate, hand-written JS/TS facade (see its row).
-
-| Target | Trigger | Notes |
-|---|---|---|
-| **GitHub Packages** | Either release workflow (GitHub or Gitea) | Gated on `PACKAGES_PUBLISH` secret (a GitHub PAT with `write:packages`). The destination is hardcoded to `maven.pkg.github.com`, so a Gitea-triggered release publishes to GitHub Packages too — as long as `PACKAGES_PUBLISH` is *also* configured as a Gitea Actions secret (Gitea and GitHub secrets are separate stores). |
-| **Maven Central** (Central Portal) | Either release workflow | Gated on `SONATYPE_TOKEN` (Central Portal token `<server>` XML with username+password) + `GPG_SIGNING_KEY`/`GPG_PASSPHRASE`. Requires a one-time, human-only step: verifying the `io.github.sorinirimies` namespace (covers every `io.github.sorinirimies.*` group) at [central.sonatype.com](https://central.sonatype.com/). Uploaded via `./gradlew publishToCentralPortal` (see [`gradle/central-portal.gradle.kts`](gradle/central-portal.gradle.kts)) — a hand-rolled call to the Central Portal Publisher API using only the JDK's `java.net.http.HttpClient`, no Gradle publish plugin dependency. |
-| **Gitea Packages** (self-hosted) | Gitea release workflow only | Gated on `GITEA_PACKAGES_TOKEN`. Only wired into `.gitea/workflows/release.yml` — the Gitea instance is a private LAN address, unreachable from GitHub-hosted runners. |
-| **JitPack** | Passive, no workflow step | Builds on-demand from any GitHub tag; nothing to configure. |
-| **Swift Package Manager** (iOS) | GitHub release workflow only, `xcframework` job | Builds `ArrowResilienceKit.xcframework` on `macos-latest` (Kotlin/Native's iOS targets require Xcode), uploads it as a release asset, and updates [`Package.swift`](Package.swift)'s checksum. Not wired into the Gitea workflow — the self-hosted runner is Linux and can't build Apple frameworks. |
-| **npm** | Either release workflow | Gated on `NPM_TOKEN` (an npm automation/publish token). Publishes a hand-written Promise-based facade (`src/jsMain/kotlin/`), not the raw Kotlin API — `@JsExport` can't export `suspend` functions at all. Built via `./gradlew jsNodeProductionLibraryDistribution` (`binaries.library()` + `generateTypeScriptDefinitions()` in `build.gradle.kts`'s `js { }` block), then `npm publish` from `build/dist/js/productionLibrary`. See [INTEROP.md](INTEROP.md) for exactly what's covered. |
-
-## Project Structure
-
-```text
-arrow-resilience-kit/
-├── src/
-│   ├── commonMain/kotlin/com/sorinirmies/arrow/resiliencekit/
-│   │   ├── stm/
-│   │   │   ├── StmExtensions.kt
-│   │   │   └── StmHelpers.kt
-│   │   ├── AdaptiveLimiter.kt
-│   │   ├── Bulkhead.kt
-│   │   ├── Cache.kt
-│   │   ├── Chaos.kt
-│   │   ├── CircuitBreaker.kt
-│   │   ├── Failover.kt
-│   │   ├── FlowResilience.kt
-│   │   ├── Hedge.kt
-│   │   ├── Policy.kt
-│   │   ├── RateLimiter.kt
-│   │   ├── RetryBudget.kt
-│   │   ├── RetryRepeat.kt
-│   │   ├── Saga.kt
-│   │   ├── SharedStateStore.kt
-│   │   ├── SlidingWindowCircuitBreaker.kt
-│   │   └── TimeLimiter.kt
-│   ├── commonTest/kotlin/
-│   ├── jvmMain/kotlin/       # MicrometerBridge.kt (optional, compileOnly)
-│   ├── jsMain/kotlin/        # npm/TypeScript facade (see INTEROP.md)
-│   ├── jsTest/kotlin/
-│   └── nativeMain/kotlin/
-├── docs/                    # Published Dokka HTML (GitHub Pages)
-├── gradle/
-│   ├── libs.versions.toml
-│   ├── publishing.gradle.kts    # Repositories, POM, GPG signing
-│   └── central-portal.gradle.kts # Maven Central (Central Portal) publish task
-├── .github/workflows/       # Public CI/release/deps-update (GitHub Actions)
-├── .gitea/workflows/        # Mirrored CI/release/deps-update (self-hosted Gitea)
-├── scripts/                 # Nushell automation: release, upgrade, validation
-├── config/
-│   ├── detekt/
-│   └── dokka/               # Custom Dokka stylesheet
-├── build.gradle.kts
-├── settings.gradle.kts
-├── justfile
-└── jitpack.yml
+```kotlin
+val flaky = chaos({ failureRate = 0.3; latency = 50.milliseconds }) { realApi.call() }
+retryWithExponentialBackoff(retries = 5) { flaky() } // does your retry logic hold up?
 ```
 
-## Contributing
+Also included: lock-free [STM primitives](https://sorinirimies.github.io/arrow-resilience-kit/) (`StmCounter`, `StmSemaphore`, `StmStateMachine`, ...) built on Arrow STM.
 
-1. Fork the repo and create a feature branch.
-2. Make changes and run `./gradlew test` (or `./gradlew allTests` for all platforms).
-3. Commit using [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:`, etc.).
-4. Open a Pull Request against `main`.
+## Integrations
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
+All optional and `compileOnly`: add the library you use to your own build.
+
+- **Micrometer** (JVM): `MicrometerBridge.bindCircuitBreaker(registry, "orders", cb)` exports statistics as gauges (also bulkhead, rate limiter, adaptive limiter, cache, time limiter, failover).
+- **Ktor** (JVM): `install(ArrowResilience) { policy = ... }`; rejections map to 429, 503 and 504.
+- **Spring Boot** (JVM): `arrow.resilience.circuit-breaker.<name>.*` (and `bulkhead`, `rate-limiter`, `time-limiter`) properties create a `ResilienceInstances` bean.
+- **Redis** (JVM): `DistributedCircuitBreaker` and `DistributedRateLimiter` share state across instances via `RedisSharedStateStore` (Lettuce), or any `SharedStateStore`.
+- **Config files:** `ResilienceConfig.fromJson(...)` or `fromProperties(...)`, then `ResilienceInstances.create(...)`.
+
+## Development
+
+```bash
+just test         # JVM tests (just test-all: every platform)
+just check-all    # quality gate: detekt, build, JVM + JS tests, npm package smoke test
+just release 1.2.3
+```
+
+Commits follow [Conventional Commits](https://www.conventionalcommits.org/); the changelog is generated with git-cliff. Dependencies are upgraded nightly within their major version. See [CONTRIBUTING.md](CONTRIBUTING.md) and [RELEASING.md](RELEASING.md).
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
+[MIT](LICENSE)
