@@ -183,3 +183,9 @@ test("package ships a README and the LICENSE", () => {
     assert.ok(readFileSync(join(dir, "README.md"), "utf8").length > 2000, "README.md");
     assert.match(readFileSync(join(dir, "LICENSE"), "utf8"), /MIT License/);
 });
+
+test("no environment access: shipped .js never reads process.env", () => {
+    const dir = dirname(realpathSync(createRequire(import.meta.url).resolve("arrow-resilience-kit")));
+    const readers = readdirSync(dir).filter((f) => f.endsWith(".js") && readFileSync(join(dir, f), "utf8").includes("process.env"));
+    assert.deepEqual(readers, []);
+});

@@ -279,6 +279,19 @@ tasks.named("jsNodeProductionLibraryDistribution") {
         val dts = dist.resolve("arrow-resilience-kit.d.ts")
         file("src/jsMain/npm/README.md").copyTo(dist.resolve("README.md"), overwrite = true)
         file("LICENSE").copyTo(dist.resolve("LICENSE"), overwrite = true)
+        // kotlin-logging reads process.env.KOTLIN_LOGGING_STARTUP_MESSAGE only to decide whether to
+        // print its startup banner, which JsLogging turns off anyway. That single read makes package
+        // scanners (Socket) flag the package for "environment variable access", so pin it to
+        // "banner disabled". Fails the build if kotlin-logging changes the code, rather than
+        // silently shipping the read again.
+        val logging = dist.resolve("kotlin-logging.js")
+        val envRead = Regex(
+            """typeof process !== 'undefined' && process\.env && \(process\.env\.KOTLIN_LOGGING_STARTUP_MESSAGE === 'false' """ +
+                """\|\| process\.env\.KOTLIN_LOGGING_STARTUP_MESSAGE === false\)"""
+        )
+        val patched = logging.readText().replace(envRead, "true /* banner off; no environment access */")
+        check("process.env" !in patched) { "kotlin-logging.js changed: update the process.env patch in build.gradle.kts" }
+        logging.writeText(patched)
         val extra = file("src/jsMain/typescript/extra.d.ts").readText()
         if (!dts.readText().contains("Appended by build.gradle.kts")) dts.appendText(extra)
         val names = Regex("""^export declare (?:abstract )?(?:class|function|const|namespace|interface) (\w+)""", RegexOption.MULTILINE)
