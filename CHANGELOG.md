@@ -2,16 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+_Maintenance release: version bump and generated files only._
+
 ## [0.10.2](https://github.com/sorinirimies/arrow-resilience-kit/releases/tag/0.10.2) - 2026-11-01
 
 ### 🐛 Bug Fixes
 
 - **release:** atomic tag+branch pushes, refuse to bump a branch behind GitHub, and let the iOS job commit Package.swift when main is ahead of the tag ([caa6b92](https://github.com/sorinirimies/arrow-resilience-kit/commit/caa6b92426755c6eebe3a88f6fe703753663a0bd))
 - **npm:** no environment access in the package - pin kotlin-logging's startup-banner env read to 'off' (JsLogging disables it anyway); smoke test asserts no shipped .js reads process.env ([1011647](https://github.com/sorinirimies/arrow-resilience-kit/commit/10116471d94afc2492ce95a9686b011a73380fda))
-
-### 📦 Other Changes
-
-- Merge remote-tracking branch 'github/main' ([3bb261c](https://github.com/sorinirimies/arrow-resilience-kit/commit/3bb261c5f37124e122f7adc5f89fb0eaae34ee58))
 
 **Full Changelog**: https://github.com/sorinirimies/arrow-resilience-kit/compare/0.10.1...0.10.2
 
@@ -153,7 +153,6 @@ _Maintenance release: version bump and generated files only._
 ### 📦 Other Changes
 
 - KDoc gaps, registries for Failover/AdaptiveLimiter/Saga, MicrometerBridge coverage ([2994154](https://github.com/sorinirimies/arrow-resilience-kit/commit/2994154891b16b2afcfb6dda82bf52edfbf1c740))
-- Merge remote-tracking branch 'gitea_starscream/main' ([2cce2af](https://github.com/sorinirimies/arrow-resilience-kit/commit/2cce2af4e3115c66a861817a78769ea602cbf16c))
 
 **Full Changelog**: https://github.com/sorinirimies/arrow-resilience-kit/compare/0.7.1...0.8.0
 
@@ -215,7 +214,6 @@ _Maintenance release: version bump and generated files only._
 ### 📦 Other Changes
 
 - rename Maven groupId and Kotlin package ro.sorinirmies -> com.sorinirmies **[BREAKING]** ([f33a959](https://github.com/sorinirimies/arrow-resilience-kit/commit/f33a959bf9eec72ab6203bf796ac75a712c6b0ec))
-- Merge remote-tracking branch 'github/main' ([27e0977](https://github.com/sorinirimies/arrow-resilience-kit/commit/27e097745e15bf98effb5716109fc96ed13940b7))
 
 **Full Changelog**: https://github.com/sorinirimies/arrow-resilience-kit/compare/0.5.7...0.5.8
 
@@ -265,10 +263,6 @@ _Maintenance release: version bump and generated files only._
 ### 🔧 Chores
 
 - bump dependencies (Arrow 2.2.3, Kotlin 2.4.20) and drop vanniktech publish plugin ([545b2ca](https://github.com/sorinirimies/arrow-resilience-kit/commit/545b2cacae8044567aff1547a55aaa35ada65ae6))
-
-### 📦 Other Changes
-
-- Merge remote-tracking branch 'gitea_starscream/main' ([d7d0afa](https://github.com/sorinirimies/arrow-resilience-kit/commit/d7d0afa325cae19304ca4c8dc1af453fac276321))
 
 **Full Changelog**: https://github.com/sorinirimies/arrow-resilience-kit/compare/0.5.2...0.5.3
 

@@ -45,6 +45,8 @@ conventional_commits = true
 filter_unconventional = false
 # regex for parsing and grouping commits (matched against the full subject line)
 commit_parsers = [
+    # Merge commits only join histories; their content is listed through the merged commits.
+    { message = "^Merge (branch|remote-tracking branch|pull request)", skip = true },
     # Release automation and bots: grouped out of sight (see the body template), but they keep
     # releases that contain nothing else listed.
     { message = "^chore: bump version to", group = "<!-- 99 -->release" },
