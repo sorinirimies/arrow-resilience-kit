@@ -12,21 +12,33 @@ Coroutine-first resilience patterns for Kotlin Multiplatform, built on [Arrow](h
 
 ## Install
 
+Replace `<version>` with the version from the badges above.
+
+### Kotlin / Java (JVM, Android, Multiplatform)
+
 ```kotlin
 dependencies {
-    implementation("io.github.sorinirimies.arrow:arrow-resilience-kit:<version>") // Maven Central
+    implementation("io.github.sorinirimies.arrow:arrow-resilience-kit:<version>")
 }
 ```
 
+From Maven Central. JitPack, GitHub Packages and Maven setup: [INSTALLATION.md](INSTALLATION.md). Calling it from Java: [INTEROP.md](INTEROP.md#java).
+
+### iOS (Swift Package Manager)
+
 ```swift
-.package(url: "https://github.com/sorinirimies/arrow-resilience-kit", from: "<version>") // iOS, prebuilt XCFramework
+.package(url: "https://github.com/sorinirimies/arrow-resilience-kit", from: "<version>")
 ```
+
+Ships a prebuilt XCFramework. Calling it from Swift: [INTEROP.md](INTEROP.md#swift-ios).
+
+### JavaScript / TypeScript (npm)
 
 ```bash
-npm install arrow-resilience-kit # JS/TS: Promise API with TypeScript types (see its README on npm)
+npm install arrow-resilience-kit
 ```
 
-Use the version from the badges above. JitPack, GitHub Packages and Maven: [INSTALLATION.md](INSTALLATION.md).
+A Promise API with TypeScript types, ES modules and CommonJS, no dependencies. Usage: [the package README](src/jsMain/npm/README.md).
 
 ## Quick start
 
