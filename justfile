@@ -9,6 +9,8 @@ set shell := ["sh", "-cu"]
 # *-all recipes skip them quickly and carry on with the reachable ones.
 export GIT_SSH_COMMAND := "ssh -o ConnectTimeout=5 -o BatchMode=yes"
 
+REMOTES := "github gitea gitea_starscream"
+
 # ── Default ────────────────────────────────────────────────────
 
 default:
@@ -18,15 +20,21 @@ default:
 
 [private]
 _check-nu:
-    @which nu > /dev/null 2>&1 || (echo "❌ nushell not found. Install: https://www.nushell.sh" && exit 1)
+    @command -v nu >/dev/null 2>&1 || { \
+        echo "❌ nu (nushell) not found. Install: https://www.nushell.sh"; exit 1; \
+    }
 
 [private]
 _check-git-cliff:
-    @which git-cliff > /dev/null 2>&1 || (echo "❌ git-cliff not found. Install: cargo install git-cliff" && exit 1)
+    @command -v git-cliff >/dev/null 2>&1 || { \
+        echo "❌ git-cliff not found. Install with: cargo install git-cliff"; exit 1; \
+    }
 
 [private]
 _check-gh:
-    @which gh > /dev/null 2>&1 || (echo "❌ GitHub CLI not found. Install: https://cli.github.com" && exit 1)
+    @command -v gh >/dev/null 2>&1 || { \
+        echo "❌ GitHub CLI (gh) not found. Install from https://cli.github.com"; exit 1; \
+    }
 
 [private]
 _check-version-changed version:
@@ -131,6 +139,10 @@ check-no-lint: _check-nu
 # Quality gate — build only
 check-build-only: _check-nu
     @nu scripts/quality_gate.nu --skip-lint --skip-test
+
+# Randomised robustness tests: just fuzz [iters] [seed] (a failure prints the reproducing seed)
+fuzz iters="200000" seed="": _check-nu
+    @if [ -n "{{ seed }}" ]; then nu scripts/fuzz.nu --iters {{ iters }} --seed {{ seed }}; else nu scripts/fuzz.nu --iters {{ iters }}; fi
 
 # Full release readiness check
 check-release: check-all doc
@@ -266,22 +278,14 @@ release-gitea-starscream VERSION: (bump VERSION)
 # Bump, commit, tag, then push to all remotes (continues on failure)
 release-all VERSION: (bump VERSION)
     #!/usr/bin/env sh
-    git_try() {
-        r=$1; shift
-        if git remote get-url "$r" >/dev/null 2>&1; then "$@"; else echo "↷ skipping $r (not configured here; add with: git remote add $r <url>)"; skipped="$skipped $r"; fi
-    }
-    skipped=""
-    echo "Pushing release {{ VERSION }} to all remotes…"
-    failed=""
-    git_try github git push --atomic --follow-tags github "$(git branch --show-current)"             || failed="$failed github"
-    git_try gitea git push --atomic --follow-tags gitea "$(git branch --show-current)"              || failed="$failed gitea"
-    git_try gitea_starscream git push --atomic --follow-tags gitea_starscream "$(git branch --show-current)"   || failed="$failed gitea_starscream"
+    failed=""; skipped=""
+    for r in {{ REMOTES }}; do
+        git remote get-url "$r" >/dev/null 2>&1 || { echo "↷ skipping $r (not configured here; add with: git remote add $r <url>)"; skipped="$skipped $r"; continue; }
+        git push --atomic --follow-tags "$r" "$(git branch --show-current)" || failed="$failed $r"
+    done
     if [ -n "$skipped" ]; then echo "ℹ️  Skipped (not configured):$skipped"; fi
-    if [ -n "$failed" ]; then
-        echo "⚠️  Release {{ VERSION }} failed to push to:$failed"
-    else
-        echo "✅ Release {{ VERSION }} pushed to GitHub, Gitea, and Gitea Starscream!"
-    fi
+    if [ -n "$failed" ]; then echo "⚠️  Release {{ VERSION }} failed to push to:$failed"; exit 1; fi
+    echo "✅ Release {{ VERSION }} pushed to: {{ REMOTES }}"
 
 # Create a Gitea release for a tag
 create-gitea-release TAG: _check-nu
@@ -296,21 +300,14 @@ release-retrigger TAG: _check-gh
 # Push latest commit + tags to every remote (no bump)
 push-release-all: check-all
     #!/usr/bin/env sh
-    git_try() {
-        r=$1; shift
-        if git remote get-url "$r" >/dev/null 2>&1; then "$@"; else echo "↷ skipping $r (not configured here; add with: git remote add $r <url>)"; skipped="$skipped $r"; fi
-    }
-    skipped=""
-    failed=""
-    git_try github git push --atomic --follow-tags github "$(git branch --show-current)"             || failed="$failed github"
-    git_try gitea git push --atomic --follow-tags gitea "$(git branch --show-current)"              || failed="$failed gitea"
-    git_try gitea_starscream git push --atomic --follow-tags gitea_starscream "$(git branch --show-current)"   || failed="$failed gitea_starscream"
+    failed=""; skipped=""
+    for r in {{ REMOTES }}; do
+        git remote get-url "$r" >/dev/null 2>&1 || { echo "↷ skipping $r (not configured here; add with: git remote add $r <url>)"; skipped="$skipped $r"; continue; }
+        git push --atomic --follow-tags "$r" "$(git branch --show-current)" || failed="$failed $r"
+    done
     if [ -n "$skipped" ]; then echo "ℹ️  Skipped (not configured):$skipped"; fi
-    if [ -n "$failed" ]; then
-        echo "⚠️  Failed to push to:$failed"
-    else
-        echo "✅ Latest commit + tags pushed to all remotes."
-    fi
+    if [ -n "$failed" ]; then echo "⚠️  Failed to push to:$failed"; exit 1; fi
+    echo "✅ Latest commit + tags pushed to: {{ REMOTES }}"
 
 # ── Git Remotes ────────────────────────────────────────────────
 
@@ -329,46 +326,28 @@ push-gitea-starscream:
 # Push the current branch to all remotes (continues on failure)
 push-all:
     #!/usr/bin/env sh
-    git_try() {
-        r=$1; shift
-        if git remote get-url "$r" >/dev/null 2>&1; then "$@"; else echo "↷ skipping $r (not configured here; add with: git remote add $r <url>)"; skipped="$skipped $r"; fi
-    }
-    skipped=""
-    failed=""
-    echo "▸ Pushing to github..."
-    git_try github git push github "$(git branch --show-current)"             || failed="$failed github"
-    echo "▸ Pushing to gitea..."
-    git_try gitea git push gitea "$(git branch --show-current)"              || failed="$failed gitea"
-    echo "▸ Pushing to gitea_starscream..."
-    git_try gitea_starscream git push gitea_starscream "$(git branch --show-current)"   || failed="$failed gitea_starscream"
+    failed=""; skipped=""
+    for r in {{ REMOTES }}; do
+        git remote get-url "$r" >/dev/null 2>&1 || { echo "↷ skipping $r (not configured here; add with: git remote add $r <url>)"; skipped="$skipped $r"; continue; }
+        echo "▸ Pushing to $r…"
+        git push "$r" "$(git branch --show-current)" || failed="$failed $r"
+    done
     if [ -n "$skipped" ]; then echo "ℹ️  Skipped (not configured):$skipped"; fi
-    if [ -n "$failed" ]; then
-        echo "⚠️  Failed to push to:$failed"
-    else
-        echo "✅ Pushed to GitHub, Gitea, and Gitea Starscream!"
-    fi
+    if [ -n "$failed" ]; then echo "⚠️  Failed to push to:$failed"; exit 1; fi
+    echo "✅ Pushed to: {{ REMOTES }}"
 
 # Force-push to all remotes
 push-all-force:
     #!/usr/bin/env sh
-    git_try() {
-        r=$1; shift
-        if git remote get-url "$r" >/dev/null 2>&1; then "$@"; else echo "↷ skipping $r (not configured here; add with: git remote add $r <url>)"; skipped="$skipped $r"; fi
-    }
-    skipped=""
-    failed=""
-    echo "▸ Force-pushing to github..."
-    git_try github git push --force github "$(git branch --show-current)"             || failed="$failed github"
-    echo "▸ Force-pushing to gitea..."
-    git_try gitea git push --force gitea "$(git branch --show-current)"              || failed="$failed gitea"
-    echo "▸ Force-pushing to gitea_starscream..."
-    git_try gitea_starscream git push --force gitea_starscream "$(git branch --show-current)"   || failed="$failed gitea_starscream"
+    failed=""; skipped=""
+    for r in {{ REMOTES }}; do
+        git remote get-url "$r" >/dev/null 2>&1 || { echo "↷ skipping $r (not configured here; add with: git remote add $r <url>)"; skipped="$skipped $r"; continue; }
+        echo "▸ Force-pushing to $r…"
+        git push --force "$r" "$(git branch --show-current)" || failed="$failed $r"
+    done
     if [ -n "$skipped" ]; then echo "ℹ️  Skipped (not configured):$skipped"; fi
-    if [ -n "$failed" ]; then
-        echo "⚠️  Failed to force-push to:$failed"
-    else
-        echo "✅ Force-pushed to GitHub, Gitea, and Gitea Starscream!"
-    fi
+    if [ -n "$failed" ]; then echo "⚠️  Failed to force-push to:$failed"; exit 1; fi
+    echo "✅ Force-pushed to: {{ REMOTES }}"
 
 # Push all tags to GitHub
 push-tags:
@@ -377,24 +356,15 @@ push-tags:
 # Push all tags to all remotes (continues on failure)
 push-tags-all:
     #!/usr/bin/env sh
-    git_try() {
-        r=$1; shift
-        if git remote get-url "$r" >/dev/null 2>&1; then "$@"; else echo "↷ skipping $r (not configured here; add with: git remote add $r <url>)"; skipped="$skipped $r"; fi
-    }
-    skipped=""
-    failed=""
-    echo "▸ Pushing tags to github..."
-    git_try github git push github --tags             || failed="$failed github"
-    echo "▸ Pushing tags to gitea..."
-    git_try gitea git push gitea --tags              || failed="$failed gitea"
-    echo "▸ Pushing tags to gitea_starscream..."
-    git_try gitea_starscream git push gitea_starscream --tags   || failed="$failed gitea_starscream"
+    failed=""; skipped=""
+    for r in {{ REMOTES }}; do
+        git remote get-url "$r" >/dev/null 2>&1 || { echo "↷ skipping $r (not configured here; add with: git remote add $r <url>)"; skipped="$skipped $r"; continue; }
+        echo "▸ Pushing tags to $r…"
+        git push "$r" --tags || failed="$failed $r"
+    done
     if [ -n "$skipped" ]; then echo "ℹ️  Skipped (not configured):$skipped"; fi
-    if [ -n "$failed" ]; then
-        echo "⚠️  Failed to push tags to:$failed"
-    else
-        echo "✅ Tags pushed to GitHub, Gitea, and Gitea Starscream!"
-    fi
+    if [ -n "$failed" ]; then echo "⚠️  Failed to push tags to:$failed"; exit 1; fi
+    echo "✅ Tags pushed to: {{ REMOTES }}"
 
 # Pull the current branch from GitHub
 pull:
@@ -411,24 +381,15 @@ pull-gitea-starscream:
 # Pull the current branch from all remotes (continues on failure)
 pull-all:
     #!/usr/bin/env sh
-    git_try() {
-        r=$1; shift
-        if git remote get-url "$r" >/dev/null 2>&1; then "$@"; else echo "↷ skipping $r (not configured here; add with: git remote add $r <url>)"; skipped="$skipped $r"; fi
-    }
-    skipped=""
-    failed=""
-    echo "▸ Pulling from github..."
-    git_try github git pull github "$(git branch --show-current)"             || failed="$failed github"
-    echo "▸ Pulling from gitea..."
-    git_try gitea git pull gitea "$(git branch --show-current)"              || failed="$failed gitea"
-    echo "▸ Pulling from gitea_starscream..."
-    git_try gitea_starscream git pull gitea_starscream "$(git branch --show-current)"   || failed="$failed gitea_starscream"
+    failed=""; skipped=""
+    for r in {{ REMOTES }}; do
+        git remote get-url "$r" >/dev/null 2>&1 || { echo "↷ skipping $r (not configured here; add with: git remote add $r <url>)"; skipped="$skipped $r"; continue; }
+        echo "▸ Pulling from $r…"
+        git pull "$r" "$(git branch --show-current)" || failed="$failed $r"
+    done
     if [ -n "$skipped" ]; then echo "ℹ️  Skipped (not configured):$skipped"; fi
-    if [ -n "$failed" ]; then
-        echo "⚠️  Failed to pull from:$failed"
-    else
-        echo "✅ Pulled from GitHub, Gitea, and Gitea Starscream!"
-    fi
+    if [ -n "$failed" ]; then echo "⚠️  Failed to pull from:$failed"; exit 1; fi
+    echo "✅ Pulled from: {{ REMOTES }}"
 
 # Force-sync Gitea with GitHub
 sync-gitea:
@@ -445,22 +406,15 @@ sync-gitea-starscream:
 # Force-sync all Gitea instances with GitHub (continues on failure)
 sync-all-gitea:
     #!/usr/bin/env sh
-    git_try() {
-        r=$1; shift
-        if git remote get-url "$r" >/dev/null 2>&1; then "$@"; else echo "↷ skipping $r (not configured here; add with: git remote add $r <url>)"; skipped="$skipped $r"; fi
-    }
-    skipped=""
-    failed=""
-    git_try gitea git push gitea "$(git branch --show-current)" --force                  || failed="$failed gitea"
-    git_try gitea git push gitea --tags --force                || failed="$failed gitea-tags"
-    git_try gitea_starscream git push gitea_starscream "$(git branch --show-current)" --force       || failed="$failed gitea_starscream"
-    git_try gitea_starscream git push gitea_starscream --tags --force     || failed="$failed gitea_starscream-tags"
+    failed=""; skipped=""
+    for r in gitea gitea_starscream; do
+        git remote get-url "$r" >/dev/null 2>&1 || { echo "↷ skipping $r (not configured here; add with: git remote add $r <url>)"; skipped="$skipped $r"; continue; }
+        echo "▸ Syncing $r…"
+        { git push "$r" "$(git branch --show-current)" --force && git push "$r" --tags --force; } || failed="$failed $r"
+    done
     if [ -n "$skipped" ]; then echo "ℹ️  Skipped (not configured):$skipped"; fi
-    if [ -n "$failed" ]; then
-        echo "⚠️  Failed to sync:$failed"
-    else
-        echo "✅ All Gitea instances force-synced with GitHub."
-    fi
+    if [ -n "$failed" ]; then echo "⚠️  Failed to sync:$failed"; exit 1; fi
+    echo "✅ Gitea instances force-synced with GitHub."
 
 # ── Housekeeping ───────────────────────────────────────────────
 
