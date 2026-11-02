@@ -165,6 +165,9 @@ jobs:
           restore-keys: gradle-${{ runner.os }}-
 
       - name: Run detekt / check
+        env:
+          # Runner can't reach nodejs.org for the Node download; use image's node.
+          USE_SYSTEM_NODE: "true"
         run: ./gradlew check --no-daemon --stacktrace
 
       - name: Cleanup workspace
