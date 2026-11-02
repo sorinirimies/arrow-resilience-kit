@@ -29,6 +29,25 @@ repositories {
     maven { url = uri("https://cache-redirector.jetbrains.com/repo1.maven.org/maven2") }
 }
 
+// Security: pin transitive dependencies (build tooling + lettuce's netty) to patched
+// releases flagged by the osv-scanner workflow. Does not change published POM versions.
+configurations.configureEach {
+    resolutionStrategy.eachDependency {
+        val patched = when {
+            requested.group == "io.netty" && requested.version?.startsWith("4.1.") == true -> "4.1.137.Final"
+            requested.group.startsWith("com.fasterxml.jackson") && requested.module.name != "jackson-annotations" &&
+                requested.version?.startsWith("2.15.") == true -> "2.18.11"
+            requested.group == "com.fasterxml.jackson" && requested.name == "jackson-bom" -> "2.18.11"
+            requested.group == "io.opentelemetry" && requested.version == "1.41.0" -> "1.67.0"
+            requested.group == "org.bouncycastle" && requested.version == "1.84" -> "1.85"
+            requested.group == "org.freemarker" && requested.name == "freemarker" -> "2.3.35"
+            requested.group == "org.jsoup" && requested.name == "jsoup" -> "1.23.2"
+            else -> null
+        }
+        if (patched != null) useVersion(patched)
+    }
+}
+
 detekt {
     buildUponDefaultConfig = true
     config.setFrom(files("config/detekt/detekt.yml"))
