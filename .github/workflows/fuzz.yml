@@ -1,0 +1,53 @@
+name: Fuzz
+
+on:
+  schedule:
+    - cron: "0 4 * * *"
+  push:
+    branches: [main, master]
+    paths: ["src/commonMain/**", "src/jvmMain/**", "src/jvmTest/**", "gradle/libs.versions.toml"]
+  pull_request:
+    paths: ["src/commonMain/**", "src/jvmMain/**", "src/jvmTest/**", "gradle/libs.versions.toml"]
+  workflow_dispatch:
+    inputs:
+      iterations:
+        description: Iterations per property
+        default: "200000"
+      seed:
+        description: Seed (empty = random)
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz:
+    name: randomised robustness tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "corretto"
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+      - name: Install Nushell
+        run: |
+          V=0.116.1
+          curl -fsSL https://github.com/nushell/nushell/releases/download/$V/nu-$V-x86_64-unknown-linux-gnu.tar.gz | tar -xz -C /tmp
+          sudo install -m 0755 /tmp/nu-$V-x86_64-unknown-linux-gnu/nu /usr/local/bin/nu || { mkdir -p $HOME/.cargo/bin; install -m 0755 /tmp/nu-$V-x86_64-unknown-linux-gnu/nu $HOME/.cargo/bin/nu; echo "$HOME/.cargo/bin" >> $GITHUB_PATH; }
+          nu --version
+      - name: Fuzz (a failure prints the seed that reproduces it)
+        env:
+          ITERS: ${{ github.event.inputs.iterations || (github.event_name == 'schedule' && '200000') || '5000' }}
+          SEED: ${{ github.event.inputs.seed }}
+        run: |
+          if [ -n "$SEED" ]; then nu scripts/fuzz.nu --iters "$ITERS" --seed "$SEED"; else nu scripts/fuzz.nu --iters "$ITERS"; fi
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-reports
+          path: build/reports/tests/
