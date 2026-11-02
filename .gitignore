@@ -56,3 +56,4 @@ build/documentation/
 
 # Swift Package Manager local build cache (from `swift build`/`swift package`)
 .build/
+.codegraph/
