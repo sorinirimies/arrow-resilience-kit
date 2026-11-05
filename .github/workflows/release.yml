@@ -20,7 +20,8 @@ permissions:
 # Only one release at a time.
 concurrency:
   group: release
-  cancel-in-progress: true
+  # Never cancel a release: a newer run would stop one mid-publish.
+  cancel-in-progress: false
 
 jobs:
   # ── 0. Validate trigger ──────────────────────────────────────────────────────
