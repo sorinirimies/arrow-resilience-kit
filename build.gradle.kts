@@ -37,6 +37,11 @@ configurations.configureEach {
             requested.group == "io.netty" && requested.version?.startsWith("4.1.") == true -> "4.1.137.Final"
             requested.group.startsWith("com.fasterxml.jackson") && requested.module.name != "jackson-annotations" &&
                 requested.version?.startsWith("2.15.") == true -> "2.18.11"
+            // Dokka's HTML generator resolves 2.22.2 (GHSA-7hhh-6rmp-j9qf, GHSA-p6pp-m3f8-5c89,
+            // GHSA-cxp5-3px4-pw24, GHSA-wv8q-qhhj-9h54). Only patches below 2.22.3 are raised.
+            requested.group.startsWith("com.fasterxml.jackson") && requested.module.name != "jackson-annotations" &&
+                requested.version?.startsWith("2.22.") == true &&
+                (requested.version?.removePrefix("2.22.")?.toIntOrNull() ?: 3) < 3 -> "2.22.3"
             requested.group == "com.fasterxml.jackson" && requested.name == "jackson-bom" -> "2.18.11"
             requested.group == "io.opentelemetry" && requested.version == "1.41.0" -> "1.67.0"
             requested.group == "org.bouncycastle" && requested.version == "1.84" -> "1.85"
