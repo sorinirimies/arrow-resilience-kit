@@ -2,9 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [0.10.4](https://github.com/sorinirimies/arrow-resilience-kit/releases/tag/0.10.4) - 2026-11-06
 
-_Maintenance release: version bump and generated files only._
+### 🔧 Chores
+
+- ignore .codegraph index ([53140fe](https://github.com/sorinirimies/arrow-resilience-kit/commit/53140feaba259258fb073181a554650ad5e4b025))
+
+### 📚 Documentation
+
+- **changelog:** skip merge commits (they only join histories) ([d998754](https://github.com/sorinirimies/arrow-resilience-kit/commit/d9987545231bde3a81b6953d45f0fed6c2cea21c))
+- shorter README (pattern table, compact examples, install in three lines); publishing details move to RELEASING.md ([17046ee](https://github.com/sorinirimies/arrow-resilience-kit/commit/17046eeaa5edb481c16f402e2e1c0683d7cb9f0c))
+- **readme:** one install section per platform ([1bfc2e8](https://github.com/sorinirimies/arrow-resilience-kit/commit/1bfc2e8459e976960c1ba0871c8bf88b462f7213))
+
+### 📦 Build
+
+- **just:** match tokenburn remote loops and tool checks, exit 1 on failed pushes ([c50f4dc](https://github.com/sorinirimies/arrow-resilience-kit/commit/c50f4dc05ed9c2aba04e7320f54bb2b1369ca3fd))
+- **security:** pin vulnerable transitive deps to patched versions ([f81df27](https://github.com/sorinirimies/arrow-resilience-kit/commit/f81df27d3689e1d2009846c1c51ba0701b664b94))
+- **security:** Dokka's jackson raised to 2.22.3 (four GHSAs in 2.22.2) ([b818c7a](https://github.com/sorinirimies/arrow-resilience-kit/commit/b818c7acda815457db7b2a03549bf2815d998e18))
+
+### 🔄 CI
+
+- add seeded fuzz tests and osv-scanner security workflows ([44f384d](https://github.com/sorinirimies/arrow-resilience-kit/commit/44f384d040aa1ca92b96c158c6d0dc4d4528610d))
+- use system node in lint job ([59b4b57](https://github.com/sorinirimies/arrow-resilience-kit/commit/59b4b57c5f06a574a81c4c01d65bd10a6ad44c7a))
+- **release:** queue release runs instead of cancelling one mid-publish ([9978e54](https://github.com/sorinirimies/arrow-resilience-kit/commit/9978e543b871a73b6ba79caf7103d1091736d8e4))
+- download archives to a file so curl retries a dropped transfer, instead of piping into tar ([744c471](https://github.com/sorinirimies/arrow-resilience-kit/commit/744c47156c8b928490575069072bb96c4ca44cf5))
+- **release:** git-cliff runs offline, so Gitea releases don't 404 on GitHub lookups ([3ffaeb3](https://github.com/sorinirimies/arrow-resilience-kit/commit/3ffaeb35ee7dc749350b353cc6202f5dcd6a401f))
+
+**Full Changelog**: https://github.com/sorinirimies/arrow-resilience-kit/compare/0.10.2...0.10.4
 
 ## [0.10.2](https://github.com/sorinirimies/arrow-resilience-kit/releases/tag/0.10.2) - 2026-11-01
 
