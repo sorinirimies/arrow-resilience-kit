@@ -1,11 +1,21 @@
 #!/usr/bin/env nu
 # Create a Gitea release with release notes and assets
+
+# git-cliff runs for the release notes and the changelog. They are offline: on a Gitea
+# runner GITHUB_API_URL points at Gitea, so git-cliff's GitHub lookups would 404, and
+# cliff.toml uses no remote data.
+export def cliff-runs []: nothing -> list<list<string>> {
+    [
+        ["--offline" "--current" "--strip" "header" "-o" "RELEASE_NOTES.md"]
+        ["--offline" "-o" "CHANGELOG.md"]
+    ]
+}
+
 def main [tag: string, --gitea-url: string, --repo: string, --token: string] {
     print $"🎉 Creating Gitea release for ($tag)..."
 
     # Generate release notes
-    git-cliff --current --strip header -o RELEASE_NOTES.md
-    git-cliff -o CHANGELOG.md
+    for args in (cliff-runs) { ^git-cliff ...$args }
 
     print "── Release Notes ──"
     open RELEASE_NOTES.md | print
