@@ -24,6 +24,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          # A PAT (optional) can push workflow-file changes; GITHUB_TOKEN cannot.
+          token: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -47,6 +49,8 @@ jobs:
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Upgrade dependencies
+        env:
+          SKIP_GITHUB_WORKFLOW_SYNC: ${{ secrets.GH_PAT == '' }}
         run: nu scripts/upgrade_deps.nu --commit --bot-name "github-actions[bot]" --bot-email "github-actions[bot]@users.noreply.github.com"
 
       - name: Check whether dependencies changed

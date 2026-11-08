@@ -100,12 +100,19 @@ export def has-changes []: nothing -> bool {
 # on the self-hosted Gitea runner.
 export def sync-wrapper-checksum []: nothing -> nothing {
     let checksum = (open --raw gradle/wrapper/gradle-wrapper.jar | hash sha256)
-    let files = [
-        ".github/workflows/ci.yml"
-        ".github/workflows/release.yml"
-        ".gitea/workflows/ci.yml"
-        ".gitea/workflows/release.yml"
-    ]
+    # GitHub refuses a workflow-file push from the default GITHUB_TOKEN (no
+    # `workflows` permission), so the nightly job sets SKIP_GITHUB_WORKFLOW_SYNC
+    # when no PAT is available. The pin is only an offline fallback there.
+    let skip_github = (($env.SKIP_GITHUB_WORKFLOW_SYNC? | default "false") == "true")
+    let files = (
+        [
+            ".github/workflows/ci.yml"
+            ".github/workflows/release.yml"
+            ".gitea/workflows/ci.yml"
+            ".gitea/workflows/release.yml"
+        ]
+        | where {|f| not ($skip_github and ($f | str starts-with ".github/")) }
+    )
     for file in $files {
         let content = (open --raw $file)
         let updated = ($content | str replace --regex 'allow-checksums: [0-9a-f]{64}' $"allow-checksums: ($checksum)")
