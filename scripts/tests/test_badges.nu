@@ -13,3 +13,10 @@ def "test badges: svg contains label and value" [] {
 def "test badges: width grows with text" [] {
     assert ((text-width "longer text") > (text-width "ab"))
 }
+
+def "test badges: catalog-major reads the major version" [] {
+    use ../badges.nu [catalog-major]
+    let toml = "[versions]\nspring-boot = \"4.1.2\"\nlettuce = \"7.9.0.RELEASE\"\n"
+    assert equal (catalog-major $toml "spring-boot") "4.x"
+    assert equal (catalog-major $toml "lettuce") "7.x"
+}

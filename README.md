@@ -10,6 +10,8 @@
 [![Swift Package Manager](.github/badges/swift.svg)](https://github.com/sorinirimies/arrow-resilience-kit)
 [![Kotlin Multiplatform](.github/badges/kmp.svg)](https://kotlinlang.org/docs/multiplatform.html)
 [![Docs](.github/badges/docs.svg)](https://sorinirimies.github.io/arrow-resilience-kit/)
+[![Spring Boot](.github/badges/spring.svg)](#integrations)
+[![Redis (Lettuce)](.github/badges/redis.svg)](#integrations)
 
 Coroutine-first resilience patterns for Kotlin Multiplatform, built on [Arrow](https://arrow-kt.io/): retry, circuit breakers, bulkheads, rate limiting, timeouts, hedging, failover, sagas and caching. They compose, report statistics, and run unchanged on every target.
 
