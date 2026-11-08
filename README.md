@@ -1,9 +1,15 @@
 # Arrow Resilience Kit
 
 [![CI](https://github.com/sorinirimies/arrow-resilience-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/sorinirimies/arrow-resilience-kit/actions/workflows/ci.yml)
+[![Security](https://github.com/sorinirimies/arrow-resilience-kit/actions/workflows/security.yml/badge.svg)](https://github.com/sorinirimies/arrow-resilience-kit/actions/workflows/security.yml)
+[![Fuzz](https://github.com/sorinirimies/arrow-resilience-kit/actions/workflows/fuzz.yml/badge.svg)](https://github.com/sorinirimies/arrow-resilience-kit/actions/workflows/fuzz.yml)
+[![Release](https://img.shields.io/github/v/release/sorinirimies/arrow-resilience-kit)](https://github.com/sorinirimies/arrow-resilience-kit/releases)
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.sorinirimies.arrow/arrow-resilience-kit?label=Maven%20Central)](https://central.sonatype.com/artifact/io.github.sorinirimies.arrow/arrow-resilience-kit)
 [![npm](https://img.shields.io/npm/v/arrow-resilience-kit?label=npm)](https://www.npmjs.com/package/arrow-resilience-kit)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Swift Package Manager](https://img.shields.io/badge/Swift_Package_Manager-compatible-F05138?logo=swift&logoColor=white)](https://github.com/sorinirimies/arrow-resilience-kit)
+[![Kotlin Multiplatform](https://img.shields.io/badge/Kotlin-Multiplatform-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org/docs/multiplatform.html)
+[![Docs](https://img.shields.io/badge/docs-API_reference-blue)](https://sorinirimies.github.io/arrow-resilience-kit/)
 
 Coroutine-first resilience patterns for Kotlin Multiplatform, built on [Arrow](https://arrow-kt.io/): retry, circuit breakers, bulkheads, rate limiting, timeouts, hedging, failover, sagas and caching. They compose, report statistics, and run unchanged on every target.
 
