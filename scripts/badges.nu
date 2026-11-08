@@ -1,5 +1,5 @@
 #!/usr/bin/env nu
-# Generate self-hosted flat badges into docs/badges/*.svg.
+# Generate self-hosted flat badges into .github/badges/*.svg.
 # Served by GitHub itself (relative README paths), so no third-party badge
 # service can be slow or return a broken image. Version badges are refreshed
 # on every release by scripts/bump_version.nu.
@@ -20,7 +20,7 @@ export def badge-svg [label: string, value: string, color: string]: nothing -> s
 
 def main [version?: string] {
     let v = if $version == null { (nu scripts/version.nu | str trim) } else { $version }
-    mkdir docs/badges
+    mkdir .github/badges
     let badges = [
         [file label value color];
         [release "release" $"v($v)" "#007ec6"]
@@ -32,7 +32,7 @@ def main [version?: string] {
         [docs "docs" "API reference" "#007ec6"]
     ]
     for b in $badges {
-        badge-svg $b.label $b.value $b.color | save -f $"docs/badges/($b.file).svg"
+        badge-svg $b.label $b.value $b.color | save -f $".github/badges/($b.file).svg"
     }
     print $"✅ Generated ($badges | length) badges for ($v)"
 }

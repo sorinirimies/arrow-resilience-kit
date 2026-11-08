@@ -3,13 +3,13 @@
 [![CI](https://github.com/sorinirimies/arrow-resilience-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/sorinirimies/arrow-resilience-kit/actions/workflows/ci.yml)
 [![Security](https://github.com/sorinirimies/arrow-resilience-kit/actions/workflows/security.yml/badge.svg)](https://github.com/sorinirimies/arrow-resilience-kit/actions/workflows/security.yml)
 [![Fuzz](https://github.com/sorinirimies/arrow-resilience-kit/actions/workflows/fuzz.yml/badge.svg)](https://github.com/sorinirimies/arrow-resilience-kit/actions/workflows/fuzz.yml)
-[![Release](docs/badges/release.svg)](https://github.com/sorinirimies/arrow-resilience-kit/releases/latest)
-[![Maven Central](docs/badges/maven.svg)](https://central.sonatype.com/artifact/io.github.sorinirimies.arrow/arrow-resilience-kit)
-[![npm](docs/badges/npm.svg)](https://www.npmjs.com/package/arrow-resilience-kit)
-[![License: MIT](docs/badges/license.svg)](LICENSE)
-[![Swift Package Manager](docs/badges/swift.svg)](https://github.com/sorinirimies/arrow-resilience-kit)
-[![Kotlin Multiplatform](docs/badges/kmp.svg)](https://kotlinlang.org/docs/multiplatform.html)
-[![Docs](docs/badges/docs.svg)](https://sorinirimies.github.io/arrow-resilience-kit/)
+[![Release](.github/badges/release.svg)](https://github.com/sorinirimies/arrow-resilience-kit/releases/latest)
+[![Maven Central](.github/badges/maven.svg)](https://central.sonatype.com/artifact/io.github.sorinirimies.arrow/arrow-resilience-kit)
+[![npm](.github/badges/npm.svg)](https://www.npmjs.com/package/arrow-resilience-kit)
+[![License: MIT](.github/badges/license.svg)](LICENSE)
+[![Swift Package Manager](.github/badges/swift.svg)](https://github.com/sorinirimies/arrow-resilience-kit)
+[![Kotlin Multiplatform](.github/badges/kmp.svg)](https://kotlinlang.org/docs/multiplatform.html)
+[![Docs](.github/badges/docs.svg)](https://sorinirimies.github.io/arrow-resilience-kit/)
 
 Coroutine-first resilience patterns for Kotlin Multiplatform, built on [Arrow](https://arrow-kt.io/): retry, circuit breakers, bulkheads, rate limiting, timeouts, hedging, failover, sagas and caching. They compose, report statistics, and run unchanged on every target.
 
