@@ -6,7 +6,7 @@ kotlin = "2.4.21"
 # apiVersion=2.2 so consumers aren't forced onto kotlin-stdlib 2.4.x. See
 # gradle.properties' kotlin.stdlib.default.dependency=false and
 # build.gradle.kts commonMain.
-kotlin-stdlib = "2.2.21"
+kotlin-stdlib = "2.4.21"
 kotlinx-coroutines = "1.11.0"
 kotlinx-serialization = "1.12.0"
 micrometer = "1.17.2"
