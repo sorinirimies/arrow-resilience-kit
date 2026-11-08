@@ -1,0 +1,25 @@
+version: 2
+updates:
+  # Workflow and composite actions (.github/workflows, .github/actions/*).
+  - package-ecosystem: github-actions
+    directories: ["/", "/.github/actions/*"]
+    schedule:
+      interval: weekly
+    groups:
+      github-actions:
+        update-types: [minor, patch]
+    commit-message:
+      prefix: "ci"
+
+  # Gradle version catalog + build scripts. The nightly deps-update workflow
+  # also upgrades these; Dependabot PRs it already covered close themselves.
+  - package-ecosystem: gradle
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      gradle:
+        update-types: [minor, patch]
+    commit-message:
+      prefix: "build"

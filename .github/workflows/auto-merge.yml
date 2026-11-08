@@ -4,9 +4,10 @@
 # If CI passes, patch and minor bumps are approved and merged automatically
 # so they don't pile up. Major bumps require manual review.
 #
-# Requirements:
-#   • The repo must have "Allow auto-merge" enabled in Settings → General.
-#   • Branch protection rules must require status checks to pass before merging.
+# `main` has no branch protection, so GitHub's native auto-merge (`gh pr merge
+# --auto`) is unavailable: without required checks it would merge at once. This
+# job therefore waits for all other checks on the PR and merges only when none
+# failed.
 # ──────────────────────────────────────────────────────────────────────────────
 
 name: Auto-merge Dependabot
@@ -17,31 +18,51 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  checks: read
+
+concurrency:
+  group: auto-merge-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
 jobs:
   auto-merge:
     name: Auto-merge
     runs-on: ubuntu-latest
-    if: github.actor == 'dependabot[bot]'
+    timeout-minutes: 90
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    env:
+      PR_URL: ${{ github.event.pull_request.html_url }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Fetch Dependabot metadata
         id: metadata
-        uses: dependabot/fetch-metadata@v2
+        uses: dependabot/fetch-metadata@v3
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
 
       # Only auto-merge patch and minor updates.
       # Major version bumps require manual review.
-      - name: Approve PR
+      - name: Wait for the other checks
         if: steps.metadata.outputs.update-type != 'version-update:semver-major'
-        run: gh pr review --approve "$PR_URL"
-        env:
-          PR_URL: ${{ github.event.pull_request.html_url }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          sleep 30  # let the other workflows register their check runs
+          while true; do
+            checks=$(gh pr checks "$PR_URL" --json name,bucket \
+              --jq '[.[] | select(.name != "Auto-merge")]')
+            failed=$(jq '[.[] | select(.bucket == "fail" or .bucket == "cancel")] | length' <<<"$checks")
+            pending=$(jq '[.[] | select(.bucket == "pending")] | length' <<<"$checks")
+            total=$(jq 'length' <<<"$checks")
+            echo "checks: $total total, $pending pending, $failed failed"
+            if [ "$failed" -gt 0 ]; then
+              jq -r '.[] | select(.bucket == "fail" or .bucket == "cancel") | "::error::\(.name) failed"' <<<"$checks"
+              exit 1
+            fi
+            if [ "$total" -gt 0 ] && [ "$pending" -eq 0 ]; then break; fi
+            sleep 30
+          done
 
-      - name: Enable auto-merge (squash)
+      - name: Approve and merge (squash)
         if: steps.metadata.outputs.update-type != 'version-update:semver-major'
-        run: gh pr merge --auto --squash "$PR_URL"
-        env:
-          PR_URL: ${{ github.event.pull_request.html_url }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr review --approve "$PR_URL" || true  # optional without protection
+          gh pr merge --squash --delete-branch "$PR_URL"
