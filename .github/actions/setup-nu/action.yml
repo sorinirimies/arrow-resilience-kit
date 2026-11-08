@@ -1,0 +1,61 @@
+name: Setup Nushell
+description: >
+  Install a pinned Nushell on Linux or macOS runners. Restores the binary from
+  the Actions cache first; on a miss downloads the GitHub release with retries;
+  if GitHub's release CDN is down (e.g. HTTP 504) falls back to Homebrew, whose
+  bottles are served from ghcr.io.
+
+inputs:
+  version:
+    description: Nushell version (no leading v)
+    default: "0.116.1"
+
+runs:
+  using: composite
+  steps:
+    - name: Resolve target
+      id: target
+      shell: bash
+      run: |
+        case "${RUNNER_OS}-${RUNNER_ARCH}" in
+          Linux-X64)   t=x86_64-unknown-linux-gnu ;;
+          Linux-ARM64) t=aarch64-unknown-linux-gnu ;;
+          macOS-ARM64) t=aarch64-apple-darwin ;;
+          macOS-X64)   t=x86_64-apple-darwin ;;
+          *) echo "::error::unsupported runner ${RUNNER_OS}-${RUNNER_ARCH}"; exit 1 ;;
+        esac
+        echo "triple=$t" >> "$GITHUB_OUTPUT"
+        echo "dir=$RUNNER_TOOL_CACHE/nu/${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+
+    - name: Restore cached Nushell
+      id: cache
+      uses: actions/cache@v5
+      with:
+        path: ${{ steps.target.outputs.dir }}
+        key: nu-${{ inputs.version }}-${{ steps.target.outputs.triple }}
+
+    - name: Download Nushell
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      env:
+        V: ${{ inputs.version }}
+        T: ${{ steps.target.outputs.triple }}
+        DIR: ${{ steps.target.outputs.dir }}
+      run: |
+        mkdir -p "$DIR"
+        url="https://github.com/nushell/nushell/releases/download/$V/nu-$V-$T.tar.gz"
+        if curl -fsSL --retry 6 --retry-delay 5 --retry-all-errors --connect-timeout 20 -o /tmp/nu.tgz "$url"; then
+          tar -xzf /tmp/nu.tgz -C /tmp
+          install -m 0755 "/tmp/nu-$V-$T/nu" "$DIR/nu"
+        else
+          echo "::warning::GitHub release download failed, falling back to Homebrew"
+          brew=$(command -v brew || echo /home/linuxbrew/.linuxbrew/bin/brew)
+          HOMEBREW_NO_AUTO_UPDATE=1 "$brew" install nushell
+          install -m 0755 "$("$brew" --prefix)/bin/nu" "$DIR/nu"
+        fi
+
+    - name: Add to PATH
+      shell: bash
+      run: |
+        echo "${{ steps.target.outputs.dir }}" >> "$GITHUB_PATH"
+        "${{ steps.target.outputs.dir }}/nu" --version

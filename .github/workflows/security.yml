@@ -18,20 +18,20 @@ jobs:
     name: osv-scanner
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: "17"
           distribution: "corretto"
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          # Open-source cache; the default 'enhanced' provider is a proprietary
+          # component with separate terms of use (gradle/actions v6).
+          cache-provider: basic
       - name: Install Nushell
-        run: |
-          V=0.116.1
-          curl -fsSL --retry 5 --retry-all-errors -o /tmp/dl.tgz https://github.com/nushell/nushell/releases/download/$V/nu-$V-x86_64-unknown-linux-gnu.tar.gz && tar -xzf /tmp/dl.tgz -C /tmp
-          sudo install -m 0755 /tmp/nu-$V-x86_64-unknown-linux-gnu/nu /usr/local/bin/nu || { mkdir -p $HOME/.cargo/bin; install -m 0755 /tmp/nu-$V-x86_64-unknown-linux-gnu/nu $HOME/.cargo/bin/nu; echo "$HOME/.cargo/bin" >> $GITHUB_PATH; }
-          nu --version
+        uses: ./.github/actions/setup-nu
       - name: Install osv-scanner
         run: |
           V=v2.2.2
