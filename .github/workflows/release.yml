@@ -37,7 +37,7 @@ jobs:
       # tag comes from the `tag` input instead. Checking out the requested
       # tag explicitly here (not just "main") is what lets the version check
       # below compare against that tag's own build.gradle.kts, not main's.
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}
 
@@ -58,7 +58,7 @@ jobs:
     needs: validate
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.validate.outputs.tag }}
 
@@ -108,7 +108,7 @@ jobs:
     needs: [validate, test]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.validate.outputs.tag }}
           fetch-depth: 0
@@ -151,7 +151,7 @@ jobs:
     # in either release workflow that needs macos-latest instead of Ubuntu.
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.validate.outputs.tag }}
 
@@ -217,7 +217,7 @@ jobs:
         if: env.HAS == 'false'
         run: echo "⏭️  PACKAGES_PUBLISH not set — skipping."
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         if: env.HAS == 'true'
         with:
           ref: ${{ needs.validate.outputs.tag }}
@@ -261,7 +261,7 @@ jobs:
         if: env.HAS == 'false'
         run: echo "⏭️  SONATYPE_TOKEN not set — skipping."
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         if: env.HAS == 'true'
         with:
           ref: ${{ needs.validate.outputs.tag }}
@@ -314,7 +314,7 @@ jobs:
         if: env.HAS == 'false'
         run: echo "⏭️  NPM_TOKEN not set — skipping."
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         if: env.HAS == 'true'
         with:
           ref: ${{ needs.validate.outputs.tag }}
@@ -368,7 +368,7 @@ jobs:
     needs: [validate]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.validate.outputs.tag }}
 
