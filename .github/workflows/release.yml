@@ -234,7 +234,12 @@ jobs:
 
       - name: Publish to GitHub Packages
         if: env.HAS == 'true'
-        run: ./gradlew publishAllPublicationsToGitHubPackagesRepository --no-daemon
+        # Re-running a release (workflow_dispatch) re-uploads existing files:
+        # GitHub Packages answers 409 Conflict. Treat that as already published.
+        run: |
+          set -o pipefail
+          ./gradlew publishAllPublicationsToGitHubPackagesRepository --no-daemon 2>&1 | tee /tmp/gpr.log \
+            || { grep -q 'status code 409' /tmp/gpr.log && echo "Already published (409) - skipping"; }
         env:
           PACKAGES_PUBLISH: ${{ secrets.PACKAGES_PUBLISH }}
           GITHUB_ACTOR: ${{ github.actor }}
@@ -336,7 +341,13 @@ jobs:
           ./gradlew jsNodeProductionLibraryDistribution --no-daemon
           node scripts/npm_smoke/run.mjs
           cd build/dist/js/productionLibrary
-          npm publish --access public
+          NAME=$(node -p "require('./package.json').name")
+          VER=$(node -p "require('./package.json').version")
+          if npm view "$NAME@$VER" version >/dev/null 2>&1; then
+            echo "$NAME@$VER already on npm - skipping"
+          else
+            npm publish --access public
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
