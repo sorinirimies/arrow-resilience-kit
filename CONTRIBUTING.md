@@ -20,6 +20,9 @@ just lint           # detekt
 just check-all      # lint + build + test
 just doc            # generate Dokka docs
 just test-nu        # nushell script tests
+just coverage       # JVM coverage report; CI fails below 85% lines
+just api-check      # public API vs. the api/ dump
+just api-dump       # update api/ after an intended API change (commit it)
 ```
 
 ## Code Style

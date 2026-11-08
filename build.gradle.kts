@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.dokka)
     alias(libs.plugins.detekt)
+    alias(libs.plugins.kover)
     `maven-publish`
     signing
 }
@@ -69,6 +70,18 @@ detekt {
     )
 }
 
+// JVM test coverage (Kover). `check` runs koverVerify: line coverage below the
+// floor fails the build. Raise the floor as coverage improves (was 87.8%).
+kover {
+    reports {
+        verify {
+            rule("Minimum line coverage") {
+                minBound(85)
+            }
+        }
+    }
+}
+
 tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
     reports {
         html.required.set(true)
@@ -80,6 +93,11 @@ tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
 
 kotlin {
     jvmToolchain(17)
+
+    // Public API dump (api/) checked by `check`: an unintended binary-incompatible
+    // change fails CI. After an intended API change run `./gradlew updateKotlinAbi`.
+    @OptIn(org.jetbrains.kotlin.gradle.dsl.abi.ExperimentalAbiValidation::class)
+    abiValidation()
 
     compilerOptions {
         optIn.add("kotlin.time.ExperimentalTime")

@@ -93,6 +93,18 @@ build-release:
 test:
     ./gradlew jvmTest --no-daemon
 
+# JVM coverage report (HTML in build/reports/kover/html) + floor check
+coverage:
+    ./gradlew koverHtmlReport koverVerify koverLog --no-daemon
+
+# Check the public API against api/ (fails on unintended ABI changes)
+api-check:
+    ./gradlew checkKotlinAbi --no-daemon
+
+# Update api/ after an intended public API change
+api-dump:
+    ./gradlew updateKotlinAbi --no-daemon
+
 # Run all platform tests
 test-all:
     ./gradlew allTests --no-daemon
