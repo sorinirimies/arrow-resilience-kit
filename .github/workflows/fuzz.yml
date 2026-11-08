@@ -47,7 +47,7 @@ jobs:
           if [ -n "$SEED" ]; then nu scripts/fuzz.nu --iters "$ITERS" --seed "$SEED"; else nu scripts/fuzz.nu --iters "$ITERS"; fi
       - name: Upload test reports
         if: failure()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: fuzz-reports
           path: build/reports/tests/
