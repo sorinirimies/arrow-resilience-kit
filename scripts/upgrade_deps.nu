@@ -92,7 +92,7 @@ export def has-changes []: nothing -> bool {
     not ($diff.stdout | str trim | is-empty)
 }
 
-# gradle/actions/wrapper-validation@v3's `allow-checksums` is pinned to the
+# gradle/actions/wrapper-validation's `allow-checksums` is pinned to the
 # sha256 of the gradle-wrapper.jar actually committed in this repo (see the
 # comment above each `allow-checksums:` line) -- every time this script
 # regenerates that jar, the pin goes stale until updated here too, otherwise

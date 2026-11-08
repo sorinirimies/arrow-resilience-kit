@@ -18,6 +18,11 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    ignore:
+      # Deliberately pinned to the 2.2 line (consumer compatibility), same as
+      # CATALOG_POLICY in scripts/upgrade_deps.nu: patch bumps only.
+      - dependency-name: "org.jetbrains.kotlin:kotlin-stdlib"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
     groups:
       gradle:
         update-types: [minor, patch]
