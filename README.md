@@ -3,7 +3,7 @@
 [![CI](https://github.com/sorinirimies/arrow-resilience-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/sorinirimies/arrow-resilience-kit/actions/workflows/ci.yml)
 [![Security](https://github.com/sorinirimies/arrow-resilience-kit/actions/workflows/security.yml/badge.svg)](https://github.com/sorinirimies/arrow-resilience-kit/actions/workflows/security.yml)
 [![Fuzz](https://github.com/sorinirimies/arrow-resilience-kit/actions/workflows/fuzz.yml/badge.svg)](https://github.com/sorinirimies/arrow-resilience-kit/actions/workflows/fuzz.yml)
-[![Release](https://img.shields.io/github/v/release/sorinirimies/arrow-resilience-kit)](https://github.com/sorinirimies/arrow-resilience-kit/releases)
+[![Release](https://img.shields.io/github/v/release/sorinirimies/arrow-resilience-kit)](https://github.com/sorinirimies/arrow-resilience-kit/releases/latest)
 [![Maven Central](https://img.shields.io/maven-metadata/v?metadataUrl=https%3A%2F%2Frepo1.maven.org%2Fmaven2%2Fio%2Fgithub%2Fsorinirimies%2Farrow%2Farrow-resilience-kit%2Fmaven-metadata.xml&label=Maven%20Central)](https://central.sonatype.com/artifact/io.github.sorinirimies.arrow/arrow-resilience-kit)
 [![npm](https://img.shields.io/npm/v/arrow-resilience-kit?label=npm)](https://www.npmjs.com/package/arrow-resilience-kit)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
