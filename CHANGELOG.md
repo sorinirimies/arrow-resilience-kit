@@ -2,6 +2,40 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.11.0](https://github.com/sorinirimies/arrow-resilience-kit/releases/tag/0.11.0) - 2026-11-08
+
+### 🐛 Bug Fixes
+
+- **ci:** nightly upgrade must not push .github workflow edits with GITHUB_TOKEN ([658edc1](https://github.com/sorinirimies/arrow-resilience-kit/commit/658edc1be5512853f71150c4772c83aa9d19a18d))
+
+### 📚 Documentation
+
+- **readme:** add Swift, security, fuzz, release, KMP and docs badges ([1b4066b](https://github.com/sorinirimies/arrow-resilience-kit/commit/1b4066beda81a9cda76d4a96a55f61da3eea7ee4))
+- read Maven Central badge from repo1 metadata (reliable) ([dcff024](https://github.com/sorinirimies/arrow-resilience-kit/commit/dcff02423134ad9b22dbbff6cd96188df2055488))
+- link Release badge to releases/latest ([c31454c](https://github.com/sorinirimies/arrow-resilience-kit/commit/c31454c43f299ad3570ce445ae19c2125aea4cc1))
+- self-host badges (docs/badges) generated on release ([c70f274](https://github.com/sorinirimies/arrow-resilience-kit/commit/c70f27416fe5cdada2e55f8731f3cbd74d1c1676))
+
+### 📦 Build
+
+- ABI validation (api/) and Kover coverage floor ([aa4f9a6](https://github.com/sorinirimies/arrow-resilience-kit/commit/aa4f9a6b30c694bd3f194fd58d7e52c937895432))
+- bump org.springframework.boot:spring-boot-autoconfigure (#8) ([b6f1982](https://github.com/sorinirimies/arrow-resilience-kit/commit/b6f198283c9b91ced7c4361aa719b299abd93f11))
+- bump io.lettuce:lettuce-core from 6.9.0.RELEASE to 7.9.0.RELEASE (#9) ([a952dd2](https://github.com/sorinirimies/arrow-resilience-kit/commit/a952dd2bbb7b6ea649c8d3c8cf29cb479b5647e4))
+
+### 🔄 CI
+
+- **release:** make npm and GitHub Packages publish idempotent on re-run ([f6b3793](https://github.com/sorinirimies/arrow-resilience-kit/commit/f6b3793386b58346a7576d6fb55757200f8d3717))
+- install Nushell via cached composite action with Homebrew fallback ([84da372](https://github.com/sorinirimies/arrow-resilience-kit/commit/84da372f4936dd701ed7da24ebc1442c7bfaefb9))
+- Node 24 action majors, dependabot, auto-merge without branch protection, publish dry-run ([76c013f](https://github.com/sorinirimies/arrow-resilience-kit/commit/76c013f9e2605c50da8ca487e715b4410bdd0cc5))
+- **dependabot:** keep kotlin-stdlib on the 2.2 line ([0917864](https://github.com/sorinirimies/arrow-resilience-kit/commit/0917864b75e487f3cf90d12ded785f240d4c7bab))
+- bump actions/checkout from 6 to 7 (#1) ([944c32b](https://github.com/sorinirimies/arrow-resilience-kit/commit/944c32bbb38233872777456d65e3c066b15ec9b5))
+- bump actions/setup-node from 6 to 7 (#2) ([edf1a76](https://github.com/sorinirimies/arrow-resilience-kit/commit/edf1a76fb9222227ec4fc2b3f44410c7a440ea3f))
+- bump actions/setup-java from 5 to 6 (#3) ([9461249](https://github.com/sorinirimies/arrow-resilience-kit/commit/94612490d75045a9dd8432a122eb5ece5c90c264))
+- bump actions/upload-artifact from 6 to 7 (#4) ([70e212d](https://github.com/sorinirimies/arrow-resilience-kit/commit/70e212dfc168c51d2f818d3a57d672c6404d5444))
+- bump actions/cache from 5 to 6 (#5) ([09e4f04](https://github.com/sorinirimies/arrow-resilience-kit/commit/09e4f047930be5b3dcb74ecbfdd9c4053efd179e))
+- bump actions/cache from 5 to 6 in /.github/actions/setup-nu (#6) ([066e15b](https://github.com/sorinirimies/arrow-resilience-kit/commit/066e15b26150a5b6d80d308a583b68e89a49e188))
+
+**Full Changelog**: https://github.com/sorinirimies/arrow-resilience-kit/compare/0.10.4...0.11.0
+
 ## [0.10.4](https://github.com/sorinirimies/arrow-resilience-kit/releases/tag/0.10.4) - 2026-11-06
 
 ### 🔧 Chores
