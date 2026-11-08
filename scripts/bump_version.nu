@@ -32,6 +32,9 @@ def main [version: string] {
     $updated | save -f build.gradle.kts
     print $"✅ Updated build.gradle.kts to ($version)"
 
+    # Refresh self-hosted badges (docs/badges) so the README shows the new version
+    nu scripts/badges.nu $version
+
     # Run quality gate
     print "▸ Running quality gate..."
     nu scripts/quality_gate.nu
