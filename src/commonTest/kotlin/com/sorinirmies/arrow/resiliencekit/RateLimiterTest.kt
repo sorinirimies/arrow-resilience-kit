@@ -15,6 +15,9 @@ import kotlin.js.JsName
 import kotlin.test.Test
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.test.runCurrent
 
 class RateLimiterTest {
 
@@ -639,5 +642,22 @@ class RateLimiterTest {
 
         val stats = rateLimiter.statistics()
         stats.acceptanceRate shouldBe (2.0 / 3.0)
+    }
+
+    @JsName("regressionCancellationIsNotReportedAsRequestFailure")
+    @Test
+    fun `regression - cancellation is not reported as a request failure`() = runTest {
+        val rateLimiter = RateLimiter.create(config = RateLimiterConfig(permitsPerSecond = 10.0, burstCapacity = 10))
+        var failures = 0
+        rateLimiter.addListener(object : RateLimiterListener {
+            override fun onRequestFailed(exception: Exception) {
+                failures++
+            }
+        })
+        val job = launch { rateLimiter.execute { awaitCancellation() } }
+        runCurrent()
+        job.cancelAndJoin()
+
+        failures shouldBe 0
     }
 }
