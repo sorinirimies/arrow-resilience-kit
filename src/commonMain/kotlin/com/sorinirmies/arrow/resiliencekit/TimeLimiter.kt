@@ -5,9 +5,13 @@ package com.sorinirmies.arrow.resiliencekit
 
 import arrow.fx.stm.TVar
 import arrow.fx.stm.atomically
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
@@ -19,8 +23,8 @@ import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlin.time.Clock
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -77,24 +81,39 @@ public class TimeLimiter private constructor(
     private val timedOutCalls: TVar<Long>,
     private val failedCalls: TVar<Long>,
     private val totalTimeoutDuration: TVar<Long>,
+    private val clock: Clock,
 ) {
     private val listeners = mutableListOf<TimeLimiterListener>()
+
+    /** Result of the guarded block, telling the limiter's own timeout apart from one inside the block. */
+    private sealed interface Outcome<out T> {
+        class Completed<T>(val value: T) : Outcome<T>
+        class InnerTimeout(val cause: TimeoutCancellationException) : Outcome<Nothing>
+    }
 
     /** Factory for [TimeLimiter]. */
     public companion object {
         /**
          * Creates a new [TimeLimiter] instance.
+         *
+         * @param config timeout configuration
+         * @param clock clock used to measure call durations (inject a fake one in tests)
          */
         public suspend fun create(
             config: TimeLimiterConfig = TimeLimiterConfig(),
+            clock: Clock = Clock.System,
         ): TimeLimiter {
             val totalCalls = TVar.new(0L)
             val successfulCalls = TVar.new(0L)
             val timedOutCalls = TVar.new(0L)
             val failedCalls = TVar.new(0L)
             val totalTimeoutDuration = TVar.new(0L)
-            return TimeLimiter(config, totalCalls, successfulCalls, timedOutCalls, failedCalls, totalTimeoutDuration)
+            return TimeLimiter(config, totalCalls, successfulCalls, timedOutCalls, failedCalls, totalTimeoutDuration, clock)
         }
+
+        /** Binary-compatible overload from before the [Clock] parameter existed. */
+        @Deprecated("Kept for binary compatibility", level = DeprecationLevel.HIDDEN)
+        public suspend fun create(config: TimeLimiterConfig): TimeLimiter = create(config, Clock.System)
     }
 
     /**
@@ -133,6 +152,9 @@ public class TimeLimiter private constructor(
      * @return The result of the operation
      * @throws TimeoutCancellationException if the operation times out
      * @throws Exception if the operation fails
+     *
+     * Only this limiter's own timeout counts as a timeout. A `withTimeout` that expires inside
+     * [block] counts as a failure, and cancellation of the caller counts as neither.
      */
     public suspend fun <T> execute(
         timeout: Duration? = null,
@@ -142,46 +164,74 @@ public class TimeLimiter private constructor(
 
         atomically { totalCalls.write(totalCalls.read() + 1) }
 
-        val startTime = kotlin.time.Clock.System.now()
+        val startTime = clock.now()
 
-        return try {
-            val result = withTimeout(effectiveTimeout) {
-                block()
-            }
-
-            val durationMs = (kotlin.time.Clock.System.now() - startTime).inWholeMilliseconds
-            atomically { successfulCalls.write(successfulCalls.read() + 1) }
-            listeners.toList().forEach {
+        val outcome = try {
+            withTimeout(effectiveTimeout) {
                 try {
-                    it.onSuccess(durationMs)
-                } catch (_: Exception) {
+                    Outcome.Completed(block())
+                } catch (e: TimeoutCancellationException) {
+                    // Thrown while this scope is still active: the block's own timeout, not ours.
+                    if (currentCoroutineContext().isActive) Outcome.InnerTimeout(e) else throw e
                 }
             }
-
-            result
         } catch (e: TimeoutCancellationException) {
-            val duration = kotlin.time.Clock.System.now() - startTime
-            atomically {
-                timedOutCalls.write(timedOutCalls.read() + 1)
-                totalTimeoutDuration.write(totalTimeoutDuration.read() + duration.inWholeMilliseconds)
-            }
-            logger.warn { "Operation timed out after $effectiveTimeout" }
-            listeners.toList().forEach {
-                try {
-                    it.onTimeout(effectiveTimeout)
-                } catch (_: Exception) {
-                }
-            }
+            // The caller itself was cancelled (e.g. an enclosing withTimeout): not this limiter's timeout.
+            currentCoroutineContext().ensureActive()
+            recordTimeout(effectiveTimeout, startTime)
+            throw e
+        } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            atomically { failedCalls.write(failedCalls.read() + 1) }
-            listeners.toList().forEach {
-                try {
-                    it.onFailure(e)
-                } catch (_: Exception) {
-                }
-            }
+            recordFailure(e)
             throw e
+        }
+
+        return when (outcome) {
+            is Outcome.Completed -> {
+                recordSuccess(startTime)
+                outcome.value
+            }
+            is Outcome.InnerTimeout -> {
+                recordFailure(outcome.cause)
+                throw outcome.cause
+            }
+        }
+    }
+
+    private suspend fun recordSuccess(startTime: kotlin.time.Instant) {
+        val durationMs = (clock.now() - startTime).inWholeMilliseconds
+        atomically { successfulCalls.write(successfulCalls.read() + 1) }
+        listeners.toList().forEach {
+            try {
+                it.onSuccess(durationMs)
+            } catch (_: Exception) {
+            }
+        }
+    }
+
+    private suspend fun recordTimeout(effectiveTimeout: Duration, startTime: kotlin.time.Instant) {
+        val duration = clock.now() - startTime
+        atomically {
+            timedOutCalls.write(timedOutCalls.read() + 1)
+            totalTimeoutDuration.write(totalTimeoutDuration.read() + duration.inWholeMilliseconds)
+        }
+        logger.warn { "Operation timed out after $effectiveTimeout" }
+        listeners.toList().forEach {
+            try {
+                it.onTimeout(effectiveTimeout)
+            } catch (_: Exception) {
+            }
+        }
+    }
+
+    private suspend fun recordFailure(e: Exception) {
+        atomically { failedCalls.write(failedCalls.read() + 1) }
+        listeners.toList().forEach {
+            try {
+                it.onFailure(e)
+            } catch (_: Exception) {
+            }
         }
     }
 
@@ -201,48 +251,30 @@ public class TimeLimiter private constructor(
 
         atomically { totalCalls.write(totalCalls.read() + 1) }
 
-        val startTime = kotlin.time.Clock.System.now()
+        val startTime = clock.now()
 
-        return try {
-            val result = withTimeoutOrNull(effectiveTimeout) {
+        val result = try {
+            withTimeoutOrNull(effectiveTimeout) {
                 block()
             }
-
-            if (result != null) {
-                val durationMs = (kotlin.time.Clock.System.now() - startTime).inWholeMilliseconds
-                atomically { successfulCalls.write(successfulCalls.read() + 1) }
-                listeners.toList().forEach {
-                    try {
-                        it.onSuccess(durationMs)
-                    } catch (_: Exception) {
-                    }
-                }
-            } else {
-                val duration = kotlin.time.Clock.System.now() - startTime
-                atomically {
-                    timedOutCalls.write(timedOutCalls.read() + 1)
-                    totalTimeoutDuration.write(totalTimeoutDuration.read() + duration.inWholeMilliseconds)
-                }
-                logger.warn { "Operation timed out after $effectiveTimeout" }
-                listeners.toList().forEach {
-                    try {
-                        it.onTimeout(effectiveTimeout)
-                    } catch (_: Exception) {
-                    }
-                }
-            }
-
-            result
+        } catch (e: TimeoutCancellationException) {
+            // withTimeoutOrNull only swallows its own timeout: this one came from inside the block.
+            currentCoroutineContext().ensureActive()
+            recordFailure(e)
+            throw e
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
-            atomically { failedCalls.write(failedCalls.read() + 1) }
-            listeners.toList().forEach {
-                try {
-                    it.onFailure(e)
-                } catch (_: Exception) {
-                }
-            }
+            recordFailure(e)
             throw e
         }
+
+        if (result != null) {
+            recordSuccess(startTime)
+        } else {
+            recordTimeout(effectiveTimeout, startTime)
+        }
+        return result
     }
 
     /**

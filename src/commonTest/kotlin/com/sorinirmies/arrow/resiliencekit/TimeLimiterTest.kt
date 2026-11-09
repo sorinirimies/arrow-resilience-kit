@@ -15,6 +15,10 @@ import kotlin.js.JsName
 import kotlin.test.Test
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.withTimeout
 
 class TimeLimiterTest {
 
@@ -602,5 +606,71 @@ class TimeLimiterTest {
         )
 
         result shouldBe "fast"
+    }
+
+    @JsName("regressionCancellationIsNotCountedAsFailure")
+    @Test
+    fun `regression - cancellation is counted as neither failure nor timeout`() = runTest {
+        val limiter = TimeLimiter.create(TimeLimiterConfig(timeout = 10.seconds))
+        val job = launch { limiter.execute { awaitCancellation() } }
+        runCurrent()
+        job.cancelAndJoin()
+
+        limiter.statistics().failedCalls shouldBe 0
+        limiter.statistics().timedOutCalls shouldBe 0
+    }
+
+    @JsName("regressionInnerTimeoutIsFailureNotOwnTimeout")
+    @Test
+    fun `regression - a timeout inside the block is a failure and not the limiter's timeout`() = runTest {
+        val limiter = TimeLimiter.create(TimeLimiterConfig(timeout = 10.seconds))
+
+        shouldThrow<TimeoutCancellationException> {
+            limiter.execute { withTimeout(10.milliseconds) { awaitCancellation() } }
+        }
+
+        limiter.statistics().failedCalls shouldBe 1
+        limiter.statistics().timedOutCalls shouldBe 0
+    }
+
+    @JsName("regressionOuterTimeoutIsNotLimiterTimeout")
+    @Test
+    fun `regression - an enclosing timeout is not counted as the limiter's timeout`() = runTest {
+        val limiter = TimeLimiter.create(TimeLimiterConfig(timeout = 10.seconds))
+
+        shouldThrow<TimeoutCancellationException> {
+            withTimeout(10.milliseconds) { limiter.execute { awaitCancellation() } }
+        }
+
+        limiter.statistics().timedOutCalls shouldBe 0
+        limiter.statistics().failedCalls shouldBe 0
+    }
+
+    @JsName("ownTimeoutIsStillCountedAsTimeout")
+    @Test
+    fun `own timeout is still counted as a timeout`() = runTest {
+        val limiter = TimeLimiter.create(TimeLimiterConfig(timeout = 10.milliseconds))
+
+        shouldThrow<TimeoutCancellationException> { limiter.execute { awaitCancellation() } }
+
+        limiter.statistics().timedOutCalls shouldBe 1
+        limiter.statistics().failedCalls shouldBe 0
+    }
+
+    @JsName("injectedClockMeasuresDuration")
+    @Test
+    fun `injected clock measures call duration`() = runTest {
+        val clock = TestClock()
+        val limiter = TimeLimiter.create(TimeLimiterConfig(timeout = 10.seconds), clock)
+        var measured = -1L
+        limiter.addListener(object : TimeLimiterListener {
+            override fun onSuccess(durationMs: Long) {
+                measured = durationMs
+            }
+        })
+
+        limiter.execute { clock.advance(250.milliseconds) }
+
+        measured shouldBe 250L
     }
 }
