@@ -15,6 +15,10 @@ import kotlin.js.JsName
 import kotlin.test.Test
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.CompletableDeferred
 
 class BulkheadTest {
 
@@ -616,5 +620,40 @@ class BulkheadTest {
         }
 
         failureCaught shouldBe true
+    }
+
+    @JsName("regressionCancelledWaiterReleasesWaitingSlot")
+    @Test
+    fun `regression - cancelled waiter releases its waiting slot`() = runTest {
+        val bulkhead = Bulkhead.create(BulkheadConfig(maxConcurrentCalls = 1, maxWaitingCalls = 1))
+        val gate = CompletableDeferred<Unit>()
+        val holder = launch { bulkhead.execute { gate.await() } }
+        runCurrent()
+
+        val waiter = launch { bulkhead.execute { } }
+        runCurrent()
+        waiter.cancelAndJoin()
+
+        val next = launch { bulkhead.execute { } }
+        runCurrent()
+        gate.complete(Unit)
+        holder.join()
+        next.join()
+
+        bulkhead.statistics().rejectedCalls shouldBe 0
+        bulkhead.statistics().failedCalls shouldBe 0
+    }
+
+    @JsName("regressionCancelledCallIsNotCountedAsFailed")
+    @Test
+    fun `regression - cancelled running call is not counted as failed`() = runTest {
+        val bulkhead = Bulkhead.create(BulkheadConfig(maxConcurrentCalls = 1, maxWaitingCalls = 0))
+        val job = launch { bulkhead.execute { awaitCancellation() } }
+        runCurrent()
+        job.cancelAndJoin()
+
+        bulkhead.statistics().failedCalls shouldBe 0
+        bulkhead.activeCalls() shouldBe 0
+        bulkhead.execute { "free" } shouldBe "free"
     }
 }

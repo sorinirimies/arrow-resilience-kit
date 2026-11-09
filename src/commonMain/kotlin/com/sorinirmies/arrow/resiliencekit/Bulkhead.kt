@@ -5,7 +5,11 @@ package com.sorinirmies.arrow.resiliencekit
 
 import arrow.fx.stm.TVar
 import arrow.fx.stm.atomically
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.Serializable
 import kotlin.time.Duration
 
@@ -224,6 +228,9 @@ public class Bulkhead private constructor(
      * @return the result of the operation
      * @throws BulkheadFullException if the bulkhead is full and cannot accept the call
      * @throws BulkheadTimeoutException if waiting for a permit times out
+     *
+     * A call cancelled while waiting gives its waiting slot back; a call cancelled while running
+     * frees its permit and is not counted as failed.
      */
     public suspend fun <T> execute(block: suspend () -> T): T {
         // Check if we can accept this call (waiting queue check)
@@ -252,28 +259,33 @@ public class Bulkhead private constructor(
             throw BulkheadFullException("Bulkhead is full. Max concurrent: ${config.maxConcurrentCalls}, Max waiting: ${config.maxWaitingCalls}")
         }
 
-        // Acquire semaphore permit (with optional timeout)
-        if (config.maxWaitDuration != null) {
-            val acquired = kotlinx.coroutines.withTimeoutOrNull(config.maxWaitDuration) {
+        // Acquire semaphore permit (with optional timeout). Cancellation while waiting must give
+        // the reserved waiting slot back, or the bulkhead slowly fills with ghost waiters.
+        val acquired = try {
+            val maxWait = config.maxWaitDuration
+            if (maxWait != null) {
+                withTimeoutOrNull(maxWait) { semaphore.acquire() } != null
+            } else {
                 semaphore.acquire()
                 true
-            } ?: false
-            if (!acquired) {
-                atomically {
-                    waitingCallsVar.write(waitingCallsVar.read() - 1)
-                    totalCallsVar.write(totalCallsVar.read() + 1)
-                    rejectedCallsVar.write(rejectedCallsVar.read() + 1)
-                }
-                listeners.toList().forEach {
-                    try {
-                        it.onCallRejected()
-                    } catch (_: Exception) {
-                    }
-                }
-                throw BulkheadTimeoutException("Timeout waiting for bulkhead permit after ${config.maxWaitDuration}")
             }
-        } else {
-            semaphore.acquire()
+        } catch (e: CancellationException) {
+            withContext(NonCancellable) { atomically { waitingCallsVar.write(waitingCallsVar.read() - 1) } }
+            throw e
+        }
+        if (!acquired) {
+            atomically {
+                waitingCallsVar.write(waitingCallsVar.read() - 1)
+                totalCallsVar.write(totalCallsVar.read() + 1)
+                rejectedCallsVar.write(rejectedCallsVar.read() + 1)
+            }
+            listeners.toList().forEach {
+                try {
+                    it.onCallRejected()
+                } catch (_: Exception) {
+                }
+            }
+            throw BulkheadTimeoutException("Timeout waiting for bulkhead permit after ${config.maxWaitDuration}")
         }
 
         // Move from waiting to active
@@ -300,6 +312,8 @@ public class Bulkhead private constructor(
                 }
             }
             result
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Throwable) {
             atomically { failedCallsVar.write(failedCallsVar.read() + 1) }
             listeners.toList().forEach {
