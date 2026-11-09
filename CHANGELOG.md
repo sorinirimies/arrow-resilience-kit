@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.11.1](https://github.com/sorinirimies/arrow-resilience-kit/releases/tag/0.11.1) - 2026-11-09
+
+### 🐛 Bug Fixes
+
+- **circuit-breaker:** enforce halfOpenMaxCalls and do not count cancellation as failure ([d3fc69c](https://github.com/sorinirimies/arrow-resilience-kit/commit/d3fc69c98d0fd754909ad1991e4a3c5de98ae12d))
+- **repeat:** repeatOrElse rethrows cancellation instead of calling onError ([9138cfd](https://github.com/sorinirimies/arrow-resilience-kit/commit/9138cfd69cb24416085b977c3bd7604139070067))
+- **bulkhead:** give the waiting slot back when a waiter is cancelled ([5e124fa](https://github.com/sorinirimies/arrow-resilience-kit/commit/5e124fa79f6c16a6193a60c34f4bbcaf86ce7847))
+- **adaptive-limiter:** cancellation frees the slot without shrinking the limit ([f0e4109](https://github.com/sorinirimies/arrow-resilience-kit/commit/f0e4109afdec7f65dbaf91d80de863b66d9f2239))
+- **rate-limiter:** do not report cancellation as onRequestFailed ([71ccb90](https://github.com/sorinirimies/arrow-resilience-kit/commit/71ccb900a16568559ad46447bf58c52f76a59df8))
+- **saga:** compensate in a non-cancellable context when the caller is cancelled ([5f92f35](https://github.com/sorinirimies/arrow-resilience-kit/commit/5f92f35253b7f7adbd8fa03c6563ae53d4d4924f))
+- **time-limiter:** count only its own timeout, ignore cancellation, inject the clock ([92e4e16](https://github.com/sorinirimies/arrow-resilience-kit/commit/92e4e16f6a5bf22f0e28aef3d6e96466b0418e73))
+
+### 📚 Documentation
+
+- keep self-hosted badges in .github/badges (docs/ is regenerated on release) ([f553c00](https://github.com/sorinirimies/arrow-resilience-kit/commit/f553c00506d2536248971b3ac8777eddd911f39f))
+- Spring Boot and Redis (Lettuce) badges from the version catalog ([0518a1a](https://github.com/sorinirimies/arrow-resilience-kit/commit/0518a1a26427611a0b766017af4d17c1e40178fa))
+
+**Full Changelog**: https://github.com/sorinirimies/arrow-resilience-kit/compare/0.11.0...0.11.1
+
 ## [0.11.0](https://github.com/sorinirimies/arrow-resilience-kit/releases/tag/0.11.0) - 2026-11-08
 
 ### 🐛 Bug Fixes
