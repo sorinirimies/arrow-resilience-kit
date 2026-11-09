@@ -5,6 +5,9 @@ package com.sorinirmies.arrow.resiliencekit
 
 import arrow.fx.stm.TVar
 import arrow.fx.stm.atomically
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlin.time.Clock
 import kotlin.time.Instant
@@ -81,6 +84,7 @@ public class CircuitBreaker private constructor(
     private val failureCount: TVar<Int>,
     private val successCount: TVar<Int>,
     private val lastFailureTime: TVar<Instant?>,
+    private val halfOpenInFlight: TVar<Int>,
 ) {
     private val listeners = mutableListOf<CircuitBreakerListener>()
 
@@ -103,8 +107,11 @@ public class CircuitBreaker private constructor(
             failureCount = TVar.new(0),
             successCount = TVar.new(0),
             lastFailureTime = TVar.new(null),
+            halfOpenInFlight = TVar.new(0),
         )
     }
+
+    private enum class Admission { Closed, HalfOpen, Open, HalfOpenFull }
 
     /**
      * Adds a listener for circuit breaker state changes.
@@ -131,28 +138,54 @@ public class CircuitBreaker private constructor(
     /**
      * Executes an operation through the circuit breaker.
      *
+     * In the Half-Open state at most [CircuitBreakerConfig.halfOpenMaxCalls] trial calls run
+     * concurrently; further calls are rejected like in the Open state until a trial call finishes.
+     *
+     * Cancellation is neither a success nor a failure: a cancelled call leaves the failure and
+     * success counts unchanged, frees its Half-Open slot and rethrows the [CancellationException].
+     *
      * @param block The operation to execute
      * @return The result of the operation
-     * @throws CircuitBreakerOpenException if the circuit is open
+     * @throws CircuitBreakerOpenException if the circuit is open, or Half-Open with all trial slots in use
      * @throws Exception if the operation fails
      */
     public suspend fun <T> execute(block: suspend () -> T): T {
         checkAndUpdateState()
 
-        val currentState = atomically { state.read() }
+        val admission = atomically {
+            when (state.read()) {
+                CircuitBreakerState.Closed -> Admission.Closed
+                CircuitBreakerState.Open -> Admission.Open
+                CircuitBreakerState.HalfOpen -> {
+                    val inFlight = halfOpenInFlight.read()
+                    if (inFlight < config.halfOpenMaxCalls) {
+                        halfOpenInFlight.write(inFlight + 1)
+                        Admission.HalfOpen
+                    } else {
+                        Admission.HalfOpenFull
+                    }
+                }
+            }
+        }
 
-        return when (currentState) {
-            CircuitBreakerState.Open -> {
+        return when (admission) {
+            Admission.Closed -> executeInClosedState(block)
+            Admission.HalfOpen -> try {
+                executeInHalfOpenState(block)
+            } finally {
+                withContext(NonCancellable) {
+                    atomically { halfOpenInFlight.write((halfOpenInFlight.read() - 1).coerceAtLeast(0)) }
+                }
+            }
+            Admission.Open -> {
                 logger.debug { "Circuit breaker is OPEN, rejecting call" }
                 throw CircuitBreakerOpenException("Circuit breaker is OPEN")
             }
-
-            CircuitBreakerState.HalfOpen -> {
-                executeInHalfOpenState(block)
-            }
-
-            CircuitBreakerState.Closed -> {
-                executeInClosedState(block)
+            Admission.HalfOpenFull -> {
+                logger.debug { "Circuit breaker is HALF_OPEN with all trial calls in flight, rejecting call" }
+                throw CircuitBreakerOpenException(
+                    "Circuit breaker is HALF_OPEN and ${config.halfOpenMaxCalls} trial call(s) are already in flight",
+                )
             }
         }
     }
@@ -215,6 +248,8 @@ public class CircuitBreaker private constructor(
             val result = block()
             onSuccess()
             result
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             onFailure(e)
             throw e
@@ -226,6 +261,8 @@ public class CircuitBreaker private constructor(
             val result = block()
             onSuccessInHalfOpen()
             result
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             onFailureInHalfOpen(e)
             throw e
@@ -361,7 +398,7 @@ public class CircuitBreaker private constructor(
  * @property failureThreshold Number of consecutive failures before opening the circuit (default: 5)
  * @property resetTimeout Duration to wait before transitioning from Open to Half-Open (default: 30 seconds)
  * @property halfOpenSuccessThreshold Number of successes needed in Half-Open state to close circuit (default: 2)
- * @property halfOpenMaxCalls Maximum number of calls allowed in Half-Open state (default: 3)
+ * @property halfOpenMaxCalls Maximum number of concurrent trial calls allowed in Half-Open state (default: 3)
  */
 public data class CircuitBreakerConfig(
     public val failureThreshold: Int = 5,
@@ -435,7 +472,7 @@ public class CircuitBreakerConfigBuilder {
     /** Number of successes needed in Half-Open state to close the circuit. */
     public var halfOpenSuccessThreshold: Int = 2
 
-    /** Maximum number of calls allowed in Half-Open state. */
+    /** Maximum number of concurrent trial calls allowed in Half-Open state. */
     public var halfOpenMaxCalls: Int = 3
 
     /** Builds the [CircuitBreakerConfig] from the current builder state. */

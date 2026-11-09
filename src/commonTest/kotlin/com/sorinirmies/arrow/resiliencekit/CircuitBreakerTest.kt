@@ -10,6 +10,12 @@ import kotlin.js.JsName
 import kotlin.test.Test
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
 
 
 class CircuitBreakerTest {
@@ -469,6 +475,62 @@ class CircuitBreakerTest {
         breaker.execute { "success 1" }
         breaker.execute { "success 2" }
 
+        breaker.currentState() shouldBe CircuitBreakerState.Closed
+    }
+
+    @JsName("regressionCancellationIsNotCountedAsFailure")
+    @Test
+    fun `regression - cancellation is not counted as a failure`() = runTest {
+        val breaker = CircuitBreaker.create(CircuitBreakerConfig(failureThreshold = 1))
+
+        val job = launch { breaker.execute { awaitCancellation() } }
+        runCurrent()
+        job.cancelAndJoin()
+
+        breaker.failures() shouldBe 0
+        breaker.currentState() shouldBe CircuitBreakerState.Closed
+    }
+
+    @JsName("regressionHalfOpenMaxCallsLimitsConcurrentTrialCalls")
+    @Test
+    fun `regression - halfOpenMaxCalls limits concurrent trial calls`() = runTest {
+        val clock = TestClock()
+        val breaker = CircuitBreaker.create(
+            CircuitBreakerConfig(failureThreshold = 1, resetTimeout = 1.seconds, halfOpenSuccessThreshold = 5, halfOpenMaxCalls = 2),
+            clock,
+        )
+        runCatching { breaker.execute { error("boom") } }
+        clock.advance(2.seconds)
+
+        val gate = CompletableDeferred<Unit>()
+        val trials = List(2) { async { breaker.execute { gate.await(); "ok" } } }
+        runCurrent()
+        breaker.currentState() shouldBe CircuitBreakerState.HalfOpen
+
+        shouldThrow<CircuitBreakerOpenException> { breaker.execute { "rejected" } }
+
+        gate.complete(Unit)
+        trials.forEach { it.await() shouldBe "ok" }
+        breaker.execute { "slot freed" } shouldBe "slot freed"
+    }
+
+    @JsName("regressionCancelledHalfOpenCallFreesSlotWithoutReopening")
+    @Test
+    fun `regression - cancelled half-open call frees its slot and does not reopen`() = runTest {
+        val clock = TestClock()
+        val breaker = CircuitBreaker.create(
+            CircuitBreakerConfig(failureThreshold = 1, resetTimeout = 1.seconds, halfOpenSuccessThreshold = 1, halfOpenMaxCalls = 1),
+            clock,
+        )
+        runCatching { breaker.execute { error("boom") } }
+        clock.advance(2.seconds)
+
+        val job = launch { breaker.execute { awaitCancellation() } }
+        runCurrent()
+        job.cancelAndJoin()
+
+        breaker.currentState() shouldBe CircuitBreakerState.HalfOpen
+        breaker.execute { "trial" } shouldBe "trial"
         breaker.currentState() shouldBe CircuitBreakerState.Closed
     }
 }
