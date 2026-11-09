@@ -153,6 +153,8 @@ public class RateLimiter private constructor(
 
         return try {
             block()
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: Exception) {
             listeners.toList().forEach {
                 try {
@@ -187,6 +189,8 @@ public class RateLimiter private constructor(
 
         return try {
             block()
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: Exception) {
             listeners.toList().forEach {
                 try {
