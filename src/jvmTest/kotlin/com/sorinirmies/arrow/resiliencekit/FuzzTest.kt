@@ -4,6 +4,11 @@
 package com.sorinirmies.arrow.resiliencekit
 
 import io.kotest.matchers.shouldBe
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlin.random.Random
 import kotlin.test.Test
@@ -143,6 +148,60 @@ class FuzzTest {
                         }
                     }
                     check(breaker.failures() >= 0 && breaker.successes() >= 0) { "negative counters" }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `half-open admits at most halfOpenMaxCalls and frees slots on success and cancellation`() = runBlocking {
+        reproducible("CircuitBreaker half-open") {
+            val rnd = Random(seed)
+            run {
+                repeat(maxOf(1, iterations / 20)) {
+                    val maxCalls = 1 + rnd.nextInt(4)
+                    val clock = TestClock()
+                    val config = CircuitBreakerConfig(
+                        failureThreshold = 1,
+                        resetTimeout = 10.milliseconds,
+                        halfOpenSuccessThreshold = Int.MAX_VALUE,
+                        halfOpenMaxCalls = maxCalls,
+                    )
+                    val breaker = CircuitBreaker.create(config, clock)
+                    breaker.trip()
+                    clock.advance(20.milliseconds)
+
+                    // Two rounds: the second proves the first round gave every slot back.
+                    repeat(2) {
+                        val callers = 1 + rnd.nextInt(8)
+                        val gate = CompletableDeferred<Unit>()
+                        var running = 0
+                        var peak = 0
+                        var rejected = 0
+                        val jobs = List(callers) {
+                            launch(start = CoroutineStart.UNDISPATCHED) {
+                                try {
+                                    breaker.execute {
+                                        running++
+                                        peak = maxOf(peak, running)
+                                        try {
+                                            gate.await()
+                                        } finally {
+                                            running--
+                                        }
+                                    }
+                                } catch (_: CircuitBreakerOpenException) {
+                                    rejected++
+                                }
+                            }
+                        }
+                        check(peak == minOf(callers, maxCalls)) { "peak $peak, callers $callers, maxCalls $maxCalls" }
+                        check(rejected == callers - peak) { "rejected $rejected of $callers with peak $peak" }
+                        jobs.filter { rnd.nextBoolean() }.forEach { it.cancelAndJoin() }
+                        gate.complete(Unit)
+                        jobs.joinAll()
+                        check(breaker.currentState() == CircuitBreakerState.HalfOpen) { "left half-open: ${breaker.currentState()}" }
+                    }
                 }
             }
         }
