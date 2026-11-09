@@ -608,7 +608,8 @@ public suspend fun <R> repeatUntil(
  * @param R The return type of the suspend operation
  * @param times The number of times to repeat after initial execution (defaults to 3)
  * @param delay The delay between repetitions (defaults to 500 milliseconds)
- * @param onError Error handler that receives the exception and attempt number
+ * @param onError Error handler that receives the exception and attempt number. Cancellation is
+ *   never passed to it: a [kotlinx.coroutines.CancellationException] is rethrown.
  * @param block The suspend operation to repeat
  *
  * @return The result of the last successful execution
@@ -640,6 +641,8 @@ public suspend fun <R> repeatOrElse(
         try {
             delay(applyJitter(delay))
             result = block()
+        } catch (error: kotlinx.coroutines.CancellationException) {
+            throw error
         } catch (error: Exception) {
             logger.warn(error) { "Repeat operation failed, invoking error handler" }
             return onError(error, attempt)

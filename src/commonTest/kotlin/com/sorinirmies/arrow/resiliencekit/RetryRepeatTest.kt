@@ -14,6 +14,12 @@ import kotlin.js.JsName
 import kotlin.test.Test
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
 
 // One test class per source file, covering every retry/repeat function 1:1 - naturally large as
 // the source file grows; splitting it would fragment coverage of a single cohesive API surface.
@@ -732,5 +738,19 @@ class RetryRepeatTest {
             throw RuntimeException("fail")
         }
         result.getOrNull() shouldBe null
+    }
+
+    @JsName("regressionRepeatOrElseRethrowsCancellation")
+    @Test
+    fun `regression - repeatOrElse rethrows cancellation instead of calling onError`() = runTest {
+        var onErrorCalled = false
+        val result = async {
+            repeatOrElse(times = 3, delay = 10.seconds, onError = { _, _ -> onErrorCalled = true; -1 }) { 1 }
+        }
+        runCurrent()
+        result.cancel()
+
+        shouldThrow<CancellationException> { result.await() }
+        onErrorCalled shouldBe false
     }
 }
