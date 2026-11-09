@@ -27,6 +27,8 @@ package com.sorinirmies.arrow.resiliencekit
 import arrow.fx.stm.STM
 import arrow.fx.stm.TVar
 import arrow.fx.stm.atomically
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlin.time.Clock
 import kotlin.time.Duration
@@ -136,9 +138,12 @@ public class AdaptiveLimiter private constructor(
         }
     }
 
+    private fun STM.releaseSlot() {
+        inFlightVar.write((inFlightVar.read() - 1).coerceAtLeast(0))
+    }
+
     private fun STM.release(overloaded: Boolean) {
-        val inFlight = inFlightVar.read()
-        inFlightVar.write((inFlight - 1).coerceAtLeast(0))
+        releaseSlot()
 
         val limit = limitVar.read()
         val newLimit = if (overloaded) {
@@ -156,7 +161,11 @@ public class AdaptiveLimiter private constructor(
      *
      * @param block the operation to execute
      * @return the result of the operation
-     * @throws Throwable whatever [block] throws; a thrown exception always counts as overload
+     * Cancellation frees the slot without changing the limit: a cancelled call says nothing about
+     * downstream load.
+     *
+     * @throws Throwable whatever [block] throws; a thrown exception other than
+     *   [kotlinx.coroutines.CancellationException] counts as overload
      */
     public suspend fun <T> execute(block: suspend () -> T): T {
         atomically { acquire() }
@@ -168,6 +177,9 @@ public class AdaptiveLimiter private constructor(
             val overloaded = config.latencyThreshold != null && elapsed > config.latencyThreshold
             atomically { release(overloaded = overloaded) }
             result
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            withContext(NonCancellable) { atomically { releaseSlot() } }
+            throw e
         } catch (e: Throwable) {
             atomically { release(overloaded = true) }
             throw e
