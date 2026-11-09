@@ -15,6 +15,13 @@ import kotlin.js.JsName
 import kotlin.test.Test
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
 
 
 class SagaTest {
@@ -628,5 +635,34 @@ class SagaTest {
         first.shouldBeInstanceOf<SagaResult.Success<String>>()
         second.shouldBeInstanceOf<SagaResult.Success<String>>()
         calls shouldBe 2
+    }
+
+    @JsName("regressionCancelledSagaCompensatesThenRethrows")
+    @Test
+    fun `regression - cancelled saga compensates executed steps then rethrows`() = runTest {
+        val compensated = mutableListOf<String>()
+        val saga = saga<String> {
+            step("reserve", { "r" }, { delay(1.seconds); compensated += "reserve" })
+            step("charge", { awaitCancellation() })
+        }
+        val run = async { saga.execute() }
+        runCurrent()
+        run.cancel()
+
+        shouldThrow<CancellationException> { run.await() }
+        compensated shouldBe listOf("reserve")
+    }
+
+    @JsName("regressionStepTimeoutIsStepFailure")
+    @Test
+    fun `regression - a step's own timeout is a saga failure and not a cancellation`() = runTest {
+        val compensated = mutableListOf<String>()
+        val saga = saga<String> {
+            step("reserve", { "r" }, { compensated += "reserve" })
+            stepWithTimeout("slow", 10.milliseconds, { awaitCancellation() })
+        }
+
+        saga.execute().shouldBeInstanceOf<SagaResult.Failure<String>>()
+        compensated shouldBe listOf("reserve")
     }
 }

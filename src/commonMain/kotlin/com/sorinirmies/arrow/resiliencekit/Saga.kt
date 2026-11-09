@@ -4,8 +4,12 @@
 package com.sorinirmies.arrow.resiliencekit
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.withContext
 import arrow.fx.stm.TVar
 import arrow.fx.stm.atomically
 import kotlin.time.Clock
@@ -88,6 +92,11 @@ public class Saga<T> private constructor(
      *
      * If any step fails, automatically compensates all previously executed steps in reverse order.
      *
+     * If the calling coroutine is cancelled mid-saga, the executed steps are still compensated
+     * (in a non-cancellable context, so compensations can suspend) and the
+     * [CancellationException] is then rethrown. A [CancellationException] thrown by a step while
+     * the caller is still active (for example a step's own `withTimeout`) is a step failure.
+     *
      * @return [SagaResult] containing the final result or compensation details
      */
     public suspend fun execute(): SagaResult<T> {
@@ -120,6 +129,14 @@ public class Saga<T> private constructor(
                 executedSteps = executedSteps.size,
                 duration = duration,
             )
+        } catch (e: CancellationException) {
+            if (currentCoroutineContext().isActive) {
+                logger.error(e) { "Saga step ${executedSteps.size + 1}/${steps.size} was cancelled, starting compensation" }
+                return compensate(e, startTime)
+            }
+            logger.warn { "Saga cancelled at step ${executedSteps.size + 1}/${steps.size}, compensating before rethrow" }
+            withContext(NonCancellable) { compensate(e, startTime) }
+            throw e
         } catch (e: Exception) {
             logger.error(e) { "Saga failed at step ${executedSteps.size + 1}/${steps.size}, starting compensation" }
             return compensate(e, startTime)
