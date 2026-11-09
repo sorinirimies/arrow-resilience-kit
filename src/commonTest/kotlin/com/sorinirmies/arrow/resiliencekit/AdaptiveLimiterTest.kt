@@ -10,6 +10,10 @@ import kotlinx.coroutines.test.runTest
 import kotlin.js.JsName
 import kotlin.test.Test
 import kotlin.time.Duration.Companion.milliseconds
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runCurrent
 
 class AdaptiveLimiterTest {
 
@@ -169,5 +173,18 @@ class AdaptiveLimiterTest {
         stats.keys shouldBe setOf("a", "b")
         stats.getValue("a").currentLimit shouldBe 10
         stats.getValue("b").currentLimit shouldBe 20
+    }
+
+    @JsName("regressionCancellationDoesNotShrinkLimit")
+    @Test
+    fun `regression - cancellation frees the slot without shrinking the limit`() = runTest {
+        val limiter = AdaptiveLimiter.create(AdaptiveLimiterConfig(initialLimit = 20))
+        val job = launch { limiter.execute { awaitCancellation() } }
+        runCurrent()
+        job.cancelAndJoin()
+
+        limiter.currentLimit() shouldBe 20
+        limiter.statistics().inFlight shouldBe 0
+        limiter.statistics().overloadEvents shouldBe 0
     }
 }
