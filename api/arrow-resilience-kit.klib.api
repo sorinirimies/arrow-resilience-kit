@@ -1481,7 +1481,8 @@ final class com.sorinirmies.arrow.resiliencekit/TimeLimiter { // com.sorinirmies
     final suspend fun statistics(): com.sorinirmies.arrow.resiliencekit/TimeLimiterStatistics // com.sorinirmies.arrow.resiliencekit/TimeLimiter.statistics|statistics(){}[0]
 
     final object Companion { // com.sorinirmies.arrow.resiliencekit/TimeLimiter.Companion|null[0]
-        final suspend fun create(com.sorinirmies.arrow.resiliencekit/TimeLimiterConfig = ...): com.sorinirmies.arrow.resiliencekit/TimeLimiter // com.sorinirmies.arrow.resiliencekit/TimeLimiter.Companion.create|create(com.sorinirmies.arrow.resiliencekit.TimeLimiterConfig){}[0]
+        final suspend fun create(com.sorinirmies.arrow.resiliencekit/TimeLimiterConfig = ..., kotlin.time/Clock = ...): com.sorinirmies.arrow.resiliencekit/TimeLimiter // com.sorinirmies.arrow.resiliencekit/TimeLimiter.Companion.create|create(com.sorinirmies.arrow.resiliencekit.TimeLimiterConfig;kotlin.time.Clock){}[0]
+        final suspend fun create(com.sorinirmies.arrow.resiliencekit/TimeLimiterConfig): com.sorinirmies.arrow.resiliencekit/TimeLimiter // com.sorinirmies.arrow.resiliencekit/TimeLimiter.Companion.create|create(com.sorinirmies.arrow.resiliencekit.TimeLimiterConfig){}[0]
     }
 }
 
